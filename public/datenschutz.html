@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datenschutzerklärung — FlowValu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #08080a; --surface: #101013;
+    --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.16);
+    --ink: #ededf1; --muted: #8b8b95; --accent-2: #4c8dff;
+  }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; letter-spacing:-0.01em; }
+  .wrap{ max-width:680px; margin:0 auto; padding:60px 24px 80px; }
+  a{ color:var(--accent-2); }
+  h1{ font-size:28px; font-weight:600; margin-bottom:6px; }
+  .back{ font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); text-decoration:none; }
+  h2{ font-size:16px; font-weight:600; margin:32px 0 8px; }
+  h3{ font-size:14.5px; font-weight:600; margin:20px 0 6px; color:var(--ink); }
+  p, li{ font-size:14.5px; line-height:1.7; color:var(--muted); }
+  .placeholder{ background:rgba(76,141,255,0.12); border:1px dashed var(--accent-2); border-radius:6px; padding:2px 6px; color:var(--ink); font-family:'JetBrains Mono', monospace; font-size:13px; }
+  .note{ background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; padding:18px 20px; margin-bottom:30px; }
+  .note p{ color:var(--ink); font-size:13.5px; margin:0; }
+  .warn{ background:rgba(255,138,128,0.08); border:1px solid rgba(255,138,128,0.35); border-radius:12px; padding:18px 20px; margin:20px 0; }
+  .warn p{ color:#ffb3ab; font-size:13.5px; margin:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Zurück zu FlowValu</a>
+  <h1>Datenschutzerklärung</h1>
+
+  <div class="note">
+    <p><strong>Hinweis:</strong> Diese Vorlage ist auf die tatsächlich in FlowValu gespeicherten Daten abgestimmt, ersetzt aber keine rechtliche Prüfung. Bitte <span class="placeholder">[...]</span>-Felder ausfüllen und vor dem öffentlichen Betrieb prüfen lassen.</p>
+  </div>
+
+  <h2>1. Verantwortlicher</h2>
+  <p>
+    [DEIN VOR- UND NACHNAME]<br>
+    [DEINE ANSCHRIFT]<br>
+    E-Mail: [DEINE-EMAIL@BEISPIEL.DE]
+  </p>
+
+  <h2>2. Welche Daten wir speichern</h2>
+  <h3>Bei der Registrierung</h3>
+  <ul>
+    <li>E-Mail-Adresse</li>
+    <li>Passwort (wird nicht im Klartext gespeichert, sondern verschlüsselt/gehasht)</li>
+  </ul>
+  <h3>Bei der Nutzung</h3>
+  <ul>
+    <li>Kurzbeschreibung deines Anliegens ("Woran hängst du gerade?") — wird nur während des aktiven Matchings verwendet, nicht dauerhaft gespeichert</li>
+    <li>Chat-Nachrichten während eines Matches — werden nur live durchgereicht, nicht auf dem Server gespeichert</li>
+    <li>Bei Video-Calls: Kamera- und Mikrofondaten laufen direkt zwischen den beiden Nutzern (Peer-to-Peer) und werden zu keinem Zeitpunkt auf unserem Server gespeichert oder von uns eingesehen</li>
+    <li>Falls du jemanden meldest: die Meldung mit Grund, Zeitpunkt und den E-Mail-Adressen beider Beteiligten (zur Missbrauchsprävention)</li>
+  </ul>
+  <h3>Technisch, automatisch</h3>
+  <ul>
+    <li>IP-Adresse und übliche Server-Log-Daten (durch unseren Hosting-Anbieter, siehe Punkt 5)</li>
+    <li>Ein Session-Cookie, damit du eingeloggt bleibst</li>
+  </ul>
+
+  <h2>3. Zweck der Datenverarbeitung</h2>
+  <p>Wir verarbeiten diese Daten, um dir die Registrierung, das Matching, den Chat, Video-Calls und das Melde-System anbieten zu können — also zur Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1 lit. b DSGVO).</p>
+
+  <h2>4. Speicherdauer</h2>
+  <p>Konto-Daten (E-Mail, Passwort) speichern wir, solange dein Konto besteht. Du kannst jederzeit die Löschung deines Kontos anfragen unter [DEINE-EMAIL@BEISPIEL.DE]. Meldungen werden zur Missbrauchsprävention auch nach einer Kontolöschung für einen angemessenen Zeitraum aufbewahrt.</p>
+
+  <div class="warn">
+    <p><strong>Technischer Hinweis für dich als Betreiber:</strong> Aktuell liegen Nutzerdaten in einfachen Dateien auf dem Server, die bei einem Neustart verloren gehen können (siehe README der App). Sobald das durch eine echte Datenbank ersetzt wird, diesen Absatz entsprechend anpassen.</p>
+  </div>
+
+  <h2>5. Hosting</h2>
+  <p>
+    Diese Anwendung wird bei Render Services, Inc. (USA) gehostet. Aktuell läuft der Server in einem Rechenzentrum in den USA. Das bedeutet, dass Daten außerhalb der EU verarbeitet werden können. Render verpflichtet sich vertraglich (Standardvertragsklauseln) zu einem angemessenen Datenschutzniveau. Weitere Informationen: <a href="https://render.com/privacy" target="_blank" rel="noopener">render.com/privacy</a>.
+  </p>
+  <p><em>Empfehlung: Falls möglich, den Server-Standort auf eine EU-Region (z. B. Frankfurt) umstellen, um diesen Punkt zu vereinfachen.</em></p>
+
+  <h2>6. Deine Rechte</h2>
+  <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung deiner Daten sowie auf Datenübertragbarkeit. Wende dich dazu an [DEINE-EMAIL@BEISPIEL.DE]. Außerdem hast du das Recht, dich bei einer Datenschutzaufsichtsbehörde zu beschweren.</p>
+
+  <h2>7. Cookies</h2>
+  <p>Wir verwenden ein technisch notwendiges Session-Cookie, damit du nach dem Login eingeloggt bleibst. Es dient keinen Marketing- oder Tracking-Zwecken.</p>
+</div>
+</body>
+</html>

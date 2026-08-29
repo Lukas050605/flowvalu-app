@@ -96,6 +96,58 @@
   .auth-switch{ text-align:center; font-size:13px; color:var(--muted); margin-top:14px; }
   .auth-switch a{ color:var(--accent-2); cursor:pointer; }
   .logout-link{ text-align:right; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); margin-bottom:14px; cursor:pointer; }
+  .top-links{ display:flex; justify-content:space-between; margin-bottom:14px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+  .top-links span{ cursor:pointer; }
+  .top-links span:hover{ color:var(--ink); }
+
+  /* ---- profile edit ---- */
+  .avatar-picker{ display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+  .avatar-preview{
+    width:64px; height:64px; border-radius:50%; object-fit:cover;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:22px;
+    border:1px solid var(--border-strong);
+  }
+  .avatar-preview img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+  .file-btn{
+    font-family:'JetBrains Mono', monospace; font-size:12px; border:1px solid var(--border-strong);
+    border-radius:9px; padding:8px 14px; cursor:pointer; color:var(--ink); background:var(--surface-2);
+  }
+
+  /* ---- history ---- */
+  .history-list{ display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; margin-bottom:8px; }
+  .history-item{
+    display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--border-strong);
+    border-radius:12px; background:var(--surface-2);
+  }
+  .history-avatar{
+    width:40px; height:40px; border-radius:50%; flex-shrink:0; object-fit:cover;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:15px;
+  }
+  .history-avatar img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+  .history-info{ flex:1; min-width:0; }
+  .history-name{ font-weight:600; font-size:13.5px; }
+  .history-topic{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .history-meta{ font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--muted); margin-top:2px; }
+  .reconnect-btn{
+    font-family:'JetBrains Mono', monospace; font-size:11px; border:1px solid var(--border-strong);
+    border-radius:8px; padding:7px 10px; background:var(--bg); color:var(--ink); cursor:pointer; flex-shrink:0;
+  }
+  .reconnect-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .empty-history{ text-align:center; color:var(--muted); font-size:13.5px; padding:30px 0; }
+
+  /* ---- invite popup ---- */
+  .invite-toast{
+    position:fixed; top:20px; left:50%; transform:translateX(-50%);
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:12px;
+    padding:16px 18px; z-index:70; display:none; max-width:320px; box-shadow:0 12px 30px rgba(0,0,0,0.4);
+  }
+  .invite-toast.active{ display:block; }
+  .invite-toast .row{ display:flex; gap:8px; margin-top:12px; }
+  .invite-toast button{ flex:1; font-size:12.5px; padding:8px; border-radius:8px; border:1px solid var(--border-strong); cursor:pointer; font-family:'Inter',sans-serif; font-weight:600; }
+  .invite-toast .accept{ background:var(--accent-2); color:#fff; border:none; }
+  .invite-toast .decline{ background:transparent; color:var(--muted); }
 
   /* ---- report overlay ---- */
   .report-overlay{
@@ -144,11 +196,16 @@
     <div class="field-error" id="auth-error"></div>
     <button class="btn" id="auth-submit-btn">Anmelden</button>
     <p class="auth-switch">Noch kein Konto? <a id="auth-switch-link">Registrieren</a></p>
+    <p class="fineprint" style="margin-top:22px;"><a href="/impressum.html" target="_blank" style="color:var(--muted);">Impressum</a> · <a href="/datenschutz.html" target="_blank" style="color:var(--muted);">Datenschutz</a></p>
   </section>
 
   <!-- PROFILE -->
   <section class="screen" id="screen-profile">
-    <div class="logout-link" id="logout-link">Ausloggen</div>
+    <div class="top-links">
+      <span id="edit-profile-link">👤 Profil</span>
+      <span id="history-link">🕓 Verlauf</span>
+      <span id="logout-link">Ausloggen</span>
+    </div>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
     <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
@@ -170,6 +227,33 @@
     </div>
 
     <button class="btn" id="start-btn">Los geht's →</button>
+  </section>
+
+  <!-- PROFILE EDIT -->
+  <section class="screen" id="screen-profile-edit">
+    <p class="eyebrow">Dein Profil</p>
+    <h2>So siehst du für andere aus</h2>
+    <div class="avatar-picker">
+      <div class="avatar-preview" id="avatar-preview">?</div>
+      <div>
+        <input type="file" id="avatar-input" accept="image/*" style="display:none;">
+        <button class="file-btn" id="avatar-pick-btn">Bild wählen</button>
+      </div>
+    </div>
+    <label class="field-label">Anzeigename</label>
+    <input type="text" id="display-name-input" placeholder="z. B. Lea" maxlength="40" style="margin-bottom:20px;">
+    <div class="field-error" id="profile-error"></div>
+    <button class="btn btn-primary" id="save-profile-btn">Speichern</button>
+    <button class="btn btn-ghost" id="back-from-profile-btn">Zurück</button>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="screen" id="screen-history">
+    <p class="eyebrow">Verlauf</p>
+    <h2>Wen du zuletzt getroffen hast</h2>
+    <div class="history-list" id="history-list"></div>
+    <div class="empty-history" id="empty-history" style="display:none;">Noch keine Matches — leg direkt los!</div>
+    <button class="btn btn-ghost" id="back-from-history-btn">Zurück</button>
   </section>
 
   <!-- QUEUE -->
@@ -213,6 +297,15 @@
     <div class="call-controls">
       <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
     </div>
+  </div>
+</div>
+
+<!-- INVITE TOAST -->
+<div class="invite-toast" id="invite-toast">
+  <p style="margin:0; font-size:14px;"><strong id="invite-from-name">Jemand</strong> möchte sich nochmal mit dir verbinden.</p>
+  <div class="row">
+    <button class="accept" id="invite-accept-btn">Annehmen</button>
+    <button class="decline" id="invite-decline-btn">Ablehnen</button>
   </div>
 </div>
 
@@ -302,6 +395,153 @@ socket.on('you_are_banned', () => {
   show('screen-auth');
 });
 
+/* ---------- Profil bearbeiten ---------- */
+let currentAvatarDataUrl = null;
+
+document.getElementById('edit-profile-link').addEventListener('click', async () => {
+  const res = await fetch('/api/profile');
+  const data = await res.json();
+  document.getElementById('display-name-input').value = data.displayName || '';
+  currentAvatarDataUrl = data.avatarDataUrl || null;
+  renderAvatarPreview();
+  document.getElementById('profile-error').textContent = '';
+  show('screen-profile-edit');
+});
+
+document.getElementById('back-from-profile-btn').addEventListener('click', () => show('screen-profile'));
+
+document.getElementById('avatar-pick-btn').addEventListener('click', () => {
+  document.getElementById('avatar-input').click();
+});
+
+document.getElementById('avatar-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = (ev) => { img.src = ev.target.result; };
+  img.onload = () => {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.max(size / img.width, size / img.height);
+    const w = img.width * scale, h = img.height * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    currentAvatarDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    renderAvatarPreview();
+  };
+  reader.readAsDataURL(file);
+});
+
+function renderAvatarPreview(){
+  const el = document.getElementById('avatar-preview');
+  if(currentAvatarDataUrl){
+    el.innerHTML = '<img src="' + currentAvatarDataUrl + '">';
+  } else {
+    el.textContent = (document.getElementById('display-name-input').value || '?')[0].toUpperCase();
+  }
+}
+
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
+  const displayName = document.getElementById('display-name-input').value.trim();
+  const errEl = document.getElementById('profile-error');
+  errEl.textContent = '';
+  try{
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
+    show('screen-profile');
+  } catch(err){
+    errEl.textContent = 'Verbindung fehlgeschlagen.';
+  }
+});
+
+/* ---------- Verlauf ---------- */
+document.getElementById('history-link').addEventListener('click', async () => {
+  const res = await fetch('/api/history');
+  const data = await res.json();
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('empty-history');
+  list.innerHTML = '';
+
+  if(!data.history || !data.history.length){
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    data.history.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const avatarHtml = item.partnerAvatar
+        ? '<img src="' + item.partnerAvatar + '">'
+        : (item.partnerDisplayName || '?')[0].toUpperCase();
+      const date = new Date(item.startedAt).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+      div.innerHTML =
+        '<div class="history-avatar">' + avatarHtml + '</div>' +
+        '<div class="history-info">' +
+          '<div class="history-name">' + escapeHtml(item.partnerDisplayName) + '</div>' +
+          '<div class="history-topic">' + escapeHtml(item.topic || '') + '</div>' +
+          '<div class="history-meta">' + date + (item.hadCall ? ' · 📹 Call' : '') + (item.online ? ' · 🟢 online' : ' · offline') + '</div>' +
+        '</div>' +
+        '<button class="reconnect-btn" data-email="' + item.partnerEmail + '"' + (item.online ? '' : ' disabled') + '>🤝 Nochmal</button>';
+      list.appendChild(div);
+    });
+
+    document.querySelectorAll('.reconnect-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        btn.textContent = 'Anfrage läuft …';
+        socket.emit('invite_partner', { email: btn.dataset.email });
+      });
+    });
+  }
+  show('screen-history');
+});
+
+document.getElementById('back-from-history-btn').addEventListener('click', () => show('screen-profile'));
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+/* ---------- Einladungen ("Nochmal connecten") ---------- */
+let pendingInviteFrom = null;
+
+socket.on('invite_received', (data) => {
+  pendingInviteFrom = data.fromEmail;
+  document.getElementById('invite-from-name').textContent = data.fromDisplay.displayName;
+  document.getElementById('invite-toast').classList.add('active');
+});
+
+document.getElementById('invite-accept-btn').addEventListener('click', () => {
+  if(!pendingInviteFrom) return;
+  socket.emit('accept_invite', { fromEmail: pendingInviteFrom });
+  document.getElementById('invite-toast').classList.remove('active');
+  pendingInviteFrom = null;
+});
+
+document.getElementById('invite-decline-btn').addEventListener('click', () => {
+  if(!pendingInviteFrom) return;
+  socket.emit('decline_invite', { fromEmail: pendingInviteFrom });
+  document.getElementById('invite-toast').classList.remove('active');
+  pendingInviteFrom = null;
+});
+
+socket.on('invite_failed', (data) => {
+  const reasonText = { offline: 'Person ist gerade nicht online.', busy: 'Person ist gerade in einem anderen Chat.', expired: 'Die Anfrage ist abgelaufen.' }[data.reason] || 'Anfrage fehlgeschlagen.';
+  document.querySelectorAll('.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = reasonText; } });
+});
+
+socket.on('invite_declined', () => {
+  document.querySelectorAll('.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = 'Abgelehnt'; } });
+});
+
 /* ---------- restliche App-Logik ---------- */
 
 let selectedChips = [];
@@ -349,8 +589,14 @@ socket.on('waiting', (data) => {
 socket.on('matched', (data) => {
   currentRoom = data.roomId;
   const p = data.partnerProfile || {};
-  document.getElementById('partner-avatar').textContent = (p.topic || 'F')[0];
-  document.getElementById('partner-hangup').textContent = p.hangup || 'Jemand Neues';
+  const display = data.partnerDisplay || {};
+  const avatarEl = document.getElementById('partner-avatar');
+  if(display.avatarDataUrl){
+    avatarEl.innerHTML = '<img src="' + display.avatarDataUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+  } else {
+    avatarEl.textContent = ((display.displayName || p.topic || 'F')[0]).toUpperCase();
+  }
+  document.getElementById('partner-hangup').textContent = display.displayName ? display.displayName + ' — ' + (p.hangup || '') : (p.hangup || 'Jemand Neues');
   document.getElementById('partner-tag').textContent = (p.topic || 'Zufällig') + ' · gerade gematcht';
   document.getElementById('chat-log').innerHTML = '';
   addBubble('sys', 'Ihr seid verbunden. Eisbrecher: Wer hat sowas Ähnliches schon gelöst?');

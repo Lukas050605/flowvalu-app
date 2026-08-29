@@ -77,12 +77,103 @@ app.get('/api/me', (req, res) => {
   res.json({ user: req.session.user || null });
 });
 
+/* ---------------- Profil-Routen ---------------- */
+
+app.get('/api/profile', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const user = store.findUserByEmail(req.session.user.email);
+  res.json({
+    displayName: user.displayName || '',
+    avatarDataUrl: user.avatarDataUrl || null
+  });
+});
+
+app.post('/api/profile', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { displayName, avatarDataUrl } = req.body || {};
+
+  if (displayName !== undefined && String(displayName).length > 40) {
+    return res.status(400).json({ error: 'Anzeigename darf höchstens 40 Zeichen haben.' });
+  }
+  if (avatarDataUrl && (typeof avatarDataUrl !== 'string' || !avatarDataUrl.startsWith('data:image/') || avatarDataUrl.length > 400000)) {
+    return res.status(400).json({ error: 'Ungültiges Bild oder Bild zu groß.' });
+  }
+
+  const users = store.readUsers();
+  const user = users.find(u => u.email === req.session.user.email);
+  if (!user) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+
+  if (displayName !== undefined) user.displayName = String(displayName).trim();
+  if (avatarDataUrl !== undefined) user.avatarDataUrl = avatarDataUrl;
+
+  store.writeUsers(users);
+  res.json({ ok: true });
+});
+
+/* ---------------- Verlauf-Route ---------------- */
+
+app.get('/api/history', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const myEmail = req.session.user.email;
+  const matches = store.readMatches();
+
+  const mine = matches
+    .filter(m => m.userAEmail === myEmail || m.userBEmail === myEmail)
+    .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
+    .slice(0, 30)
+    .map(m => {
+      const partnerEmail = m.userAEmail === myEmail ? m.userBEmail : m.userAEmail;
+      const partnerTopic = m.userAEmail === myEmail ? m.userBTopic : m.userATopic;
+      const partnerProfile = store.getPublicProfile(partnerEmail);
+      return {
+        partnerEmail,
+        partnerDisplayName: partnerProfile.displayName,
+        partnerAvatar: partnerProfile.avatarDataUrl,
+        topic: partnerTopic,
+        hadCall: m.hadCall,
+        startedAt: m.startedAt,
+        online: !!userSockets[partnerEmail]
+      };
+    });
+
+  res.json({ history: mine });
+});
+
 /* ---------------- Matching, Chat, Call, Melden ---------------- */
 
 let waiting = [];           // [{ socketId, profile, email }]
 let rooms = {};             // roomId -> [socketIdA, socketIdB]
 let callRequests = {};      // roomId -> Set(socketId)
-let userSockets = {};       // email -> socketId (für Melden/Sperren)
+let userSockets = {};       // email -> socketId (für Melden/Sperren/Verlauf)
+let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall nachzutragen)
+
+function logMatch(emailA, emailB, profileA, profileB, roomId) {
+  const matches = store.readMatches();
+  const entry = {
+    id: crypto.randomUUID(),
+    roomId,
+    userAEmail: emailA,
+    userBEmail: emailB,
+    userATopic: profileA.hangup || '',
+    userBTopic: profileB.hangup || '',
+    hadCall: false,
+    startedAt: new Date().toISOString()
+  };
+  matches.push(entry);
+  store.writeMatches(matches);
+  roomToMatchId[roomId] = entry.id;
+}
+
+function markCallHappened(roomId) {
+  const matchId = roomToMatchId[roomId];
+  if (!matchId) return;
+  const matches = store.readMatches();
+  const entry = matches.find(m => m.id === matchId);
+  if (entry) {
+    entry.hadCall = true;
+    store.writeMatches(matches);
+  }
+}
 
 function findPartnerIndex(profile) {
   if (profile.mode === 'thema' && profile.topic) {
@@ -107,6 +198,7 @@ io.on('connection', (socket) => {
 
   socket.on('join_queue', (profile) => {
     profile = profile || {};
+    socket.data.lastProfile = profile;
     const idx = findPartnerIndex(profile);
 
     if (idx !== -1) {
@@ -121,9 +213,17 @@ io.on('connection', (socket) => {
       socket.data.roomId = roomId;
       if (partnerSocket) partnerSocket.data.roomId = roomId;
 
-      socket.emit('matched', { roomId, partnerProfile: partner.profile, youAre: 'b' });
+      logMatch(partner.email, socket.data.email, partner.profile, profile, roomId);
+
+      socket.emit('matched', {
+        roomId, partnerProfile: partner.profile, youAre: 'b',
+        partnerDisplay: store.getPublicProfile(partner.email)
+      });
       if (partnerSocket) {
-        partnerSocket.emit('matched', { roomId, partnerProfile: profile, youAre: 'a' });
+        partnerSocket.emit('matched', {
+          roomId, partnerProfile: profile, youAre: 'a',
+          partnerDisplay: store.getPublicProfile(socket.data.email)
+        });
       }
     } else {
       waiting.push({ socketId: socket.id, profile, email: socket.data.email });
@@ -146,6 +246,7 @@ io.on('connection', (socket) => {
 
     if (bothReady) {
       delete callRequests[roomId];
+      markCallHappened(roomId);
       members.forEach((id) => {
         const isOfferer = id === members[0];
         io.to(id).emit('start_call', { isOfferer });
@@ -198,6 +299,71 @@ io.on('connection', (socket) => {
     store.writeUsers(users);
 
     socket.emit('report_submitted');
+  });
+
+  /* -------- Direkt-Einladung aus dem Verlauf ("Nochmal connecten") -------- */
+  socket.on('invite_partner', ({ email }) => {
+    const targetSocketId = userSockets[email];
+    const targetSocket = targetSocketId && io.sockets.sockets.get(targetSocketId);
+
+    if (!targetSocket) {
+      socket.emit('invite_failed', { reason: 'offline' });
+      return;
+    }
+    if (targetSocket.data.roomId) {
+      socket.emit('invite_failed', { reason: 'busy' });
+      return;
+    }
+
+    waiting = waiting.filter(w => w.socketId !== targetSocketId); // aus Warteschlange holen, falls dort
+    socket.data.pendingInviteTo = email;
+    targetSocket.emit('invite_received', {
+      fromEmail: socket.data.email,
+      fromDisplay: store.getPublicProfile(socket.data.email)
+    });
+  });
+
+  socket.on('accept_invite', ({ fromEmail }) => {
+    const inviterSocketId = userSockets[fromEmail];
+    const inviterSocket = inviterSocketId && io.sockets.sockets.get(inviterSocketId);
+
+    if (!inviterSocket || inviterSocket.data.pendingInviteTo !== socket.data.email) {
+      socket.emit('invite_failed', { reason: 'expired' });
+      return;
+    }
+
+    waiting = waiting.filter(w => w.socketId !== socket.id);
+    inviterSocket.data.pendingInviteTo = null;
+
+    const roomId = crypto.randomUUID();
+    rooms[roomId] = [inviterSocket.id, socket.id];
+    inviterSocket.join(roomId);
+    socket.join(roomId);
+    inviterSocket.data.roomId = roomId;
+    socket.data.roomId = roomId;
+
+    const inviterProfile = inviterSocket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
+    const accepterProfile = socket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
+
+    logMatch(fromEmail, socket.data.email, inviterProfile, accepterProfile, roomId);
+
+    inviterSocket.emit('matched', {
+      roomId, partnerProfile: accepterProfile, youAre: 'a',
+      partnerDisplay: store.getPublicProfile(socket.data.email)
+    });
+    socket.emit('matched', {
+      roomId, partnerProfile: inviterProfile, youAre: 'b',
+      partnerDisplay: store.getPublicProfile(fromEmail)
+    });
+  });
+
+  socket.on('decline_invite', ({ fromEmail }) => {
+    const inviterSocketId = userSockets[fromEmail];
+    const inviterSocket = inviterSocketId && io.sockets.sockets.get(inviterSocketId);
+    if (inviterSocket) {
+      inviterSocket.data.pendingInviteTo = null;
+      inviterSocket.emit('invite_declined');
+    }
   });
 
   socket.on('skip', () => {
