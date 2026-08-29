@@ -1,6 +1,17 @@
 # FlowValu — Live-Matching-App
 
-Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung und einem Melde-System mit automatischer Sperre nach mehreren Meldungen.
+Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung mit E-Mail-Bestätigung, Profilbild/Verlauf und einem Melde-System mit automatischer Sperre.
+
+## E-Mail-Bestätigung einrichten (empfohlen für den Live-Betrieb)
+
+Ohne Einrichtung werden neue Konten beim lokalen Testen automatisch bestätigt (praktisch zum Entwickeln). Für den echten Betrieb:
+
+1. Kostenlosen Account auf [resend.com](https://resend.com) anlegen
+2. Im Dashboard unter "API Keys" einen Key erstellen
+3. Auf Render (oder lokal in einer `.env`-Datei) die Umgebungsvariable setzen: `RESEND_API_KEY=dein-key-hier`
+4. Zusätzlich `APP_URL` auf deine echte Adresse setzen, z. B. `APP_URL=https://flowvalu-app.onrender.com` (sonst zeigen die Bestätigungslinks auf localhost)
+
+Resend verschickt die Bestätigungsmails automatisch von `onboarding@resend.dev` — dafür ist keine eigene Domain nötig, es funktioniert sofort mit jedem Empfänger.
 
 ## Login & Melden
 

@@ -8,6 +8,46 @@ const bcrypt = require('bcryptjs');
 const store = require('./store');
 
 const REPORT_BAN_THRESHOLD = 3; // ab so vielen Meldungen wird automatisch gesperrt
+const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+async function sendVerificationEmail(email, token) {
+  const link = APP_URL + '/api/verify-email?token=' + token;
+
+  if (!RESEND_API_KEY) {
+    console.log('⚠️  RESEND_API_KEY nicht gesetzt — E-Mail wird NICHT verschickt.');
+    console.log('    Bestätigungslink für ' + email + ': ' + link);
+    return { sent: false };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'FlowValu <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Bestätige deine E-Mail für FlowValu',
+        html: '<p>Willkommen bei FlowValu!</p><p>Klick auf den Link, um deine E-Mail-Adresse zu bestätigen:</p><p><a href="' + link + '">' + link + '</a></p><p>Der Link ist 24 Stunden gültig.</p>'
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Fehler beim E-Mail-Versand:', res.status, errText);
+      return { sent: false, error: errText };
+    }
+    return { sent: true };
+  } catch (err) {
+    // Registrierung soll nicht scheitern, nur weil der Mailversand gerade klemmt
+    console.error('E-Mail-Versand technisch fehlgeschlagen:', err.message);
+    console.log('    Bestätigungslink für ' + email + ' (manuell teilen, falls nötig): ' + link);
+    return { sent: false, error: err.message };
+  }
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -40,6 +80,7 @@ app.post('/api/register', async (req, res) => {
   if (store.findUserByEmail(email)) return res.status(400).json({ error: 'Für diese E-Mail existiert bereits ein Konto.' });
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const verificationToken = crypto.randomBytes(24).toString('hex');
   const users = store.readUsers();
   const user = {
     id: crypto.randomUUID(),
@@ -47,13 +88,55 @@ app.post('/api/register', async (req, res) => {
     passwordHash,
     banned: false,
     reportCount: 0,
+    emailVerified: !RESEND_API_KEY, // ohne konfigurierten Mailversand (lokales Testen) automatisch bestätigt
+    verificationToken,
+    verificationTokenExpires: Date.now() + 1000 * 60 * 60 * 24, // 24 Stunden gültig
     createdAt: new Date().toISOString()
   };
   users.push(user);
   store.writeUsers(users);
 
+  if (RESEND_API_KEY) {
+    await sendVerificationEmail(user.email, verificationToken);
+  }
+
   req.session.user = { id: user.id, email: user.email };
-  res.json({ ok: true, email: user.email });
+  res.json({ ok: true, email: user.email, emailVerified: user.emailVerified });
+});
+
+app.get('/api/verify-email', (req, res) => {
+  const { token } = req.query;
+  const users = store.readUsers();
+  const user = users.find(u => u.verificationToken === token);
+
+  if (!user) {
+    return res.status(400).send('<h1>Ungültiger Link</h1><p>Dieser Bestätigungslink ist ungültig oder wurde bereits verwendet.</p>');
+  }
+  if (user.verificationTokenExpires && Date.now() > user.verificationTokenExpires) {
+    return res.status(400).send('<h1>Link abgelaufen</h1><p>Bitte fordere in der App einen neuen Bestätigungslink an.</p>');
+  }
+
+  user.emailVerified = true;
+  user.verificationToken = null;
+  user.verificationTokenExpires = null;
+  store.writeUsers(users);
+
+  res.send('<h1>E-Mail bestätigt ✓</h1><p>Du kannst dieses Fenster schließen und in FlowValu weitermachen.</p>');
+});
+
+app.post('/api/resend-verification', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const users = store.readUsers();
+  const user = users.find(u => u.email === req.session.user.email);
+  if (!user) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+  if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+
+  user.verificationToken = crypto.randomBytes(24).toString('hex');
+  user.verificationTokenExpires = Date.now() + 1000 * 60 * 60 * 24;
+  store.writeUsers(users);
+
+  const result = await sendVerificationEmail(user.email, user.verificationToken);
+  res.json({ ok: true, sent: result.sent });
 });
 
 app.post('/api/login', async (req, res) => {
@@ -66,7 +149,7 @@ app.post('/api/login', async (req, res) => {
   if (!match) return res.status(400).json({ error: 'E-Mail oder Passwort falsch.' });
 
   req.session.user = { id: user.id, email: user.email };
-  res.json({ ok: true, email: user.email });
+  res.json({ ok: true, email: user.email, emailVerified: user.emailVerified });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -74,7 +157,9 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/me', (req, res) => {
-  res.json({ user: req.session.user || null });
+  if (!req.session.user) return res.json({ user: null });
+  const dbUser = store.findUserByEmail(req.session.user.email);
+  res.json({ user: req.session.user, emailVerified: dbUser ? dbUser.emailVerified : false });
 });
 
 /* ---------------- Profil-Routen ---------------- */
@@ -188,6 +273,10 @@ io.use((socket, next) => {
   const sessionUser = socket.request.session && socket.request.session.user;
   if (!sessionUser) {
     return next(new Error('not_authenticated'));
+  }
+  const dbUser = store.findUserByEmail(sessionUser.email);
+  if (!dbUser || !dbUser.emailVerified) {
+    return next(new Error('email_not_verified'));
   }
   socket.data.email = sessionUser.email;
   next();

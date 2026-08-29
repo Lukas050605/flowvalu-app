@@ -199,6 +199,16 @@
     <p class="fineprint" style="margin-top:22px;"><a href="/impressum.html" target="_blank" style="color:var(--muted);">Impressum</a> · <a href="/datenschutz.html" target="_blank" style="color:var(--muted);">Datenschutz</a></p>
   </section>
 
+  <!-- VERIFY PENDING -->
+  <section class="screen" id="screen-verify-pending">
+    <span class="badge"><span class="dot"></span>Fast geschafft</span>
+    <h1>Bestätige deine <span class="grad">E-Mail</span></h1>
+    <p class="lead">Wir haben dir einen Link geschickt. Klick ihn an, dann geht's hier automatisch weiter.</p>
+    <button class="btn" id="check-verified-btn">Ich hab bestätigt, weiter</button>
+    <button class="btn btn-ghost" id="resend-verify-btn">Link erneut senden</button>
+    <p class="field-error" id="verify-error" style="text-align:center; margin-top:12px;"></p>
+  </section>
+
   <!-- PROFILE -->
   <section class="screen" id="screen-profile">
     <div class="top-links">
@@ -362,9 +372,41 @@ document.getElementById('auth-submit-btn').addEventListener('click', async () =>
       errEl.textContent = data.error || 'Etwas ist schiefgelaufen.';
       return;
     }
+    if(authMode === 'register' && !data.emailVerified){
+      show('screen-verify-pending');
+      document.getElementById('verify-error').textContent = '';
+      return;
+    }
     onAuthSuccess();
   } catch(err){
     errEl.textContent = 'Verbindung fehlgeschlagen. Nochmal versuchen.';
+  }
+});
+
+document.getElementById('check-verified-btn').addEventListener('click', () => {
+  document.getElementById('verify-error').textContent = '';
+  socket.connect();
+});
+
+document.getElementById('resend-verify-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('resend-verify-btn');
+  btn.disabled = true;
+  btn.textContent = 'Wird gesendet …';
+  try{
+    const res = await fetch('/api/resend-verification', { method: 'POST' });
+    const data = await res.json();
+    document.getElementById('verify-error').textContent = data.sent ? 'Neuer Link wurde gesendet.' : 'Versand aktuell nicht möglich — versuch es später nochmal.';
+  } catch(err){
+    document.getElementById('verify-error').textContent = 'Verbindung fehlgeschlagen.';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Link erneut senden';
+});
+
+socket.on('connect_error', (err) => {
+  if(err.message === 'email_not_verified'){
+    show('screen-verify-pending');
+    document.getElementById('verify-error').textContent = 'Noch nicht bestätigt — schau in dein Postfach.';
   }
 });
 
