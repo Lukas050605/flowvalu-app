@@ -1,6 +1,17 @@
 # FlowValu — Live-Matching-App
 
-Echtes Text-Chat-Matching mit Warteschlange und echtem Video-Call per WebRTC (Peer-to-Peer, kein Drittanbieter-Account nötig).
+Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung und einem Melde-System mit automatischer Sperre nach mehreren Meldungen.
+
+## Login & Melden
+
+- Jeder Nutzer braucht ein Konto (E-Mail + Passwort), bevor er matchen kann.
+- Im Chat gibt's einen "🚩 Melden"-Button mit Grundauswahl.
+- Nach 3 Meldungen gegen dieselbe Person wird ihr Konto automatisch gesperrt (in `server.js` über `REPORT_BAN_THRESHOLD` einstellbar).
+- Nutzer- und Meldungsdaten liegen in `data/users.json` und `data/reports.json`.
+
+## ⚠️ Wichtige Einschränkung: Datenspeicherung auf Render
+
+Render's **kostenloser Tarif** hat ein "ephemeres" Dateisystem — das heißt: **bei jedem Neustart oder Redeploy des Servers gehen `data/users.json` und `data/reports.json` verloren**, und alle registrierten Nutzer wären weg. Für's Testen unproblematisch, aber **vor dem echten Live-Betrieb mit echten Nutzern** sollte das durch eine richtige Datenbank ersetzt werden (z. B. Render's eigene kostenlose Postgres-Datenbank). Das ist ein guter nächster Ausbauschritt.
 
 ## Lokal testen
 
