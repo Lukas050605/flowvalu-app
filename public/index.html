@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowValu — Frischer Kopf, wenn dir die Ideen ausgehen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #08080a; --surface: #101013; --surface-2: #16161a;
+    --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.16);
+    --ink: #ededf1; --muted: #8b8b95;
+    --accent: #7c6ff0; --accent-2: #4c8dff;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;
+    letter-spacing:-0.01em; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .shell{
+    width:100%; max-width:440px; border:1px solid var(--border-strong);
+    border-radius:16px; padding:34px 30px; background:var(--surface);
+  }
+  .screen{ display:none; } .screen.active{ display:block; animation:rise .35s ease; }
+  @keyframes rise{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted);
+    border:1px solid var(--border-strong); border-radius:999px; padding:6px 13px; margin-bottom:20px;
+  }
+  .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-2); }
+
+  h1{ font-weight:600; font-size:26px; line-height:1.2; letter-spacing:-0.02em; margin:0 0 12px; }
+  h1 .grad{ background:linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  p.lead{ font-size:14.5px; line-height:1.6; color:var(--muted); margin:0 0 26px; }
+
+  label{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); display:block; margin-bottom:8px; }
+  textarea{
+    width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px;
+    color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; padding:12px; resize:none;
+    min-height:70px; margin-bottom:18px;
+  }
+  textarea:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+  .chip{
+    font-family:'JetBrains Mono', monospace; font-size:12px; padding:7px 13px; border-radius:999px;
+    border:1px solid var(--border-strong); background:var(--bg); color:var(--muted); cursor:pointer;
+  }
+  .chip.selected{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border-color:transparent; }
+
+  .segmented{ display:flex; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px; padding:4px; margin-bottom:22px; }
+  .segmented button{ flex:1; background:transparent; border:none; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px; border-radius:7px; cursor:pointer; }
+  .segmented button.active{ background:var(--surface-2); color:var(--ink); }
+
+  .btn{
+    width:100%; font-size:14.5px; font-weight:600; padding:13px 20px; border-radius:10px;
+    border:none; cursor:pointer; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;
+  }
+  .btn:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-ghost{ background:transparent; border:1px solid var(--border-strong); color:var(--muted); margin-top:10px; }
+
+  .queue-ring{ width:70px; height:70px; margin:20px auto; border-radius:50%; border:2px solid var(--border); position:relative; }
+  .queue-ring::before{ content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:var(--accent-2); animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .center{ text-align:center; }
+
+  .partner-row{ display:flex; align-items:center; gap:10px; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+  .avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+  .partner-tag{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+
+  .chat-log{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:14px; }
+  .bubble{ font-size:13.5px; line-height:1.5; padding:9px 12px; border-radius:9px; max-width:82%; }
+  .bubble.them{ background:var(--surface-2); align-self:flex-start; }
+  .bubble.me{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; align-self:flex-end; }
+  .bubble.sys{ align-self:center; font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); }
+
+  .chat-input-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .chat-input-row input{ flex:1; background:var(--bg); border:1px solid var(--border-strong); border-radius:9px; padding:10px 12px; color:var(--ink); font-size:13.5px; }
+  .chat-input-row button{ background:var(--surface-2); border:1px solid var(--border-strong); color:var(--ink); border-radius:9px; padding:0 14px; cursor:pointer; font-weight:600; font-size:13px; }
+
+  .status-line{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); margin-top:14px; text-align:center; }
+
+  /* ---- video call overlay ---- */
+  .call-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .call-overlay.active{ display:flex; }
+  .call-box{ width:100%; max-width:640px; }
+  .video-grid{ position:relative; border-radius:14px; overflow:hidden; background:#000; aspect-ratio:4/3; border:1px solid var(--border-strong); }
+  video#remote-video{ width:100%; height:100%; object-fit:cover; display:block; background:#000; }
+  video#local-video{
+    position:absolute; bottom:14px; right:14px; width:110px; height:82px; border-radius:8px;
+    object-fit:cover; border:2px solid var(--border-strong); background:#000; transform:scaleX(-1);
+  }
+  .call-status{ text-align:center; font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); margin:14px 0; }
+  .call-controls{ display:flex; gap:10px; }
+  .call-controls .btn-ghost{ margin-top:0; }
+  .btn-hangup{ background:#e5484d; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- PROFILE -->
+  <section class="screen active" id="screen-profile">
+    <span class="badge"><span class="dot"></span>Live-Matching</span>
+    <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
+    <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
+    <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
+
+    <label>Kreativ-Bereich (optional)</label>
+    <div class="chips" id="chips">
+      <button class="chip" data-chip="Text">Text</button>
+      <button class="chip" data-chip="Design">Design</button>
+      <button class="chip" data-chip="Business">Business</button>
+      <button class="chip" data-chip="Musik">Musik</button>
+      <button class="chip" data-chip="Sonstiges">Sonstiges</button>
+    </div>
+
+    <label>Matching</label>
+    <div class="segmented">
+      <button class="active" data-mode="zufall">Zufällig</button>
+      <button data-mode="thema">Nach Thema</button>
+    </div>
+
+    <button class="btn" id="start-btn">Los geht's →</button>
+  </section>
+
+  <!-- QUEUE -->
+  <section class="screen" id="screen-queue">
+    <div class="center">
+      <div class="queue-ring"></div>
+      <p style="font-weight:600; margin:10px 0 4px;">Suche jemanden für dich …</p>
+      <p class="status-line" id="queue-status">Verbinde …</p>
+    </div>
+    <button class="btn btn-ghost" id="cancel-queue-btn">Abbrechen</button>
+  </section>
+
+  <!-- CHAT -->
+  <section class="screen" id="screen-chat">
+    <div class="partner-row">
+      <div class="avatar" id="partner-avatar">?</div>
+      <div>
+        <div style="font-weight:600; font-size:14px;" id="partner-hangup">—</div>
+        <div class="partner-tag" id="partner-tag">gerade gematcht</div>
+      </div>
+    </div>
+    <div class="chat-log" id="chat-log"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Nachricht schreiben …">
+      <button id="send-btn">Senden</button>
+    </div>
+    <button class="btn" id="call-btn">Call starten</button>
+    <button class="btn btn-ghost" id="skip-btn">Skip →</button>
+  </section>
+</div>
+
+<!-- VIDEO CALL OVERLAY -->
+<div class="call-overlay" id="call-overlay">
+  <div class="call-box">
+    <div class="video-grid">
+      <video id="remote-video" autoplay playsinline></video>
+      <video id="local-video" autoplay playsinline muted></video>
+    </div>
+    <p class="call-status" id="call-status">Verbinde …</p>
+    <div class="call-controls">
+      <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+let selectedChips = [];
+let matchMode = 'zufall';
+let currentRoom = null;
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    chip.classList.toggle('selected');
+    const v = chip.dataset.chip;
+    selectedChips = selectedChips.includes(v) ? selectedChips.filter(c=>c!==v) : [...selectedChips, v];
+  });
+});
+
+document.querySelectorAll('.segmented button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.segmented button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    matchMode = btn.dataset.mode;
+  });
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  const hangup = document.getElementById('hangup').value.trim() || 'Kein Kommentar, einfach nur festgefahren.';
+  const topic = selectedChips[0] || null;
+  show('screen-queue');
+  document.getElementById('queue-status').textContent = 'Suche Partner …';
+  socket.emit('join_queue', { hangup, topic, mode: matchMode });
+});
+
+document.getElementById('cancel-queue-btn').addEventListener('click', () => {
+  socket.emit('leave_queue');
+  show('screen-profile');
+});
+
+socket.on('waiting', (data) => {
+  document.getElementById('queue-status').textContent = 'Wartet auf jemand anderen … (Position ' + data.position + ')';
+});
+
+socket.on('matched', (data) => {
+  currentRoom = data.roomId;
+  const p = data.partnerProfile || {};
+  document.getElementById('partner-avatar').textContent = (p.topic || 'F')[0];
+  document.getElementById('partner-hangup').textContent = p.hangup || 'Jemand Neues';
+  document.getElementById('partner-tag').textContent = (p.topic || 'Zufällig') + ' · gerade gematcht';
+  document.getElementById('chat-log').innerHTML = '';
+  addBubble('sys', 'Ihr seid verbunden. Eisbrecher: Wer hat sowas Ähnliches schon gelöst?');
+  show('screen-chat');
+});
+
+function addBubble(kind, text){
+  const log = document.getElementById('chat-log');
+  const div = document.createElement('div');
+  div.className = 'bubble ' + kind;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+document.getElementById('send-btn').addEventListener('click', sendMsg);
+document.getElementById('chat-input').addEventListener('keydown', e => { if(e.key === 'Enter') sendMsg(); });
+
+function sendMsg(){
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text || !currentRoom) return;
+  addBubble('me', text);
+  socket.emit('chat_message', { roomId: currentRoom, text });
+  input.value = '';
+}
+
+socket.on('chat_message', (data) => {
+  addBubble('them', data.text);
+});
+
+document.getElementById('call-btn').addEventListener('click', () => {
+  if(!currentRoom) return;
+  socket.emit('call_request', { roomId: currentRoom });
+  addBubble('sys', 'Warte auf Bestätigung vom Partner für den Call …');
+});
+
+socket.on('call_requested_by_partner', () => {
+  addBubble('sys', 'Dein Partner möchte einen Call starten. Klick auch auf "Call starten".');
+});
+
+/* ---------- echtes WebRTC (Peer-to-Peer, kein Drittanbieter) ---------- */
+let pc = null;
+let localStream = null;
+
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
+
+async function startCall(isOfferer){
+  document.getElementById('call-overlay').classList.add('active');
+  document.getElementById('call-status').textContent = 'Kamera wird angefragt …';
+
+  try{
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch(err){
+    document.getElementById('call-status').textContent = 'Kamera/Mikrofon-Zugriff verweigert oder nicht verfügbar.';
+    addBubble('sys', 'Kamera/Mikrofon konnte nicht gestartet werden: ' + err.message);
+    return;
+  }
+
+  document.getElementById('local-video').srcObject = localStream;
+  document.getElementById('call-status').textContent = 'Verbinde mit deinem Partner …';
+
+  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  pc.ontrack = (event) => {
+    document.getElementById('remote-video').srcObject = event.streams[0];
+    document.getElementById('call-status').textContent = 'Verbunden.';
+  };
+
+  pc.onicecandidate = (event) => {
+    if(event.candidate){
+      socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'candidate', candidate: event.candidate } });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed'){
+      document.getElementById('call-status').textContent = 'Verbindung unterbrochen.';
+    }
+  };
+
+  if(isOfferer){
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'offer', sdp: offer } });
+  }
+}
+
+socket.on('start_call', (data) => {
+  startCall(data.isOfferer);
+});
+
+socket.on('webrtc_signal', async (data) => {
+  if(!pc) return;
+  if(data.type === 'offer'){
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'answer', sdp: answer } });
+  } else if(data.type === 'answer'){
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+  } else if(data.type === 'candidate'){
+    try{ await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e){ /* ignorierbar bei Timing-Überschneidungen */ }
+  }
+});
+
+function endCall(){
+  if(pc){ pc.close(); pc = null; }
+  if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  document.getElementById('call-overlay').classList.remove('active');
+  document.getElementById('remote-video').srcObject = null;
+  document.getElementById('local-video').srcObject = null;
+}
+
+document.getElementById('hangup-btn').addEventListener('click', endCall);
+
+document.getElementById('skip-btn').addEventListener('click', () => {
+  endCall();
+  socket.emit('skip');
+  currentRoom = null;
+  document.getElementById('hangup').value = document.getElementById('hangup').value; // keep hangup text
+  const hangup = document.getElementById('hangup').value.trim() || 'Kein Kommentar, einfach nur festgefahren.';
+  const topic = selectedChips[0] || null;
+  show('screen-queue');
+  document.getElementById('queue-status').textContent = 'Suche neuen Partner …';
+  socket.emit('join_queue', { hangup, topic, mode: matchMode });
+});
+
+socket.on('partner_left', () => {
+  addBubble('sys', 'Dein Gesprächspartner hat den Chat verlassen.');
+  currentRoom = null;
+  endCall();
+});
+</script>
+</body>
+</html>
