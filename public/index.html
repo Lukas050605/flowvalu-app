@@ -183,6 +183,35 @@
   }
   .live-transcript .line{ margin-bottom:3px; }
   .live-transcript .who{ color:var(--accent-2); font-weight:600; }
+  .impulse-banner{
+    display:none; background:linear-gradient(135deg, rgba(124,111,240,0.18), rgba(76,63,176,0.18));
+    border:1px solid var(--accent-2); border-radius:10px; padding:12px 14px; margin:0 0 14px;
+    font-size:13px; line-height:1.5; color:var(--ink); animation: impulse-in 0.35s ease;
+  }
+  .impulse-banner.active{ display:block; }
+  .impulse-banner .impulse-label{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.03em;
+    color:var(--accent-2); text-transform:uppercase; margin-bottom:4px; display:block;
+  }
+  @keyframes impulse-in{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:translateY(0); } }
+
+  .impulse-setting-row{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; margin-bottom:18px;
+  }
+  .switch{ position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch-track{
+    position:absolute; cursor:pointer; inset:0; background:var(--border-strong);
+    border-radius:24px; transition:background 0.2s;
+  }
+  .switch-track::before{
+    content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px;
+    background:#fff; border-radius:50%; transition:transform 0.2s;
+  }
+  .switch input:checked + .switch-track{ background:var(--accent-2); }
+  .switch input:checked + .switch-track::before{ transform:translateX(18px); }
   .call-controls{ display:flex; gap:10px; }
   .call-controls .btn-ghost{ margin-top:0; }
   .btn-hangup{ background:#e5484d; }
@@ -265,6 +294,19 @@
     </div>
     <label class="field-label">Anzeigename</label>
     <input type="text" id="display-name-input" placeholder="z. B. Lea" maxlength="40" style="margin-bottom:20px;">
+
+    <label class="field-label">Während des Calls</label>
+    <div class="impulse-setting-row">
+      <div>
+        <div style="font-weight:600; font-size:13.5px;">💡 Live-Impulse bei Denkblockade</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:2px;">Wenn's im Call stockt, schlägt die KI von sich aus einen Denkanstoß vor.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="live-impulses-toggle" checked>
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
     <div class="field-error" id="profile-error"></div>
     <button class="btn btn-primary" id="save-profile-btn">Speichern</button>
     <button class="btn btn-ghost" id="back-from-profile-btn">Zurück</button>
@@ -318,6 +360,15 @@
     </div>
     <p class="call-status" id="call-status">Verbinde …</p>
     <p class="call-status" id="protocol-indicator" style="color:var(--accent-2);"></p>
+    <div class="impulse-banner" id="impulse-banner">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <div>
+          <span class="impulse-label">💡 Impuls</span>
+          <span id="impulse-text"></span>
+        </div>
+        <button id="impulse-dismiss-btn" title="Ausblenden" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; flex-shrink:0;">✕</button>
+      </div>
+    </div>
     <div class="live-transcript" id="live-transcript"></div>
     <div class="toggle-controls">
       <button class="toggle-btn" id="mic-toggle-btn">🎤 Mikrofon an</button>
@@ -468,6 +519,7 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   const data = await res.json();
   document.getElementById('display-name-input').value = data.displayName || '';
   currentAvatarDataUrl = data.avatarDataUrl || null;
+  document.getElementById('live-impulses-toggle').checked = data.liveImpulsesEnabled !== false;
   renderAvatarPreview();
   document.getElementById('profile-error').textContent = '';
   show('screen-profile-edit');
@@ -510,13 +562,14 @@ function renderAvatarPreview(){
 
 document.getElementById('save-profile-btn').addEventListener('click', async () => {
   const displayName = document.getElementById('display-name-input').value.trim();
+  const liveImpulsesEnabled = document.getElementById('live-impulses-toggle').checked;
   const errEl = document.getElementById('profile-error');
   errEl.textContent = '';
   try{
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl })
+      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled })
     });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
@@ -890,6 +943,26 @@ socket.on('transcript_update', (seg) => {
   panel.scrollTop = panel.scrollHeight;
 });
 
+let impulseHideTimeout = null;
+socket.on('live_impulse', (data) => {
+  const banner = document.getElementById('impulse-banner');
+  const textEl = document.getElementById('impulse-text');
+  if (!banner || !textEl || !data || !data.text) return;
+
+  textEl.textContent = data.text;
+  banner.classList.add('active');
+
+  clearTimeout(impulseHideTimeout);
+  impulseHideTimeout = setTimeout(() => {
+    banner.classList.remove('active');
+  }, 25000); // nach 25s wieder ausblenden, damit es nicht dauerhaft Platz wegnimmt
+});
+
+document.getElementById('impulse-dismiss-btn').addEventListener('click', () => {
+  document.getElementById('impulse-banner').classList.remove('active');
+  clearTimeout(impulseHideTimeout);
+});
+
 function endCall(){
   const wasActive = !!pc;
   stopTranscription();
@@ -900,6 +973,8 @@ function endCall(){
   document.getElementById('local-video').srcObject = null;
   document.getElementById('protocol-indicator').textContent = '';
   document.getElementById('live-transcript').innerHTML = '';
+  document.getElementById('impulse-banner').classList.remove('active');
+  clearTimeout(impulseHideTimeout);
 
   const finish = () => {
     if(wasActive && currentRoom){

@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
 const { classifyTopic, areAssociativelyRelated } = require('./topic-matcher');
+const { generateImpulse } = require('./live-impulse');
 
 const PDF_DIR = path.join(__dirname, 'data', 'call-pdfs');
 function ensurePdfDir() {
@@ -192,13 +193,14 @@ app.get('/api/profile', (req, res) => {
   const user = store.findUserByEmail(req.session.user.email);
   res.json({
     displayName: user.displayName || '',
-    avatarDataUrl: user.avatarDataUrl || null
+    avatarDataUrl: user.avatarDataUrl || null,
+    liveImpulsesEnabled: user.liveImpulsesEnabled !== false // Standard: an
   });
 });
 
 app.post('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const { displayName, avatarDataUrl } = req.body || {};
+  const { displayName, avatarDataUrl, liveImpulsesEnabled } = req.body || {};
 
   if (displayName !== undefined && String(displayName).length > 40) {
     return res.status(400).json({ error: 'Anzeigename darf höchstens 40 Zeichen haben.' });
@@ -213,6 +215,7 @@ app.post('/api/profile', (req, res) => {
 
   if (displayName !== undefined) user.displayName = String(displayName).trim();
   if (avatarDataUrl !== undefined) user.avatarDataUrl = avatarDataUrl;
+  if (liveImpulsesEnabled !== undefined) user.liveImpulsesEnabled = !!liveImpulsesEnabled;
 
   store.writeUsers(users);
   res.json({ ok: true });
@@ -249,6 +252,7 @@ app.post('/api/transcribe-audio', express.raw({ type: 'audio/webm', limit: '25mb
   const label = store.getPublicProfile(req.session.user.email).displayName;
   const segment = { speakerEmail: req.session.user.email, speakerLabel: label, text, timestamp: Date.now() };
   transcripts[roomId].push(segment);
+  roomActivity[roomId] = Date.now();
 
   const sId = userSockets[req.session.user.email];
   const otherMembers = (rooms[roomId] || []).filter(id => id !== sId);
@@ -330,6 +334,81 @@ let userSockets = {};       // email -> socketId (für Melden/Sperren/Verlauf)
 let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall/pdfToken nachzutragen)
 let transcripts = {};       // roomId -> [{ speakerEmail, speakerLabel, text, timestamp }]
 let summaryInProgress = new Set(); // roomIds, die gerade ihre PDF erzeugen (Doppel-Erzeugung verhindern)
+
+// -------- Live-Impuls bei Denkblockade während des Calls --------
+const SILENCE_THRESHOLD_MS = 25 * 1000;   // ab so viel Stille gilt das Gespräch als "stockend"
+const IMPULSE_COOLDOWN_MS = 60 * 1000;    // Mindestabstand zwischen zwei Impulsen
+const MAX_IMPULSES_PER_CALL = 4;          // Obergrenze, damit die KI nicht nervt
+const IMPULSE_CHECK_INTERVAL_MS = 5 * 1000;
+
+let roomActivity = {};       // roomId -> Timestamp der letzten Sprachaktivität
+let roomImpulseState = {};   // roomId -> { count, lastImpulseAt }
+let roomImpulseTimers = {};  // roomId -> Interval-Handle
+
+function startImpulseWatcher(roomId) {
+  const members = rooms[roomId] || [];
+  const anyoneWantsImpulses = members.some(id => {
+    const s = io.sockets.sockets.get(id);
+    if (!s || !s.data.email) return true;
+    const dbUser = store.findUserByEmail(s.data.email);
+    return !dbUser || dbUser.liveImpulsesEnabled !== false;
+  });
+  if (!anyoneWantsImpulses) return; // niemand im Call will die Funktion — Watcher spart sich die Arbeit
+
+  roomActivity[roomId] = Date.now();
+  roomImpulseState[roomId] = { count: 0, lastImpulseAt: 0 };
+
+  roomImpulseTimers[roomId] = setInterval(async () => {
+    const members = rooms[roomId];
+    if (!members) { stopImpulseWatcher(roomId); return; }
+
+    const state = roomImpulseState[roomId];
+    if (!state || state.count >= MAX_IMPULSES_PER_CALL) return;
+
+    const sinceActivity = Date.now() - (roomActivity[roomId] || Date.now());
+    const sinceLastImpulse = Date.now() - state.lastImpulseAt;
+    if (sinceActivity < SILENCE_THRESHOLD_MS || sinceLastImpulse < IMPULSE_COOLDOWN_MS) return;
+
+    // Nur an Mitglieder schicken, die die Funktion in ihrem Profil aktiviert haben lassen
+    const targetIds = members.filter(id => {
+      const s = io.sockets.sockets.get(id);
+      if (!s || !s.data.email) return false;
+      const dbUser = store.findUserByEmail(s.data.email);
+      return !dbUser || dbUser.liveImpulsesEnabled !== false; // Standard: an
+    });
+    if (targetIds.length === 0) return; // beide/alle haben die Funktion ausgeschaltet — nichts generieren
+
+    state.lastImpulseAt = Date.now();
+    state.count += 1;
+
+    try {
+      const transcript = transcripts[roomId] || [];
+      const transcriptText = transcript.slice(-12).map(s => s.speakerLabel + ': ' + s.text).join('\n');
+      const participantEmails = members
+        .map(id => { const s = io.sockets.sockets.get(id); return s ? s.data.email : null; })
+        .filter(Boolean);
+      const participantNames = participantEmails.map(e => store.getPublicProfile(e).displayName);
+      const hangups = members.map(id => {
+        const s = io.sockets.sockets.get(id);
+        return s && s.data.lastProfile ? s.data.lastProfile.hangup : '';
+      });
+
+      const impulse = await generateImpulse({ transcriptText, hangups, participantNames });
+      targetIds.forEach(id => io.to(id).emit('live_impulse', { text: impulse }));
+    } catch (err) {
+      console.error('Live-Impuls fehlgeschlagen:', err.message);
+    }
+  }, IMPULSE_CHECK_INTERVAL_MS);
+}
+
+function stopImpulseWatcher(roomId) {
+  if (roomImpulseTimers[roomId]) {
+    clearInterval(roomImpulseTimers[roomId]);
+    delete roomImpulseTimers[roomId];
+  }
+  delete roomActivity[roomId];
+  delete roomImpulseState[roomId];
+}
 
 function logMatch(emailA, emailB, profileA, profileB, roomId) {
   const matches = store.readMatches();
@@ -483,6 +562,7 @@ io.on('connection', (socket) => {
     if (bothReady) {
       delete callRequests[roomId];
       markCallHappened(roomId);
+      startImpulseWatcher(roomId);
       members.forEach((id) => {
         const isOfferer = id === members[0];
         io.to(id).emit('start_call', { isOfferer });
@@ -504,6 +584,7 @@ io.on('connection', (socket) => {
     const label = store.getPublicProfile(socket.data.email).displayName;
     const segment = { speakerEmail: socket.data.email, speakerLabel: label, text, timestamp: Date.now() };
     transcripts[roomId].push(segment);
+    roomActivity[roomId] = Date.now();
     io.to(roomId).emit('transcript_update', segment);
   });
 
@@ -512,6 +593,7 @@ io.on('connection', (socket) => {
     const members = rooms[roomId];
     if (!members) return;
     summaryInProgress.add(roomId);
+    stopImpulseWatcher(roomId);
 
     try {
       const transcript = transcripts[roomId] || [];
@@ -687,6 +769,7 @@ io.on('connection', (socket) => {
     sock.leave(roomId);
     delete rooms[roomId];
     delete callRequests[roomId];
+    stopImpulseWatcher(roomId);
     sock.data.roomId = null;
   }
 });
