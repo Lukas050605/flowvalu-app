@@ -186,6 +186,13 @@
   .call-controls{ display:flex; gap:10px; }
   .call-controls .btn-ghost{ margin-top:0; }
   .btn-hangup{ background:#e5484d; }
+  .toggle-controls{ display:flex; gap:10px; margin-bottom:12px; }
+  .toggle-btn{
+    flex:1; background:var(--surface-2); border:1px solid var(--border-strong); color:var(--ink);
+    border-radius:9px; padding:10px; font-size:13px; font-weight:600; cursor:pointer;
+    font-family:'Inter', sans-serif;
+  }
+  .toggle-btn.off{ background:#e5484d; border-color:#e5484d; color:#fff; }
 </style>
 </head>
 <body>
@@ -312,6 +319,10 @@
     <p class="call-status" id="call-status">Verbinde …</p>
     <p class="call-status" id="protocol-indicator" style="color:var(--accent-2);"></p>
     <div class="live-transcript" id="live-transcript"></div>
+    <div class="toggle-controls">
+      <button class="toggle-btn" id="mic-toggle-btn">🎤 Mikrofon an</button>
+      <button class="toggle-btn" id="camera-toggle-btn">📷 Kamera an</button>
+    </div>
     <div class="call-controls">
       <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
     </div>
@@ -714,6 +725,10 @@ const ICE_SERVERS = [
 async function startCall(isOfferer){
   document.getElementById('call-overlay').classList.add('active');
   document.getElementById('call-status').textContent = 'Kamera wird angefragt …';
+  document.getElementById('mic-toggle-btn').textContent = '🎤 Mikrofon an';
+  document.getElementById('mic-toggle-btn').classList.remove('off');
+  document.getElementById('camera-toggle-btn').textContent = '📷 Kamera an';
+  document.getElementById('camera-toggle-btn').classList.remove('off');
 
   try{
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -898,6 +913,29 @@ function endCall(){
 }
 
 document.getElementById('hangup-btn').addEventListener('click', endCall);
+
+/* ---------- Mikrofon / Kamera an- und ausschalten ---------- */
+document.getElementById('mic-toggle-btn').addEventListener('click', () => {
+  if(!localStream) return;
+  const btn = document.getElementById('mic-toggle-btn');
+  const tracks = localStream.getAudioTracks();
+  if(!tracks.length) return;
+  const nowEnabled = !tracks[0].enabled;
+  tracks.forEach(t => t.enabled = nowEnabled);
+  btn.textContent = nowEnabled ? '🎤 Mikrofon an' : '🔇 Mikrofon aus';
+  btn.classList.toggle('off', !nowEnabled);
+});
+
+document.getElementById('camera-toggle-btn').addEventListener('click', () => {
+  if(!localStream) return;
+  const btn = document.getElementById('camera-toggle-btn');
+  const tracks = localStream.getVideoTracks();
+  if(!tracks.length) return;
+  const nowEnabled = !tracks[0].enabled;
+  tracks.forEach(t => t.enabled = nowEnabled);
+  btn.textContent = nowEnabled ? '📷 Kamera an' : '📷 Kamera aus';
+  btn.classList.toggle('off', !nowEnabled);
+});
 
 socket.on('call_summary_ready', (data) => {
   addBubble('sys', '📄 Zusammenfassung ist fertig! Wird automatisch heruntergeladen …');
