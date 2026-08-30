@@ -772,6 +772,7 @@ let speechRecognition = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let usingAudioFallback = false;
+let recordedMimeType = '';
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -871,10 +872,18 @@ function startAudioFallbackRecording(){
     document.getElementById('protocol-indicator').textContent = 'Protokoll in diesem Browser nicht verfügbar';
     return;
   }
+  // Safari/iOS unterstützt kein audio/webm — das feste Format hat dort bisher zu
+  // kaputten/leeren Aufnahmen geführt. Wir fragen den Browser, was er wirklich kann.
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', 'audio/ogg'];
+  recordedMimeType = candidates.find(c => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) || '';
+
   usingAudioFallback = true;
   audioChunks = [];
   try{
-    mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
+    mediaRecorder = recordedMimeType
+      ? new MediaRecorder(localStream, { mimeType: recordedMimeType })
+      : new MediaRecorder(localStream); // kein unterstütztes Format gefunden -> Browser-Standard verwenden
+    recordedMimeType = mediaRecorder.mimeType || recordedMimeType; // tatsächlich verwendetes Format übernehmen
     mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.start();
     document.getElementById('protocol-indicator').textContent = '🎙️ Protokoll läuft (wird am Ende verarbeitet)';
@@ -894,12 +903,13 @@ async function stopAudioFallbackRecordingAndUpload(){
   mediaRecorder = null;
   if(!audioChunks.length || !room) return;
 
-  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  const mimeType = recordedMimeType || 'audio/webm';
+  const blob = new Blob(audioChunks, { type: mimeType });
   audioChunks = [];
   try{
-    await fetch('/api/transcribe-audio?roomId=' + room, {
+    await fetch('/api/transcribe-audio?roomId=' + room + '&mimeType=' + encodeURIComponent(mimeType), {
       method: 'POST',
-      headers: { 'Content-Type': 'audio/webm' },
+      headers: { 'Content-Type': mimeType },
       body: blob
     });
   } catch(e){

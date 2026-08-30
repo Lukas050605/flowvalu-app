@@ -87,19 +87,52 @@ async function summarizeWithAI(transcriptText, participantNames) {
   }
 }
 
+// Bekannte Phrasen, die Whisper bei Stille oder kaputten Audiodateien manchmal "halluziniert"
+// (erfindet), obwohl gar nichts Verständliches zu hören war. Kommt so ein Text zurück,
+// behandeln wir das wie "nichts transkribiert", statt es als echte Aussage zu übernehmen.
+const WHISPER_HALLUCINATION_PATTERNS = [
+  /kein\s*mikrofon/i,
+  /untertitel(ung)?\s*durch/i,
+  /vielen\s*dank\s*(fürs?)?\s*zuschauen/i,
+  /copyright/i,
+  /www\.[a-z0-9-]+\.[a-z]{2,}/i,
+  /amara\.org/i,
+  /^\s*$/,
+];
+
+function looksLikeWhisperHallucination(text) {
+  return WHISPER_HALLUCINATION_PATTERNS.some(pattern => pattern.test(text));
+}
+
+// Ordnet einem MIME-Type die passende Dateiendung für den Whisper-Upload zu — wichtig,
+// weil Whisper das Format anhand der Dateiendung erkennt, nicht (nur) am MIME-Type.
+function extensionForMimeType(mimeType) {
+  const type = (mimeType || '').toLowerCase();
+  if (type.includes('mp4') || type.includes('m4a')) return 'mp4';
+  if (type.includes('aac')) return 'aac';
+  if (type.includes('ogg')) return 'ogg';
+  if (type.includes('wav')) return 'wav';
+  return 'webm'; // Standard-Fallback (Chrome/Firefox)
+}
+
 /**
- * Whisper-Fallback: transkribiert eine Audiodatei (Buffer, z. B. webm/opus) zu Text.
- * Für Browser ohne eingebaute Live-Spracherkennung (Firefox, Safari).
- * Gibt null zurück, wenn kein Key gesetzt ist oder der Aufruf fehlschlägt.
+ * Whisper-Fallback: transkribiert eine Audiodatei (Buffer) zu Text.
+ * Für Browser ohne eingebaute Live-Spracherkennung (Firefox, Safari/iOS).
+ * mimeType kommt vom Frontend, da unterschiedliche Browser unterschiedliche Formate
+ * aufnehmen (z.B. Safari/iOS: audio/mp4 statt audio/webm) — ohne das korrekte Format
+ * an Whisper weiterzureichen, kam es zu Fehldekodierungen und "halluzinierten" Texten.
+ * Gibt null zurück, wenn kein Key gesetzt ist, der Aufruf fehlschlägt, oder der
+ * zurückgegebene Text wie eine bekannte Whisper-Halluzination aussieht.
  */
-async function transcribeAudioFallback(audioBuffer) {
+async function transcribeAudioFallback(audioBuffer, mimeType) {
   if (!OPENAI_API_KEY) {
     console.log('⚠️  OPENAI_API_KEY nicht gesetzt — Audio-Fallback-Transkription übersprungen.');
     return null;
   }
   try {
+    const ext = extensionForMimeType(mimeType);
     const form = new FormData();
-    form.append('file', new Blob([audioBuffer], { type: 'audio/webm' }), 'audio.webm');
+    form.append('file', new Blob([audioBuffer], { type: mimeType || 'audio/webm' }), 'audio.' + ext);
     form.append('model', 'whisper-1');
     form.append('language', 'de');
 
@@ -114,7 +147,12 @@ async function transcribeAudioFallback(audioBuffer) {
       return null;
     }
     const data = await res.json();
-    return data.text || null;
+    const text = data.text || null;
+    if (text && looksLikeWhisperHallucination(text)) {
+      console.log('⚠️  Whisper-Ausgabe sieht nach Halluzination aus, wird verworfen:', text);
+      return null;
+    }
+    return text;
   } catch (err) {
     console.error('Audio-Fallback-Transkription fehlgeschlagen:', err.message);
     return null;
@@ -184,4 +222,4 @@ function buildPdf({ participantNames, startedAt, aiSummary, transcript }) {
   });
 }
 
-module.exports = { summarizeWithAI, buildPdf, parseStructuredSummary, transcribeAudioFallback };
+module.exports = { summarizeWithAI, buildPdf, parseStructuredSummary, transcribeAudioFallback, looksLikeWhisperHallucination, extensionForMimeType };

@@ -252,12 +252,14 @@ app.get('/api/call-pdf/:token', (req, res) => {
 });
 
 /* ---------------- Audio-Fallback-Transkription (Whisper) für Browser ohne Web Speech API ---------------- */
-app.post('/api/transcribe-audio', express.raw({ type: 'audio/webm', limit: '25mb' }), async (req, res) => {
+// type: () => true statt fest 'audio/webm' — Safari/iOS liefert z.B. audio/mp4, das sonst
+// stillschweigend abgelehnt worden wäre (req.body wäre leer geblieben statt geparst zu werden).
+app.post('/api/transcribe-audio', express.raw({ type: () => true, limit: '25mb' }), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const { roomId } = req.query;
+  const { roomId, mimeType } = req.query;
   if (!roomId || !req.body || !req.body.length) return res.status(400).json({ error: 'roomId und Audiodaten erforderlich.' });
 
-  const text = await transcribeAudioFallback(req.body);
+  const text = await transcribeAudioFallback(req.body, mimeType || req.headers['content-type']);
   if (!text) return res.json({ ok: true, transcribed: false });
 
   if (!transcripts[roomId]) transcripts[roomId] = [];
