@@ -482,24 +482,33 @@ function sharedTag(tagsA, tagsB) {
 }
 
 // Gibt { idx, matchedTag } zurück oder null, wenn niemand passt.
-// Reihenfolge: 1) exakte Themen-Auswahl (Chip)  2) gemeinsames KI-Kategorie-Cluster
-// (z.B. "KFZ" und "Autofirma" -> beide "Fahrzeuge & Mobilität")  3) direkter assoziativer
-// Vergleich der Freitexte (z.B. "Uhr bauen" <-> "Thema Zeit", auch über Kategorien hinweg)
-// 4) irgendwer (nur im Zufalls-Modus).
+// WICHTIG: Die Unterscheidung läuft über den MODUS (mode), nicht darüber, ob ein
+// fester Chip (topic) gewählt wurde — sonst würde "Nach Thema" ohne Chip-Auswahl
+// (z.B. bei "Autopflege" oder "Blumen", die in keinen der 5 festen Chips passen)
+// versehentlich wie "Zufällig" behandelt und am Ende wahllos irgendwen matchen.
+//
+// Reihenfolge im Thema-Modus: 1) exakte Chip-Auswahl  2) gemeinsames KI-Kategorie-
+// Cluster (z.B. "KFZ" und "Autofirma" -> beide "Fahrzeuge & Mobilität")  3) direkter
+// assoziativer Vergleich der Freitexte über den Wörter-Baum (z.B. "Uhr bauen" <->
+// "Thema Zeit"). Gibt es KEINE dieser Verbindungen, wird NICHT gematcht (return null)
+// — anders als im Zufalls-Modus, wo als letzter Ausweg irgendwer gematcht wird.
 async function findPartnerIndex(profile) {
-  if (profile.mode === 'thema' && profile.topic) {
-    let idx = waiting.findIndex(w => w.profile.topic === profile.topic);
-    if (idx !== -1) return { idx, matchedTag: profile.topic };
+  if (profile.mode === 'thema') {
+    if (profile.topic) {
+      const idx = waiting.findIndex(w => w.profile.topic === profile.topic);
+      if (idx !== -1) return { idx, matchedTag: profile.topic };
+    }
 
-    idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
+    let idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
     if (idx !== -1) return { idx, matchedTag: sharedTag(waiting[idx].profile.aiTags, profile.aiTags) };
 
     idx = await findAssociativeIndex(profile);
     if (idx !== -1) return { idx, matchedTag: null };
 
-    return null;
+    return null; // keine echte Verbindung gefunden -> lieber warten als wahllos matchen
   }
 
+  // Zufalls-Modus: bevorzugt inhaltlich passende Leute, matcht als letzten Ausweg aber irgendwen
   if (!waiting.length) return null;
 
   let idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
