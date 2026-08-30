@@ -24,8 +24,11 @@ function isAdminEmail(email) {
 }
 
 function requireAdmin(req, res, next) {
-  if (!req.session.user || !isAdminEmail(req.session.user.email)) {
-    return res.status(403).json({ error: 'Kein Zugriff auf den Admin-Bereich.' });
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  }
+  if (!isAdminEmail(req.session.user.email)) {
+    return res.status(403).json({ error: 'Kein Zugriff auf den Admin-Bereich.', yourEmail: req.session.user.email });
   }
   next();
 }

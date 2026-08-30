@@ -58,7 +58,9 @@ async function load(){
   try{
     const res = await fetch('/api/admin/reports');
     if(res.status === 403){
-      content.innerHTML = '<div class="denied"><h2>Kein Zugriff</h2><p>Dieses Konto ist nicht als Admin markiert.</p></div>';
+      const data = await res.json().catch(() => ({}));
+      const emailInfo = data.yourEmail ? '<p style="margin-top:10px; font-family:\'JetBrains Mono\', monospace; font-size:12px;">Eingeloggt als: ' + data.yourEmail + '</p>' : '';
+      content.innerHTML = '<div class="denied"><h2>Kein Zugriff</h2><p>Dieses Konto ist nicht als Admin markiert.</p>' + emailInfo + '</div>';
       return;
     }
     if(res.status === 401){
