@@ -320,6 +320,21 @@
     <label class="field-label">Anzeigename</label>
     <input type="text" id="display-name-input" placeholder="z. B. Lea" maxlength="40" style="margin-bottom:20px;">
 
+    <label class="field-label">Dein Geschlecht</label>
+    <select id="gender-select" style="margin-bottom:20px; width:100%; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;">
+      <option value="">Keine Angabe</option>
+      <option value="weiblich">Weiblich</option>
+      <option value="männlich">Männlich</option>
+      <option value="divers">Divers</option>
+    </select>
+
+    <label class="field-label">Wer soll dich matchen?</label>
+    <select id="match-preference-select" style="margin-bottom:20px; width:100%; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;">
+      <option value="gemischt">Gemischt (egal wer)</option>
+      <option value="gleichgeschlechtlich">Nur gleiches Geschlecht (z.B. nur Frau↔Frau oder Mann↔Mann)</option>
+    </select>
+    <p style="font-size:11.5px; color:var(--muted); margin:-14px 0 20px;">Für "Nur gleiches Geschlecht" muss oben ein Geschlecht angegeben sein — sonst wirst du sicherheitshalber nicht gematcht.</p>
+
     <label class="field-label">Während des Calls</label>
     <div class="impulse-setting-row">
       <div>
@@ -596,6 +611,8 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   document.getElementById('display-name-input').value = data.displayName || '';
   currentAvatarDataUrl = data.avatarDataUrl || null;
   document.getElementById('live-impulses-toggle').checked = data.liveImpulsesEnabled !== false;
+  document.getElementById('gender-select').value = data.gender || '';
+  document.getElementById('match-preference-select').value = data.matchPreference || 'gemischt';
   renderAvatarPreview();
   document.getElementById('profile-error').textContent = '';
   show('screen-profile-edit');
@@ -639,13 +656,21 @@ function renderAvatarPreview(){
 document.getElementById('save-profile-btn').addEventListener('click', async () => {
   const displayName = document.getElementById('display-name-input').value.trim();
   const liveImpulsesEnabled = document.getElementById('live-impulses-toggle').checked;
+  const gender = document.getElementById('gender-select').value;
+  const matchPreference = document.getElementById('match-preference-select').value;
   const errEl = document.getElementById('profile-error');
   errEl.textContent = '';
+
+  if (matchPreference === 'gleichgeschlechtlich' && !gender) {
+    errEl.textContent = 'Für "Nur gleiches Geschlecht" musst du oben ein Geschlecht angeben.';
+    return;
+  }
+
   try{
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled })
+      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled, gender, matchPreference })
     });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }

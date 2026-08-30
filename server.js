@@ -207,19 +207,32 @@ app.get('/api/profile', (req, res) => {
     displayName: user.displayName || '',
     avatarDataUrl: user.avatarDataUrl || null,
     liveImpulsesEnabled: user.liveImpulsesEnabled !== false, // Standard: an
+    gender: user.gender || '',
+    matchPreference: user.matchPreference || 'gemischt',
     rating: store.getUserRatingSummary(req.session.user.email)
   });
 });
 
 app.post('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const { displayName, avatarDataUrl, liveImpulsesEnabled } = req.body || {};
+  const { displayName, avatarDataUrl, liveImpulsesEnabled, gender, matchPreference } = req.body || {};
 
   if (displayName !== undefined && String(displayName).length > 40) {
     return res.status(400).json({ error: 'Anzeigename darf höchstens 40 Zeichen haben.' });
   }
   if (avatarDataUrl && (typeof avatarDataUrl !== 'string' || !avatarDataUrl.startsWith('data:image/') || avatarDataUrl.length > 400000)) {
     return res.status(400).json({ error: 'Ungültiges Bild oder Bild zu groß.' });
+  }
+  const VALID_GENDERS = ['', 'weiblich', 'männlich', 'divers'];
+  if (gender !== undefined && !VALID_GENDERS.includes(gender)) {
+    return res.status(400).json({ error: 'Ungültige Geschlechts-Angabe.' });
+  }
+  const VALID_MATCH_PREFS = ['gemischt', 'gleichgeschlechtlich'];
+  if (matchPreference !== undefined && !VALID_MATCH_PREFS.includes(matchPreference)) {
+    return res.status(400).json({ error: 'Ungültige Matching-Präferenz.' });
+  }
+  if (matchPreference === 'gleichgeschlechtlich' && !gender && !(store.findUserByEmail(req.session.user.email) || {}).gender) {
+    return res.status(400).json({ error: 'Für "Nur gleiches Geschlecht" muss ein Geschlecht angegeben sein.' });
   }
 
   const users = store.readUsers();
@@ -229,6 +242,8 @@ app.post('/api/profile', (req, res) => {
   if (displayName !== undefined) user.displayName = String(displayName).trim();
   if (avatarDataUrl !== undefined) user.avatarDataUrl = avatarDataUrl;
   if (liveImpulsesEnabled !== undefined) user.liveImpulsesEnabled = !!liveImpulsesEnabled;
+  if (gender !== undefined) user.gender = gender || null;
+  if (matchPreference !== undefined) user.matchPreference = matchPreference;
 
   store.writeUsers(users);
   res.json({ ok: true });
@@ -507,6 +522,24 @@ function markCallHappened(roomId) {
 // Wie viele Wartende maximal per Direkt-Vergleich geprüft werden (Kosten/Latenz begrenzen)
 const MAX_ASSOCIATIVE_CHECKS = 6;
 
+// Prüft, ob zwei Profile laut ihren Geschlechts-Einstellungen überhaupt zueinander passen.
+// "gleichgeschlechtlich" ist ein HARTER Ausschluss — wer das eingestellt hat, wird nur mit
+// dem eigenen Geschlecht verbunden, unabhängig davon, wie gut sonst das Thema passen würde.
+// Fehlt bei "gleichgeschlechtlich" die Geschlechts-Angabe, wird sicherheitshalber NICHT
+// gematcht (lieber warten als versehentlich falsch zuordnen).
+function isGenderCompatible(profileA, profileB) {
+  const prefA = profileA.matchPreference || 'gemischt';
+  const prefB = profileB.matchPreference || 'gemischt';
+
+  if (prefA === 'gleichgeschlechtlich') {
+    if (!profileA.gender || !profileB.gender || profileA.gender !== profileB.gender) return false;
+  }
+  if (prefB === 'gleichgeschlechtlich') {
+    if (!profileA.gender || !profileB.gender || profileA.gender !== profileB.gender) return false;
+  }
+  return true;
+}
+
 // Findet ein gemeinsames Tag zwischen zwei Themen-Cluster-Listen, sonst null.
 function sharedTag(tagsA, tagsB) {
   if (!Array.isArray(tagsA) || !Array.isArray(tagsB)) return null;
@@ -519,53 +552,62 @@ function sharedTag(tagsA, tagsB) {
 // (z.B. bei "Autopflege" oder "Blumen", die in keinen der 5 festen Chips passen)
 // versehentlich wie "Zufällig" behandelt und am Ende wahllos irgendwen matchen.
 //
+// Die Geschlechts-Kompatibilität wird IMMER ZUERST geprüft (harter Filter, gilt für
+// beide Modi gleichermaßen) — erst innerhalb der dadurch übrig bleibenden Kandidaten
+// greift die Themen-Logik.
+//
 // Reihenfolge im Thema-Modus: 1) exakte Chip-Auswahl  2) gemeinsames KI-Kategorie-
 // Cluster (z.B. "KFZ" und "Autofirma" -> beide "Fahrzeuge & Mobilität")  3) direkter
 // assoziativer Vergleich der Freitexte über den Wörter-Baum (z.B. "Uhr bauen" <->
 // "Thema Zeit"). Gibt es KEINE dieser Verbindungen, wird NICHT gematcht (return null)
 // — anders als im Zufalls-Modus, wo als letzter Ausweg irgendwer gematcht wird.
 async function findPartnerIndex(profile) {
+  const candidates = waiting.filter(w => isGenderCompatible(w.profile, profile));
+
   if (profile.mode === 'thema') {
     if (profile.topic) {
-      const idx = waiting.findIndex(w => w.profile.topic === profile.topic);
-      if (idx !== -1) return { idx, matchedTag: profile.topic };
+      const entry = candidates.find(w => w.profile.topic === profile.topic);
+      if (entry) return { idx: waiting.indexOf(entry), matchedTag: profile.topic };
     }
 
-    let idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
-    if (idx !== -1) return { idx, matchedTag: sharedTag(waiting[idx].profile.aiTags, profile.aiTags) };
+    let entry = candidates.find(w => sharedTag(w.profile.aiTags, profile.aiTags));
+    if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags) };
 
-    idx = await findAssociativeIndex(profile);
-    if (idx !== -1) return { idx, matchedTag: null };
+    const assocEntry = await findAssociativeMatch(candidates, profile);
+    if (assocEntry) return { idx: waiting.indexOf(assocEntry), matchedTag: null };
 
     return null; // keine echte Verbindung gefunden -> lieber warten als wahllos matchen
   }
 
-  // Zufalls-Modus: bevorzugt inhaltlich passende Leute, matcht als letzten Ausweg aber irgendwen
-  if (!waiting.length) return null;
+  // Zufalls-Modus: bevorzugt inhaltlich passende Leute, matcht als letzten Ausweg aber
+  // irgendwen — ABER NUR unter den geschlechts-kompatiblen Kandidaten
+  if (!candidates.length) return null;
 
-  let idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
-  if (idx !== -1) return { idx, matchedTag: sharedTag(waiting[idx].profile.aiTags, profile.aiTags) };
+  let entry = candidates.find(w => sharedTag(w.profile.aiTags, profile.aiTags));
+  if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags) };
 
-  idx = await findAssociativeIndex(profile);
-  if (idx !== -1) return { idx, matchedTag: null };
+  const assocEntry = await findAssociativeMatch(candidates, profile);
+  if (assocEntry) return { idx: waiting.indexOf(assocEntry), matchedTag: null };
 
-  return { idx: 0, matchedTag: null };
+  return { idx: waiting.indexOf(candidates[0]), matchedTag: null };
 }
 
-// Prüft die ersten paar Wartenden per Direkt-Vergleich (Claude ja/nein) auf inhaltliche
-// Verwandtschaft, unabhängig von den festen Kategorien. Gibt den Index zurück oder -1.
+// Prüft die ersten paar (geschlechts-kompatiblen) Wartenden per Direkt-Vergleich
+// (Claude ja/nein) auf inhaltliche Verwandtschaft, unabhängig von den festen
+// Kategorien. Gibt den passenden Warteschlangen-Eintrag zurück oder null.
 // Läuft PARALLEL statt nacheinander: so dauert die Prüfung im schlimmsten Fall nur
 // einmal die Zeit für einen API-Aufruf (bzw. dessen Timeout), statt bis zu
 // MAX_ASSOCIATIVE_CHECKS-mal hintereinander — das würde sonst die Warteschlange für
 // ALLE Nutzer unnötig lange blockieren, da diese Prüfung innerhalb der Matching-Sperre läuft.
-async function findAssociativeIndex(profile) {
-  const candidates = waiting.slice(0, MAX_ASSOCIATIVE_CHECKS);
-  if (!candidates.length) return -1;
+async function findAssociativeMatch(candidates, profile) {
+  const subset = candidates.slice(0, MAX_ASSOCIATIVE_CHECKS);
+  if (!subset.length) return null;
 
   const results = await Promise.all(
-    candidates.map(c => areAssociativelyRelated(profile.hangup, c.profile.hangup).catch(() => false))
+    subset.map(c => areAssociativelyRelated(profile.hangup, c.profile.hangup).catch(() => false))
   );
-  return results.findIndex(r => r === true);
+  const idx = results.findIndex(r => r === true);
+  return idx === -1 ? null : subset[idx];
 }
 
 io.use((socket, next) => {
@@ -590,6 +632,19 @@ io.on('connection', (socket) => {
 
   async function processJoinQueue(socket, profile) {
     profile = profile || {};
+
+    // Geschlecht + Matching-Präferenz kommen IMMER aus dem gespeicherten Account,
+    // niemals vom Client — sonst könnte man den Filter einfach umgehen, indem man
+    // im Request andere Werte mitschickt.
+    try {
+      const dbUser = store.findUserByEmail(socket.data.email);
+      profile.gender = (dbUser && dbUser.gender) || null;
+      profile.matchPreference = (dbUser && dbUser.matchPreference) || 'gemischt';
+    } catch (err) {
+      console.error('Geschlechts-/Matching-Einstellung konnte nicht geladen werden:', err.message);
+      profile.gender = null;
+      profile.matchPreference = 'gemischt';
+    }
 
     // Freitext ("Woran hängst du gerade?") einem breiten Themen-Cluster zuordnen,
     // damit z.B. "KFZ-Werkstatt" und "Autofirma gründen" als verwandt erkannt werden.
