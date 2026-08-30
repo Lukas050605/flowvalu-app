@@ -8,6 +8,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
+const { classifyTopic, areAssociativelyRelated } = require('./topic-matcher');
 
 const PDF_DIR = path.join(__dirname, 'data', 'call-pdfs');
 function ensurePdfDir() {
@@ -358,13 +359,48 @@ function markCallHappened(roomId) {
   }
 }
 
-function findPartnerIndex(profile) {
+// Wie viele Wartende maximal per Direkt-Vergleich geprüft werden (Kosten/Latenz begrenzen)
+const MAX_ASSOCIATIVE_CHECKS = 6;
+
+// Gibt { idx, matchedTag } zurück oder null, wenn niemand passt.
+// Reihenfolge: 1) exakte Themen-Auswahl (Chip)  2) gemeinsames KI-Kategorie-Cluster
+// (z.B. "KFZ" und "Autofirma" -> beide "Fahrzeuge & Mobilität")  3) direkter assoziativer
+// Vergleich der Freitexte (z.B. "Uhr bauen" <-> "Thema Zeit", auch über Kategorien hinweg)
+// 4) irgendwer (nur im Zufalls-Modus).
+async function findPartnerIndex(profile) {
   if (profile.mode === 'thema' && profile.topic) {
-    const idx = waiting.findIndex(w => w.profile.topic === profile.topic);
-    if (idx !== -1) return idx;
-    return -1;
+    let idx = waiting.findIndex(w => w.profile.topic === profile.topic);
+    if (idx !== -1) return { idx, matchedTag: profile.topic };
+
+    idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
+    if (idx !== -1) return { idx, matchedTag: sharedTag(waiting[idx].profile.aiTags, profile.aiTags) };
+
+    idx = await findAssociativeIndex(profile);
+    if (idx !== -1) return { idx, matchedTag: null };
+
+    return null;
   }
-  return waiting.length ? 0 : -1;
+
+  if (!waiting.length) return null;
+
+  let idx = waiting.findIndex(w => sharedTag(w.profile.aiTags, profile.aiTags));
+  if (idx !== -1) return { idx, matchedTag: sharedTag(waiting[idx].profile.aiTags, profile.aiTags) };
+
+  idx = await findAssociativeIndex(profile);
+  if (idx !== -1) return { idx, matchedTag: null };
+
+  return { idx: 0, matchedTag: null };
+}
+
+// Prüft die ersten paar Wartenden per Direkt-Vergleich (Claude ja/nein) auf inhaltliche
+// Verwandtschaft, unabhängig von den festen Kategorien. Gibt den Index zurück oder -1.
+async function findAssociativeIndex(profile) {
+  const candidates = waiting.slice(0, MAX_ASSOCIATIVE_CHECKS);
+  for (let i = 0; i < candidates.length; i++) {
+    const related = await areAssociativelyRelated(profile.hangup, candidates[i].profile.hangup);
+    if (related) return i;
+  }
+  return -1;
 }
 
 io.use((socket, next) => {
@@ -383,13 +419,26 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   userSockets[socket.data.email] = socket.id;
 
-  socket.on('join_queue', (profile) => {
+  socket.on('join_queue', async (profile) => {
     profile = profile || {};
-    socket.data.lastProfile = profile;
-    const idx = findPartnerIndex(profile);
 
-    if (idx !== -1) {
-      const partner = waiting.splice(idx, 1)[0];
+    // Freitext ("Woran hängst du gerade?") einem breiten Themen-Cluster zuordnen,
+    // damit z.B. "KFZ-Werkstatt" und "Autofirma gründen" als verwandt erkannt werden.
+    try {
+      profile.aiTags = await classifyTopic(profile.hangup);
+    } catch (err) {
+      console.error('Themen-Klassifizierung fehlgeschlagen:', err.message);
+      profile.aiTags = ['Sonstiges'];
+    }
+
+    // Falls sich der Nutzer zwischenzeitlich schon getrennt hat (Tab zu etc.), abbrechen
+    if (socket.disconnected) return;
+
+    socket.data.lastProfile = profile;
+    const match = await findPartnerIndex(profile);
+
+    if (match) {
+      const partner = waiting.splice(match.idx, 1)[0];
       const roomId = crypto.randomUUID();
       rooms[roomId] = [partner.socketId, socket.id];
 
@@ -403,12 +452,12 @@ io.on('connection', (socket) => {
       logMatch(partner.email, socket.data.email, partner.profile, profile, roomId);
 
       socket.emit('matched', {
-        roomId, partnerProfile: partner.profile, youAre: 'b',
+        roomId, partnerProfile: partner.profile, youAre: 'b', matchedTag: match.matchedTag,
         partnerDisplay: store.getPublicProfile(partner.email)
       });
       if (partnerSocket) {
         partnerSocket.emit('matched', {
-          roomId, partnerProfile: profile, youAre: 'a',
+          roomId, partnerProfile: profile, youAre: 'a', matchedTag: match.matchedTag,
           partnerDisplay: store.getPublicProfile(socket.data.email)
         });
       }

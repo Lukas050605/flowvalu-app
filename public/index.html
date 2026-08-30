@@ -670,6 +670,9 @@ socket.on('matched', (data) => {
   document.getElementById('partner-hangup').textContent = display.displayName ? display.displayName + ' — ' + (p.hangup || '') : (p.hangup || 'Jemand Neues');
   document.getElementById('partner-tag').textContent = (p.topic || 'Zufällig') + ' · gerade gematcht';
   document.getElementById('chat-log').innerHTML = '';
+  if (data.matchedTag && data.matchedTag !== p.topic) {
+    addBubble('sys', 'Verwandtes Thema erkannt: ' + data.matchedTag + ' — passt vielleicht besser zusammen, als es aussieht.');
+  }
   addBubble('sys', 'Ihr seid verbunden. Eisbrecher: Wer hat sowas Ähnliches schon gelöst?');
   show('screen-chat');
 });
