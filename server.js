@@ -347,6 +347,20 @@ let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall/pd
 let transcripts = {};       // roomId -> [{ speakerEmail, speakerLabel, text, timestamp }]
 let summaryInProgress = new Set(); // roomIds, die gerade ihre PDF erzeugen (Doppel-Erzeugung verhindern)
 
+// Serialisiert alle Vorgänge, die die Warteschlange (waiting[]) anfassen. Ohne das
+// könnten zwei Leute, die fast gleichzeitig beitreten, sich gegenseitig verpassen:
+// join_queue wartet jetzt erst auf classifyTopic() (ein API-Call), bevor die
+// Warteschlange geprüft wird — in dieser Wartezeit könnte ein zweiter Beitritt
+// dieselbe (noch leere) Warteschlange sehen, und beide landen als getrennte
+// Einträge dort, statt sich zu matchen. Diese Sperre stellt sicher, dass immer nur
+// eine "prüfen + eintragen"-Operation gleichzeitig läuft.
+let matchingLock = Promise.resolve();
+function withMatchingLock(taskFn) {
+  const run = () => Promise.resolve().then(taskFn).catch(err => console.error('Matching-Vorgang fehlgeschlagen:', err.message));
+  matchingLock = matchingLock.then(run, run);
+  return matchingLock;
+}
+
 // -------- Live-Impuls bei Denkblockade während des Calls --------
 const SILENCE_THRESHOLD_MS = 25 * 1000;   // ab so viel Stille gilt das Gespräch als "stockend"
 const IMPULSE_COOLDOWN_MS = 60 * 1000;    // Mindestabstand zwischen zwei Impulsen
@@ -518,7 +532,11 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   userSockets[socket.data.email] = socket.id;
 
-  socket.on('join_queue', async (profile) => {
+  socket.on('join_queue', (profile) => {
+    withMatchingLock(() => processJoinQueue(socket, profile));
+  });
+
+  async function processJoinQueue(socket, profile) {
     profile = profile || {};
 
     // Freitext ("Woran hängst du gerade?") einem breiten Themen-Cluster zuordnen,
@@ -564,7 +582,7 @@ io.on('connection', (socket) => {
       waiting.push({ socketId: socket.id, profile, email: socket.data.email });
       socket.emit('waiting', { position: waiting.length });
     }
-  });
+  }
 
   socket.on('chat_message', ({ roomId, text }) => {
     if (!roomId || !text) return;
@@ -724,36 +742,38 @@ io.on('connection', (socket) => {
   });
 
   socket.on('accept_invite', ({ fromEmail }) => {
-    const inviterSocketId = userSockets[fromEmail];
-    const inviterSocket = inviterSocketId && io.sockets.sockets.get(inviterSocketId);
+    withMatchingLock(() => {
+      const inviterSocketId = userSockets[fromEmail];
+      const inviterSocket = inviterSocketId && io.sockets.sockets.get(inviterSocketId);
 
-    if (!inviterSocket || inviterSocket.data.pendingInviteTo !== socket.data.email) {
-      socket.emit('invite_failed', { reason: 'expired' });
-      return;
-    }
+      if (!inviterSocket || inviterSocket.data.pendingInviteTo !== socket.data.email) {
+        socket.emit('invite_failed', { reason: 'expired' });
+        return;
+      }
 
-    waiting = waiting.filter(w => w.socketId !== socket.id);
-    inviterSocket.data.pendingInviteTo = null;
+      waiting = waiting.filter(w => w.socketId !== socket.id);
+      inviterSocket.data.pendingInviteTo = null;
 
-    const roomId = crypto.randomUUID();
-    rooms[roomId] = [inviterSocket.id, socket.id];
-    inviterSocket.join(roomId);
-    socket.join(roomId);
-    inviterSocket.data.roomId = roomId;
-    socket.data.roomId = roomId;
+      const roomId = crypto.randomUUID();
+      rooms[roomId] = [inviterSocket.id, socket.id];
+      inviterSocket.join(roomId);
+      socket.join(roomId);
+      inviterSocket.data.roomId = roomId;
+      socket.data.roomId = roomId;
 
-    const inviterProfile = inviterSocket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
-    const accepterProfile = socket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
+      const inviterProfile = inviterSocket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
+      const accepterProfile = socket.data.lastProfile || { hangup: 'Hey, wieder da!', topic: null };
 
-    logMatch(fromEmail, socket.data.email, inviterProfile, accepterProfile, roomId);
+      logMatch(fromEmail, socket.data.email, inviterProfile, accepterProfile, roomId);
 
-    inviterSocket.emit('matched', {
-      roomId, partnerProfile: accepterProfile, youAre: 'a',
-      partnerDisplay: store.getPublicProfile(socket.data.email)
-    });
-    socket.emit('matched', {
-      roomId, partnerProfile: inviterProfile, youAre: 'b',
-      partnerDisplay: store.getPublicProfile(fromEmail)
+      inviterSocket.emit('matched', {
+        roomId, partnerProfile: accepterProfile, youAre: 'a',
+        partnerDisplay: store.getPublicProfile(socket.data.email)
+      });
+      socket.emit('matched', {
+        roomId, partnerProfile: inviterProfile, youAre: 'b',
+        partnerDisplay: store.getPublicProfile(fromEmail)
+      });
     });
   });
 
