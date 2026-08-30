@@ -6,16 +6,16 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 /**
  * Ruft Claude auf und bittet um eine strukturierte JSON-Antwort.
- * Gibt bei Erfolg { summary, ideas: [], actionItems: [], aiSolutions: [] } zurück, sonst null.
+ * Gibt bei Erfolg { summary, ideas: [], actionItems: [], problemLoesungen: [] } zurück, sonst null.
  */
 async function callClaudeForStructuredSummary(transcriptText, participantNames, hangups) {
   const hangupContext = (hangups || []).filter(Boolean)
-    .map((h, i) => (participantNames[i] || 'Person') + ' hing ursprünglich an: "' + h + '"')
+    .map((h, i) => (participantNames[i] || 'Person') + ' ist mit dieser Blockade in den Call gegangen: "' + h + '"')
     .join('\n');
 
   const prompt = `Hier ist das Protokoll eines Gesprächs zwischen ${participantNames.join(' und ')} auf FlowValu, einer App, die Menschen mit Denkblockaden verbindet.
 
-Ursprüngliche Denkblockaden, mit denen die Personen in den Call gegangen sind:
+Ausgangslage vor dem Call:
 ${hangupContext || '(keine Angabe)'}
 
 Transkript:
@@ -28,12 +28,14 @@ Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt (keine Einleitung, kein
   "summary": "2-3 Sätze, worum es im Gespräch ging",
   "ideas": ["Idee 1 aus dem Gespräch", "Idee 2 aus dem Gespräch", ...],
   "actionItems": ["Konkreter nächster Schritt 1", "Konkreter nächster Schritt 2", ...],
-  "aiSolutions": ["Eigener, konkreter Lösungsvorschlag 1 für die ursprüngliche(n) Blockade(n)", "Vorschlag 2", ...]
+  "problemLoesungen": [
+    { "problem": "Kurze, konkrete Problem-/Herausforderungs-Beschreibung, die IRGENDWO im Gespräch erwähnt wurde", "loesung": "Dein eigener, konkreter Lösungsansatz dafür" }
+  ]
 }
 
-Wichtig zu "aiSolutions": Das sind DEINE EIGENEN, zusätzlichen Vorschläge, um die ursprüngliche(n) Denkblockade(n) zu lösen — nicht nur eine Wiederholung dessen, was im Gespräch schon gesagt wurde. Nutze dein eigenes Wissen, um 2-4 konkrete, umsetzbare Lösungsansätze zu ergänzen, die im Gespräch noch nicht (oder nur am Rande) vorkamen. Beziehe dich klar auf die ursprüngliche Blockade.
+WICHTIG zu "problemLoesungen": Lies das GESAMTE Transkript aufmerksam durch und identifiziere JEDES Problem, jede Herausforderung oder offene Frage, die die Personen ansprechen — nicht nur die eingangs genannte Blockade, sondern alles, was während des Gesprächs als Schwierigkeit auftaucht (auch Nebensätze wie "das Problem ist...", "ich weiß nicht wie...", "schwierig ist..."). Schreibe für JEDES erkannte Problem einen EIGENEN, konkreten Lösungsansatz — nutze dabei dein eigenes Wissen, nicht nur eine Wiederholung dessen, was die Personen selbst schon gesagt haben. Wenn im Gespräch kein klares Problem erkennbar ist, lass das Array leer — erfinde nichts.
 
-Lass "ideas", "actionItems" oder "aiSolutions" als leeres Array [], wenn dazu wirklich nichts Sinnvolles beizutragen ist.`;
+Lass "ideas" oder "actionItems" als leeres Array [], wenn dazu nichts Konkretes im Gespräch vorkam.`;
 
   const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -44,7 +46,7 @@ Lass "ideas", "actionItems" oder "aiSolutions" als leeres Array [], wenn dazu wi
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
+      max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -68,15 +70,20 @@ function parseStructuredSummary(rawText) {
     // Falls die KI trotz Anweisung Markdown-Codeblöcke drumrum baut, diese entfernen
     const cleaned = rawText.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
     const parsed = JSON.parse(cleaned);
+    const problemLoesungen = Array.isArray(parsed.problemLoesungen)
+      ? parsed.problemLoesungen
+          .filter(p => p && p.problem && p.loesung)
+          .map(p => ({ problem: String(p.problem), loesung: String(p.loesung) }))
+      : [];
     return {
       summary: parsed.summary || '',
       ideas: Array.isArray(parsed.ideas) ? parsed.ideas : [],
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
-      aiSolutions: Array.isArray(parsed.aiSolutions) ? parsed.aiSolutions : []
+      problemLoesungen
     };
   } catch (err) {
     // Kein gültiges JSON — als Fließtext-Zusammenfassung ohne Struktur behandeln
-    return { summary: rawText.trim(), ideas: [], actionItems: [], aiSolutions: [] };
+    return { summary: rawText.trim(), ideas: [], actionItems: [], problemLoesungen: [] };
   }
 }
 
@@ -251,18 +258,38 @@ function buildPdf({ participantNames, startedAt, aiSummary, transcript }) {
       doc.moveDown(0.3);
     }
 
+    // Problem/Lösung-Paar als kleine Karte: Problem fett mit Warn-Farbe, darunter der
+    // Lösungsansatz mit Pfeil-Symbol — macht den Zusammenhang optisch sofort klar.
+    function problemSolutionCard(problem, loesung) {
+      if (doc.y > doc.page.height - 130) doc.addPage();
+      const startY = doc.y;
+
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(INK)
+        .text('Problem: ', MARGIN + 10, startY, { continued: true, width: CONTENT_W - 10 })
+        .font('Helvetica').fillColor(INK).text(problem);
+      doc.moveDown(0.15);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(AMBER)
+        .text('-> Lösungsansatz: ', MARGIN + 10, doc.y, { continued: true, width: CONTENT_W - 10 })
+        .font('Helvetica').fillColor(INK).text(loesung);
+
+      const endY = doc.y;
+      // linken Farbbalken über die tatsächliche Höhe der Karte nachträglich zeichnen
+      doc.roundedRect(MARGIN, startY, 3, endY - startY + 2, 1.5).fill(AMBER);
+      doc.moveDown(0.6);
+    }
+
     drawHeader();
 
     if (aiSummary && aiSummary.summary) {
       sectionHeader('Zusammenfassung', ACCENT);
       doc.font('Helvetica').fontSize(11).fillColor(INK).text(aiSummary.summary, MARGIN, doc.y, { width: CONTENT_W });
 
-      if (aiSummary.aiSolutions && aiSummary.aiSolutions.length) {
-        sectionHeader('KI-Lösungsvorschläge', AMBER);
+      if (aiSummary.problemLoesungen && aiSummary.problemLoesungen.length) {
+        sectionHeader('Probleme & Lösungsansätze', AMBER);
         doc.font('Helvetica').fontSize(9.5).fillColor(MUTED)
-          .text('Zusätzliche Vorschläge unserer KI für eure ursprüngliche Denkblockade:', MARGIN, doc.y, { width: CONTENT_W });
-        doc.moveDown(0.4);
-        aiSummary.aiSolutions.forEach(s => bulletItem(s, AMBER));
+          .text('Unsere KI hat mitgehört und schlägt für die angesprochenen Probleme diese Ansätze vor:', MARGIN, doc.y, { width: CONTENT_W });
+        doc.moveDown(0.5);
+        aiSummary.problemLoesungen.forEach(p => problemSolutionCard(p.problem, p.loesung));
       }
 
       if (aiSummary.ideas && aiSummary.ideas.length) {

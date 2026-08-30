@@ -77,7 +77,7 @@ function writeCallSummaries(entries) {
 
 // Speichert die strukturierte KI-Zusammenfassung eines beendeten Calls (nicht nur als PDF,
 // sondern als wiederverwendbare Rohdaten), damit spätere Calls darauf zurückgreifen können.
-function addCallSummary({ roomId, participantEmails, summary, ideas, actionItems, aiSolutions }) {
+function addCallSummary({ roomId, participantEmails, summary, ideas, actionItems, problemLoesungen }) {
   const entries = readCallSummaries();
   entries.push({
     roomId,
@@ -85,7 +85,7 @@ function addCallSummary({ roomId, participantEmails, summary, ideas, actionItems
     summary: summary || '',
     ideas: Array.isArray(ideas) ? ideas : [],
     actionItems: Array.isArray(actionItems) ? actionItems : [],
-    aiSolutions: Array.isArray(aiSolutions) ? aiSolutions : [],
+    problemLoesungen: Array.isArray(problemLoesungen) ? problemLoesungen : [],
     createdAt: Date.now()
   });
   // Datei nicht unbegrenzt wachsen lassen — die letzten 500 Einträge reichen völlig

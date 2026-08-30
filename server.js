@@ -781,12 +781,12 @@ io.on('connection', (socket) => {
       const aiSummary = transcriptText ? await summarizeWithAI(transcriptText, participantNames, hangups) : null;
 
       // Persönliches Gedächtnis: Ideen aus diesem Call für zukünftige Calls dieser Personen merken
-      if (aiSummary && (aiSummary.ideas.length || aiSummary.actionItems.length || aiSummary.aiSolutions.length)) {
+      if (aiSummary && (aiSummary.ideas.length || aiSummary.actionItems.length || aiSummary.problemLoesungen.length)) {
         try {
           store.addCallSummary({
             roomId, participantEmails,
             summary: aiSummary.summary, ideas: aiSummary.ideas, actionItems: aiSummary.actionItems,
-            aiSolutions: aiSummary.aiSolutions
+            problemLoesungen: aiSummary.problemLoesungen
           });
         } catch (err) {
           console.error('Call-Zusammenfassung konnte nicht fürs Gedächtnis gespeichert werden:', err.message);
