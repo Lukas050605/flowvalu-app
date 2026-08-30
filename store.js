@@ -6,6 +6,7 @@ const REPORTS_FILE = path.join(__dirname, 'data', 'reports.json');
 const MATCHES_FILE = path.join(__dirname, 'data', 'matches.json');
 const CALL_SUMMARIES_FILE = path.join(__dirname, 'data', 'call-summaries.json');
 const IMPULSE_LOG_FILE = path.join(__dirname, 'data', 'impulse-log.json');
+const RATINGS_FILE = path.join(__dirname, 'data', 'ratings.json');
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -15,6 +16,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(MATCHES_FILE)) fs.writeFileSync(MATCHES_FILE, '[]');
   if (!fs.existsSync(CALL_SUMMARIES_FILE)) fs.writeFileSync(CALL_SUMMARIES_FILE, '[]');
   if (!fs.existsSync(IMPULSE_LOG_FILE)) fs.writeFileSync(IMPULSE_LOG_FILE, '[]');
+  if (!fs.existsSync(RATINGS_FILE)) fs.writeFileSync(RATINGS_FILE, '[]');
 }
 
 function readUsers() {
@@ -50,10 +52,11 @@ function findUserByEmail(email) {
 
 function getPublicProfile(email) {
   const user = findUserByEmail(email);
-  if (!user) return { displayName: email.split('@')[0], avatarDataUrl: null };
+  const rating = getUserRatingSummary(email);
   return {
-    displayName: user.displayName || email.split('@')[0],
-    avatarDataUrl: user.avatarDataUrl || null
+    displayName: (user && user.displayName) || email.split('@')[0],
+    avatarDataUrl: (user && user.avatarDataUrl) || null,
+    rating
   };
 }
 
@@ -169,5 +172,57 @@ module.exports = {
   readUsers, writeUsers, readReports, writeReports,
   readMatches, writeMatches, findUserByEmail, getPublicProfile, findMatchByPdfToken,
   addCallSummary, getRecentIdeasForUser,
-  logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples
+  logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
+  addRating, getUserRatingSummary, hasRated
 };
+
+/* ---------------- Punkte-System: gegenseitige Bewertung nach Calls ---------------- */
+
+function readRatings() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(RATINGS_FILE, 'utf-8'));
+}
+
+function writeRatings(entries) {
+  fs.writeFileSync(RATINGS_FILE, JSON.stringify(entries, null, 2));
+}
+
+// Prüft, ob diese Person für DIESEN Call schon bewertet hat (verhindert Mehrfach-Bewertung
+// durch wiederholtes Absenden desselben Formulars).
+function hasRated(roomId, raterEmail) {
+  return readRatings().some(r => r.roomId === roomId && r.raterEmail === raterEmail);
+}
+
+// Speichert eine Bewertung. beliebtheit/kreativitaet jeweils 1-5 (ganzzahlig).
+// Gibt false zurück (und speichert nichts), wenn schon für diesen Call bewertet wurde
+// oder die Werte ungültig sind — Aufrufer prüft das Ergebnis.
+function addRating({ roomId, raterEmail, ratedEmail, beliebtheit, kreativitaet }) {
+  const b = Math.round(Number(beliebtheit));
+  const k = Math.round(Number(kreativitaet));
+  if (!roomId || !raterEmail || !ratedEmail || raterEmail === ratedEmail) return false;
+  if (!(b >= 1 && b <= 5) || !(k >= 1 && k <= 5)) return false;
+  if (hasRated(roomId, raterEmail)) return false;
+
+  const entries = readRatings();
+  entries.push({ roomId, raterEmail, ratedEmail, beliebtheit: b, kreativitaet: k, createdAt: Date.now() });
+  writeRatings(entries);
+  return true;
+}
+
+// Fasst alle Bewertungen zusammen, die eine Person erhalten HAT (nicht selbst vergeben).
+// "punkte" = Summe aus Beliebtheit + Kreativität über alle Bewertungen — einfache,
+// nachvollziehbare Punktzahl, die mit jeder positiven Bewertung wächst.
+function getUserRatingSummary(email) {
+  const received = readRatings().filter(r => r.ratedEmail === email);
+  if (!received.length) {
+    return { count: 0, avgBeliebtheit: null, avgKreativitaet: null, punkte: 0 };
+  }
+  const sumBeliebtheit = received.reduce((sum, r) => sum + r.beliebtheit, 0);
+  const sumKreativitaet = received.reduce((sum, r) => sum + r.kreativitaet, 0);
+  return {
+    count: received.length,
+    avgBeliebtheit: Math.round((sumBeliebtheit / received.length) * 10) / 10,
+    avgKreativitaet: Math.round((sumKreativitaet / received.length) * 10) / 10,
+    punkte: sumBeliebtheit + sumKreativitaet
+  };
+}

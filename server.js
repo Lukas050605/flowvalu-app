@@ -206,7 +206,8 @@ app.get('/api/profile', (req, res) => {
   res.json({
     displayName: user.displayName || '',
     avatarDataUrl: user.avatarDataUrl || null,
-    liveImpulsesEnabled: user.liveImpulsesEnabled !== false // Standard: an
+    liveImpulsesEnabled: user.liveImpulsesEnabled !== false, // Standard: an
+    rating: store.getUserRatingSummary(req.session.user.email)
   });
 });
 
@@ -757,7 +758,7 @@ io.on('connection', (socket) => {
       participantEmails.forEach(email => {
         const sId = userSockets[email];
         const s = sId && io.sockets.sockets.get(sId);
-        if (s) s.emit('call_summary_ready', { url: '/api/call-pdf/' + token });
+        if (s) s.emit('call_summary_ready', { url: '/api/call-pdf/' + token, roomId });
       });
     } catch (err) {
       console.error('Fehler beim Erstellen der Call-Zusammenfassung:', err.message);
@@ -765,6 +766,32 @@ io.on('connection', (socket) => {
       delete transcripts[roomId];
       summaryInProgress.delete(roomId);
     }
+  });
+
+  // Bewertung nach einem Call: 1-5 Sterne auf Beliebtheit und Kreativität.
+  // Validierung läuft über den persistenten Match-Eintrag (nicht die Live-Socket-Room),
+  // damit man auch noch bewerten kann, nachdem man den Raum schon verlassen hat.
+  socket.on('rate_partner', ({ roomId, beliebtheit, kreativitaet }) => {
+    const raterEmail = socket.data.email;
+    if (!raterEmail || !roomId) {
+      socket.emit('rate_result', { ok: false, error: 'Ungültige Anfrage.' });
+      return;
+    }
+
+    const match = store.readMatches().find(m =>
+      m.roomId === roomId && (m.userAEmail === raterEmail || m.userBEmail === raterEmail)
+    );
+    if (!match) {
+      socket.emit('rate_result', { ok: false, error: 'Dieser Call wurde nicht gefunden.' });
+      return;
+    }
+    const ratedEmail = match.userAEmail === raterEmail ? match.userBEmail : match.userAEmail;
+
+    const success = store.addRating({ roomId, raterEmail, ratedEmail, beliebtheit, kreativitaet });
+    socket.emit('rate_result', {
+      ok: success,
+      error: success ? null : 'Ungültige Bewertung oder du hast diesen Call schon bewertet.'
+    });
   });
 
   socket.on('report_user', ({ roomId, reason }) => {

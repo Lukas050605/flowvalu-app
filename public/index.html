@@ -200,6 +200,30 @@
     background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
     padding:12px 14px; margin-bottom:18px;
   }
+
+  .rating-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; z-index:55; padding:20px;
+  }
+  .rating-overlay.active{ display:flex; }
+  .rating-box{
+    width:100%; max-width:420px; background:var(--surface); border:1px solid var(--border-strong);
+    border-radius:16px; padding:26px 24px; text-align:center;
+  }
+  .rating-box h3{ margin:0 0 6px; font-size:18px; }
+  .rating-box p.sub{ color:var(--muted); font-size:13px; margin:0 0 22px; }
+  .rating-category{ margin-bottom:20px; text-align:left; }
+  .rating-category .label{ font-size:13px; font-weight:600; margin-bottom:8px; }
+  .star-row{ display:flex; gap:6px; }
+  .star-row .star{
+    font-size:28px; cursor:pointer; color:var(--border-strong); transition:color 0.15s, transform 0.1s;
+    line-height:1; user-select:none;
+  }
+  .star-row .star:hover{ transform:scale(1.1); }
+  .star-row .star.filled{ color:#ffb84d; }
+  .rating-actions{ display:flex; gap:10px; margin-top:22px; }
+  .rating-actions button{ flex:1; }
+  .rating-error{ color:#ff6b6b; font-size:12px; margin-top:10px; min-height:14px; }
   .switch{ position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; }
   .switch input{ opacity:0; width:0; height:0; }
   .switch-track{
@@ -256,6 +280,7 @@
     <div class="top-links">
       <span id="edit-profile-link">👤 Profil</span>
       <span id="history-link">🕓 Verlauf</span>
+      <span id="points-badge" title="Beliebtheit + Kreativität aus Bewertungen anderer">⭐ …</span>
       <span id="logout-link">Ausloggen</span>
     </div>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
@@ -380,6 +405,43 @@
   </div>
 </div>
 
+<!-- BEWERTUNGS-OVERLAY -->
+<div class="rating-overlay" id="rating-overlay">
+  <div class="rating-box">
+    <h3>Wie war's mit <span id="rating-partner-name">deinem Partner</span>?</h3>
+    <p class="sub">Deine Bewertung hilft anderen, gute Gesprächspartner zu finden.</p>
+
+    <div class="rating-category">
+      <div class="label">💬 Beliebtheit</div>
+      <div class="star-row" id="stars-beliebtheit" data-value="0">
+        <span class="star" data-star="1">★</span>
+        <span class="star" data-star="2">★</span>
+        <span class="star" data-star="3">★</span>
+        <span class="star" data-star="4">★</span>
+        <span class="star" data-star="5">★</span>
+      </div>
+    </div>
+
+    <div class="rating-category">
+      <div class="label">💡 Kreativität</div>
+      <div class="star-row" id="stars-kreativitaet" data-value="0">
+        <span class="star" data-star="1">★</span>
+        <span class="star" data-star="2">★</span>
+        <span class="star" data-star="3">★</span>
+        <span class="star" data-star="4">★</span>
+        <span class="star" data-star="5">★</span>
+      </div>
+    </div>
+
+    <div class="rating-error" id="rating-error"></div>
+
+    <div class="rating-actions">
+      <button class="btn" id="rating-skip-btn" style="background:var(--surface-2); color:var(--muted);">Überspringen</button>
+      <button class="btn" id="rating-submit-btn">Bewertung abschicken</button>
+    </div>
+  </div>
+</div>
+
 <!-- INVITE TOAST -->
 <div class="invite-toast" id="invite-toast">
   <p style="margin:0; font-size:14px;"><strong id="invite-from-name">Jemand</strong> möchte sich nochmal mit dir verbinden.</p>
@@ -388,6 +450,7 @@
     <button class="decline" id="invite-decline-btn">Ablehnen</button>
   </div>
 </div>
+
 
 <!-- REPORT OVERLAY -->
 <div class="report-overlay" id="report-overlay">
@@ -483,10 +546,23 @@ socket.on('connect_error', (err) => {
 
 let myEmail = null;
 
+async function refreshPointsBadge() {
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    const r = data.rating || { count: 0, punkte: 0 };
+    const badge = document.getElementById('points-badge');
+    badge.textContent = r.count
+      ? `⭐ ${r.punkte} Punkte (${r.avgBeliebtheit}★ Beliebtheit, ${r.avgKreativitaet}★ Kreativität)`
+      : '⭐ Noch keine Bewertungen';
+  } catch (e) { /* egal, Badge bleibt einfach leer */ }
+}
+
 function onAuthSuccess(email){
   myEmail = email || myEmail;
   socket.connect();
   show('screen-profile');
+  refreshPointsBadge();
 }
 
 document.getElementById('logout-link').addEventListener('click', async () => {
@@ -1033,6 +1109,67 @@ socket.on('call_summary_ready', (data) => {
   document.body.appendChild(a);
   a.click();
   a.remove();
+
+  openRatingOverlay(data.roomId);
+});
+
+/* ---------- Bewertung (Beliebtheit + Kreativität) ---------- */
+let ratingRoomId = null;
+
+function setStars(rowId, value) {
+  const row = document.getElementById(rowId);
+  row.dataset.value = value;
+  row.querySelectorAll('.star').forEach(star => {
+    star.classList.toggle('filled', Number(star.dataset.star) <= value);
+  });
+}
+
+['stars-beliebtheit', 'stars-kreativitaet'].forEach(rowId => {
+  document.getElementById(rowId).querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', () => setStars(rowId, Number(star.dataset.star)));
+  });
+});
+
+function openRatingOverlay(roomId) {
+  ratingRoomId = roomId;
+  setStars('stars-beliebtheit', 0);
+  setStars('stars-kreativitaet', 0);
+  document.getElementById('rating-error').textContent = '';
+  const partnerName = document.getElementById('partner-hangup').textContent.split(' — ')[0] || 'deinem Partner';
+  document.getElementById('rating-partner-name').textContent = partnerName;
+  document.getElementById('rating-overlay').classList.add('active');
+}
+
+function closeRatingOverlay() {
+  document.getElementById('rating-overlay').classList.remove('active');
+  ratingRoomId = null;
+}
+
+document.getElementById('rating-skip-btn').addEventListener('click', closeRatingOverlay);
+
+document.getElementById('rating-submit-btn').addEventListener('click', () => {
+  const beliebtheit = Number(document.getElementById('stars-beliebtheit').dataset.value);
+  const kreativitaet = Number(document.getElementById('stars-kreativitaet').dataset.value);
+  const errEl = document.getElementById('rating-error');
+
+  if (!beliebtheit || !kreativitaet) {
+    errEl.textContent = 'Bitte beide Kategorien bewerten.';
+    return;
+  }
+  if (!ratingRoomId) {
+    errEl.textContent = 'Dieser Call konnte nicht zugeordnet werden.';
+    return;
+  }
+  socket.emit('rate_partner', { roomId: ratingRoomId, beliebtheit, kreativitaet });
+});
+
+socket.on('rate_result', (data) => {
+  if (data.ok) {
+    addBubble('sys', '⭐ Danke für deine Bewertung!');
+    closeRatingOverlay();
+  } else {
+    document.getElementById('rating-error').textContent = data.error || 'Bewertung fehlgeschlagen.';
+  }
 });
 
 /* ---------- Melden ---------- */
