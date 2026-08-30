@@ -772,16 +772,21 @@ io.on('connection', (socket) => {
         .map(id => { const s = io.sockets.sockets.get(id); return s ? s.data.email : null; })
         .filter(Boolean);
       const participantNames = participantEmails.map(e => store.getPublicProfile(e).displayName);
+      const hangups = members.map(id => {
+        const s = io.sockets.sockets.get(id);
+        return s && s.data.lastProfile ? s.data.lastProfile.hangup : '';
+      });
 
       const transcriptText = transcript.map(s => s.speakerLabel + ': ' + s.text).join('\n');
-      const aiSummary = transcriptText ? await summarizeWithAI(transcriptText, participantNames) : null;
+      const aiSummary = transcriptText ? await summarizeWithAI(transcriptText, participantNames, hangups) : null;
 
       // Persönliches Gedächtnis: Ideen aus diesem Call für zukünftige Calls dieser Personen merken
-      if (aiSummary && (aiSummary.ideas.length || aiSummary.actionItems.length)) {
+      if (aiSummary && (aiSummary.ideas.length || aiSummary.actionItems.length || aiSummary.aiSolutions.length)) {
         try {
           store.addCallSummary({
             roomId, participantEmails,
-            summary: aiSummary.summary, ideas: aiSummary.ideas, actionItems: aiSummary.actionItems
+            summary: aiSummary.summary, ideas: aiSummary.ideas, actionItems: aiSummary.actionItems,
+            aiSolutions: aiSummary.aiSolutions
           });
         } catch (err) {
           console.error('Call-Zusammenfassung konnte nicht fürs Gedächtnis gespeichert werden:', err.message);
