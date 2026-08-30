@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const { fetchWithTimeout } = require('./fetch-with-timeout');
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -24,7 +25,7 @@ Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt (keine Einleitung, kein
 
 Lass "ideas" oder "actionItems" als leeres Array [], wenn dazu nichts Konkretes im Gespräch vorkam.`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': ANTHROPIC_API_KEY,
@@ -102,11 +103,11 @@ async function transcribeAudioFallback(audioBuffer) {
     form.append('model', 'whisper-1');
     form.append('language', 'de');
 
-    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const res = await fetchWithTimeout('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + OPENAI_API_KEY },
       body: form
-    });
+    }, 20000); // Audio-Upload braucht länger als eine normale Textanfrage
 
     if (!res.ok) {
       console.error('Whisper API Fehler:', res.status, await res.text());

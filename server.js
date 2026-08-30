@@ -507,13 +507,18 @@ async function findPartnerIndex(profile) {
 
 // Prüft die ersten paar Wartenden per Direkt-Vergleich (Claude ja/nein) auf inhaltliche
 // Verwandtschaft, unabhängig von den festen Kategorien. Gibt den Index zurück oder -1.
+// Läuft PARALLEL statt nacheinander: so dauert die Prüfung im schlimmsten Fall nur
+// einmal die Zeit für einen API-Aufruf (bzw. dessen Timeout), statt bis zu
+// MAX_ASSOCIATIVE_CHECKS-mal hintereinander — das würde sonst die Warteschlange für
+// ALLE Nutzer unnötig lange blockieren, da diese Prüfung innerhalb der Matching-Sperre läuft.
 async function findAssociativeIndex(profile) {
   const candidates = waiting.slice(0, MAX_ASSOCIATIVE_CHECKS);
-  for (let i = 0; i < candidates.length; i++) {
-    const related = await areAssociativelyRelated(profile.hangup, candidates[i].profile.hangup);
-    if (related) return i;
-  }
-  return -1;
+  if (!candidates.length) return -1;
+
+  const results = await Promise.all(
+    candidates.map(c => areAssociativelyRelated(profile.hangup, c.profile.hangup).catch(() => false))
+  );
+  return results.findIndex(r => r === true);
 }
 
 io.use((socket, next) => {
@@ -533,7 +538,7 @@ io.on('connection', (socket) => {
   userSockets[socket.data.email] = socket.id;
 
   socket.on('join_queue', (profile) => {
-    withMatchingLock(() => processJoinQueue(socket, profile));
+    processJoinQueue(socket, profile);
   });
 
   async function processJoinQueue(socket, profile) {
@@ -541,6 +546,9 @@ io.on('connection', (socket) => {
 
     // Freitext ("Woran hängst du gerade?") einem breiten Themen-Cluster zuordnen,
     // damit z.B. "KFZ-Werkstatt" und "Autofirma gründen" als verwandt erkannt werden.
+    // Läuft bewusst AUSSERHALB der Matching-Sperre: das greift auf keinen gemeinsamen
+    // Zustand zu, kann also für mehrere Leute gleichzeitig laufen, ohne dass sich
+    // jemand gegenseitig blockiert.
     try {
       profile.aiTags = await classifyTopic(profile.hangup);
     } catch (err) {
@@ -552,6 +560,13 @@ io.on('connection', (socket) => {
     if (socket.disconnected) return;
 
     socket.data.lastProfile = profile;
+
+    // Ab hier wird die gemeinsame Warteschlange gelesen und verändert — das MUSS
+    // serialisiert laufen, sonst können sich zwei Leute wieder gegenseitig verpassen.
+    await withMatchingLock(() => matchOrEnqueue(socket, profile));
+  }
+
+  async function matchOrEnqueue(socket, profile) {
     const match = await findPartnerIndex(profile);
 
     if (match) {

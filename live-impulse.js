@@ -1,4 +1,5 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const { fetchWithTimeout } = require('./fetch-with-timeout');
 
 // Generische Impulse als Fallback, falls kein API-Key gesetzt ist oder der Call fehlschlägt.
 // Bewusst allgemein gehalten, damit sie zu praktisch jeder Denkblockade passen.
@@ -41,7 +42,7 @@ ${transcriptText || '(noch nichts gesagt)'}
 
 Formuliere EINEN kurzen, konkreten Impuls (max. 2 Sätze) auf Deutsch, der das Gespräch wieder in Gang bringt. Kein Small Talk, keine Floskeln wie "Wie geht's euch" — eine echte inhaltliche Frage oder ein Denkanstoß, der zum Thema passt. Antworte AUSSCHLIESSLICH mit dem Impuls selbst, keine Einleitung, keine Anführungszeichen.`;
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,

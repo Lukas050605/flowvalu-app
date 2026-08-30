@@ -1,4 +1,5 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const { fetchWithTimeout } = require('./fetch-with-timeout');
 
 /**
  * Feste Liste breiter Themen-Cluster. Damit "KFZ-Werkstatt" und "Autofirma gründen"
@@ -243,7 +244,7 @@ Aussage: "${text}"
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Array aus 1-2 Kategorie-Namen (exakt wie oben geschrieben), keine Einleitung, kein Markdown. Beispiel: ["Fahrzeuge & Mobilität"]`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': ANTHROPIC_API_KEY,
@@ -337,7 +338,7 @@ Person B: "${textB}"
 
 Gibt es eine inhaltliche, assoziative oder thematische Verbindung zwischen beiden Aussagen (auch über mehrere Ecken, z.B. gleicher Gegenstand, gleiches Konzept, gleiche Branche)? Antworte AUSSCHLIESSLICH mit "ja" oder "nein", kein weiterer Text.`;
 
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': ANTHROPIC_API_KEY,
