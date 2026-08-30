@@ -1,6 +1,14 @@
 # FlowValu — Live-Matching-App
 
-Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung mit E-Mail-Bestätigung, Profilbild/Verlauf, einem Melde-System mit automatischer Sperre — und einer KI-gestützten Call-Zusammenfassung als PDF.
+Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung mit E-Mail-Bestätigung, Profilbild/Verlauf, einem Melde-System mit automatischer Sperre und Admin-Bereich — und einer KI-gestützten Call-Zusammenfassung als PDF.
+
+## Admin-Bereich einrichten
+
+Unter `/admin.html` gibt es eine geschützte Seite mit allen Meldungen — inklusive Link zum Gesprächsprotokoll (PDF), falls für den gemeldeten Call eins erstellt wurde, und einem Button zum Entsperren fälschlich gesperrter Konten.
+
+1. Bei Render unter "Environment" die Variable `ADMIN_EMAILS` setzen, z. B. `ADMIN_EMAILS=deine-echte-email@beispiel.de` (mehrere E-Mails durch Komma getrennt möglich)
+2. Mit genau dieser E-Mail-Adresse in der App registrieren/einloggen
+3. Danach `/admin.html` aufrufen (z. B. `https://flowvalu-app.onrender.com/admin.html`)
 
 ## Call-Zusammenfassung einrichten (optional, aber empfohlen)
 

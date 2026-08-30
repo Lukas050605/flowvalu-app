@@ -17,6 +17,18 @@ function ensurePdfDir() {
 const REPORT_BAN_THRESHOLD = 3; // ab so vielen Meldungen wird automatisch gesperrt
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+function isAdminEmail(email) {
+  return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session.user || !isAdminEmail(req.session.user.email)) {
+    return res.status(403).json({ error: 'Kein Zugriff auf den Admin-Bereich.' });
+  }
+  next();
+}
 
 async function sendVerificationEmail(email, token) {
   const link = APP_URL + '/api/verify-email?token=' + token;
@@ -209,7 +221,8 @@ app.get('/api/call-pdf/:token', (req, res) => {
   if (!req.session.user) return res.status(401).send('Nicht eingeloggt.');
   const match = store.findMatchByPdfToken(req.params.token);
   if (!match) return res.status(404).send('Diese Zusammenfassung wurde nicht gefunden.');
-  if (match.userAEmail !== req.session.user.email && match.userBEmail !== req.session.user.email) {
+  const isParticipant = match.userAEmail === req.session.user.email || match.userBEmail === req.session.user.email;
+  if (!isParticipant && !isAdminEmail(req.session.user.email)) {
     return res.status(403).send('Kein Zugriff auf diese Zusammenfassung.');
   }
   const filePath = path.join(PDF_DIR, req.params.token + '.pdf');
@@ -238,6 +251,42 @@ app.post('/api/transcribe-audio', express.raw({ type: 'audio/webm', limit: '25mb
   otherMembers.forEach(id => { const s = io.sockets.sockets.get(id); if (s) s.emit('transcript_update', segment); });
 
   res.json({ ok: true, transcribed: true });
+});
+
+/* ---------------- Admin-Bereich ---------------- */
+app.get('/api/admin/reports', requireAdmin, (req, res) => {
+  const reports = store.readReports();
+  const matches = store.readMatches();
+
+  const enriched = reports
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(r => {
+      const reportedUser = store.findUserByEmail(r.reportedEmail);
+      const match = r.matchId ? matches.find(m => m.id === r.matchId) : null;
+      return {
+        id: r.id,
+        reporterEmail: r.reporterEmail,
+        reportedEmail: r.reportedEmail,
+        reason: r.reason,
+        createdAt: r.createdAt,
+        reportedUserBanned: reportedUser ? !!reportedUser.banned : null,
+        reportedUserReportCount: reportedUser ? (reportedUser.reportCount || 0) : null,
+        pdfUrl: match && match.pdfToken ? '/api/call-pdf/' + match.pdfToken : null
+      };
+    });
+
+  res.json({ reports: enriched });
+});
+
+app.post('/api/admin/unban', requireAdmin, (req, res) => {
+  const { email } = req.body || {};
+  const users = store.readUsers();
+  const user = users.find(u => u.email === (email || '').toLowerCase());
+  if (!user) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+  user.banned = false;
+  user.reportCount = 0;
+  store.writeUsers(users);
+  res.json({ ok: true });
 });
 
 app.get('/api/history', (req, res) => {
@@ -474,6 +523,7 @@ io.on('connection', (socket) => {
       reportedEmail,
       reason: reason || 'Kein Grund angegeben',
       roomId,
+      matchId: roomToMatchId[roomId] || null, // um später das PDF/Protokoll zuordnen zu können
       createdAt: new Date().toISOString()
     });
     store.writeReports(reports);

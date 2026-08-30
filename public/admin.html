@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — FlowValu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #08080a; --surface: #101013; --surface-2: #16161a;
+    --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.16);
+    --ink: #ededf1; --muted: #8b8b95; --accent: #7c6ff0; --accent-2: #4c8dff; --danger: #e5484d;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; letter-spacing:-0.01em; }
+  .wrap{ max-width:920px; margin:0 auto; padding:40px 24px 80px; }
+  h1{ font-size:24px; font-weight:600; margin-bottom:4px; }
+  p.sub{ color:var(--muted); font-size:13.5px; margin-bottom:30px; }
+  a{ color:var(--accent-2); }
+
+  .report-card{
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:14px;
+    padding:18px 20px; margin-bottom:14px;
+  }
+  .report-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+  .report-emails{ font-size:14px; font-weight:600; }
+  .report-emails .arrow{ color:var(--muted); font-weight:400; margin:0 6px; }
+  .report-date{ font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
+  .report-reason{ font-size:13.5px; color:var(--muted); margin-top:8px; }
+  .report-status{ display:inline-block; font-family:'JetBrains Mono', monospace; font-size:11px; padding:3px 9px; border-radius:999px; margin-top:10px; margin-right:8px; }
+  .status-banned{ background:rgba(229,72,77,0.15); color:#ff8a80; border:1px solid rgba(229,72,77,0.4); }
+  .status-ok{ background:rgba(76,141,255,0.1); color:var(--accent-2); border:1px solid rgba(76,141,255,0.3); }
+  .report-actions{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  .btn-sm{
+    font-family:'Inter', sans-serif; font-size:12.5px; font-weight:600; padding:7px 13px;
+    border-radius:8px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--ink);
+    cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  .btn-unban{ background:var(--accent-2); border:none; color:#fff; }
+  .btn-unban:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .empty{ text-align:center; color:var(--muted); padding:60px 0; }
+  .denied{ text-align:center; padding:80px 20px; color:var(--muted); }
+  .denied h2{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin — Meldungen</h1>
+  <p class="sub">Nur für als Admin markierte Konten sichtbar (siehe README, <code>ADMIN_EMAILS</code>).</p>
+  <div id="content">Lädt …</div>
+</div>
+
+<script>
+async function load(){
+  const content = document.getElementById('content');
+  try{
+    const res = await fetch('/api/admin/reports');
+    if(res.status === 403){
+      content.innerHTML = '<div class="denied"><h2>Kein Zugriff</h2><p>Dieses Konto ist nicht als Admin markiert.</p></div>';
+      return;
+    }
+    if(res.status === 401){
+      content.innerHTML = '<div class="denied"><h2>Nicht eingeloggt</h2><p>Bitte zuerst in der App einloggen: <a href="/">zur App</a></p></div>';
+      return;
+    }
+    const data = await res.json();
+    render(data.reports);
+  } catch(err){
+    content.innerHTML = '<div class="denied"><h2>Fehler</h2><p>' + err.message + '</p></div>';
+  }
+}
+
+function render(reports){
+  const content = document.getElementById('content');
+  if(!reports.length){
+    content.innerHTML = '<div class="empty">Noch keine Meldungen vorhanden.</div>';
+    return;
+  }
+  content.innerHTML = '';
+  reports.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'report-card';
+    const date = new Date(r.createdAt).toLocaleString('de-DE');
+    const statusHtml = r.reportedUserBanned
+      ? '<span class="report-status status-banned">Gesperrt</span>'
+      : '<span class="report-status status-ok">Aktiv</span>';
+    const countHtml = '<span class="report-status status-ok">' + r.reportedUserReportCount + ' Meldung(en) insgesamt</span>';
+    const pdfBtn = r.pdfUrl
+      ? '<a class="btn-sm" href="' + r.pdfUrl + '" target="_blank">📄 Protokoll ansehen</a>'
+      : '<span class="btn-sm" style="opacity:.4;">Kein Protokoll verfügbar</span>';
+    const unbanBtn = r.reportedUserBanned
+      ? '<button class="btn-sm btn-unban" data-email="' + r.reportedEmail + '">Entsperren</button>'
+      : '';
+
+    card.innerHTML =
+      '<div class="report-top">' +
+        '<div class="report-emails">' + escapeHtml(r.reportedEmail) + '<span class="arrow">gemeldet von</span>' + escapeHtml(r.reporterEmail) + '</div>' +
+        '<div class="report-date">' + date + '</div>' +
+      '</div>' +
+      '<div class="report-reason">Grund: ' + escapeHtml(r.reason) + '</div>' +
+      '<div>' + statusHtml + countHtml + '</div>' +
+      '<div class="report-actions">' + pdfBtn + unbanBtn + '</div>';
+    content.appendChild(card);
+  });
+
+  document.querySelectorAll('.btn-unban').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Wird entsperrt …';
+      await fetch('/api/admin/unban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: btn.dataset.email })
+      });
+      load();
+    });
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+load();
+</script>
+</body>
+</html>
