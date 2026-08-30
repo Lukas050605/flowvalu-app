@@ -475,6 +475,12 @@ function markCallHappened(roomId) {
 // Wie viele Wartende maximal per Direkt-Vergleich geprüft werden (Kosten/Latenz begrenzen)
 const MAX_ASSOCIATIVE_CHECKS = 6;
 
+// Findet ein gemeinsames Tag zwischen zwei Themen-Cluster-Listen, sonst null.
+function sharedTag(tagsA, tagsB) {
+  if (!Array.isArray(tagsA) || !Array.isArray(tagsB)) return null;
+  return tagsA.find(t => tagsB.includes(t)) || null;
+}
+
 // Gibt { idx, matchedTag } zurück oder null, wenn niemand passt.
 // Reihenfolge: 1) exakte Themen-Auswahl (Chip)  2) gemeinsames KI-Kategorie-Cluster
 // (z.B. "KFZ" und "Autofirma" -> beide "Fahrzeuge & Mobilität")  3) direkter assoziativer
