@@ -11,6 +11,18 @@ const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-s
 const { classifyTopic, areAssociativelyRelated } = require('./topic-matcher');
 const { generateImpulse } = require('./live-impulse');
 
+// Globales Sicherheitsnetz: ein einzelner unerwarteter Fehler (z.B. beim Lesen einer
+// JSON-Datei mitten in einem parallelen Schreibvorgang) soll NICHT mehr den ganzen
+// Server-Prozess killen. Ohne das crasht bei neueren Node-Versionen der komplette
+// Prozess bei jeder "unhandled promise rejection" — das war die Ursache für den
+// Render-Absturz "Exited with status 1".
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️  Unbehandelte Promise-Ablehnung (Server läuft trotzdem weiter):', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('⚠️  Unerwarteter Fehler (Server läuft trotzdem weiter):', err.message, err.stack);
+});
+
 const PDF_DIR = path.join(__dirname, 'data', 'call-pdfs');
 function ensurePdfDir() {
   if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
@@ -347,41 +359,46 @@ let roomImpulseTimers = {};  // roomId -> Interval-Handle
 
 function startImpulseWatcher(roomId) {
   const members = rooms[roomId] || [];
-  const anyoneWantsImpulses = members.some(id => {
-    const s = io.sockets.sockets.get(id);
-    if (!s || !s.data.email) return true;
-    const dbUser = store.findUserByEmail(s.data.email);
-    return !dbUser || dbUser.liveImpulsesEnabled !== false;
-  });
+  let anyoneWantsImpulses = true;
+  try {
+    anyoneWantsImpulses = members.some(id => {
+      const s = io.sockets.sockets.get(id);
+      if (!s || !s.data.email) return true;
+      const dbUser = store.findUserByEmail(s.data.email);
+      return !dbUser || dbUser.liveImpulsesEnabled !== false;
+    });
+  } catch (err) {
+    console.error('Prüfung der Impuls-Einstellung fehlgeschlagen, starte Watcher trotzdem:', err.message);
+  }
   if (!anyoneWantsImpulses) return; // niemand im Call will die Funktion — Watcher spart sich die Arbeit
 
   roomActivity[roomId] = Date.now();
   roomImpulseState[roomId] = { count: 0, lastImpulseAt: 0 };
 
   roomImpulseTimers[roomId] = setInterval(async () => {
-    const members = rooms[roomId];
-    if (!members) { stopImpulseWatcher(roomId); return; }
-
-    const state = roomImpulseState[roomId];
-    if (!state || state.count >= MAX_IMPULSES_PER_CALL) return;
-
-    const sinceActivity = Date.now() - (roomActivity[roomId] || Date.now());
-    const sinceLastImpulse = Date.now() - state.lastImpulseAt;
-    if (sinceActivity < SILENCE_THRESHOLD_MS || sinceLastImpulse < IMPULSE_COOLDOWN_MS) return;
-
-    // Nur an Mitglieder schicken, die die Funktion in ihrem Profil aktiviert haben lassen
-    const targetIds = members.filter(id => {
-      const s = io.sockets.sockets.get(id);
-      if (!s || !s.data.email) return false;
-      const dbUser = store.findUserByEmail(s.data.email);
-      return !dbUser || dbUser.liveImpulsesEnabled !== false; // Standard: an
-    });
-    if (targetIds.length === 0) return; // beide/alle haben die Funktion ausgeschaltet — nichts generieren
-
-    state.lastImpulseAt = Date.now();
-    state.count += 1;
-
     try {
+      const members = rooms[roomId];
+      if (!members) { stopImpulseWatcher(roomId); return; }
+
+      const state = roomImpulseState[roomId];
+      if (!state || state.count >= MAX_IMPULSES_PER_CALL) return;
+
+      const sinceActivity = Date.now() - (roomActivity[roomId] || Date.now());
+      const sinceLastImpulse = Date.now() - state.lastImpulseAt;
+      if (sinceActivity < SILENCE_THRESHOLD_MS || sinceLastImpulse < IMPULSE_COOLDOWN_MS) return;
+
+      // Nur an Mitglieder schicken, die die Funktion in ihrem Profil aktiviert haben lassen
+      const targetIds = members.filter(id => {
+        const s = io.sockets.sockets.get(id);
+        if (!s || !s.data.email) return false;
+        const dbUser = store.findUserByEmail(s.data.email);
+        return !dbUser || dbUser.liveImpulsesEnabled !== false; // Standard: an
+      });
+      if (targetIds.length === 0) return; // beide/alle haben die Funktion ausgeschaltet — nichts generieren
+
+      state.lastImpulseAt = Date.now();
+      state.count += 1;
+
       const transcript = transcripts[roomId] || [];
       const transcriptText = transcript.slice(-12).map(s => s.speakerLabel + ': ' + s.text).join('\n');
       const participantEmails = members
@@ -396,7 +413,10 @@ function startImpulseWatcher(roomId) {
       const impulse = await generateImpulse({ transcriptText, hangups, participantNames });
       targetIds.forEach(id => io.to(id).emit('live_impulse', { text: impulse }));
     } catch (err) {
-      console.error('Live-Impuls fehlgeschlagen:', err.message);
+      // Wichtig: dieser try/catch umschließt JETZT den kompletten Interval-Durchlauf.
+      // Ein Fehler hier (z.B. beim Lesen der users.json) darf nur diesen einen
+      // Tick überspringen, aber NIEMALS den ganzen Server-Prozess crashen.
+      console.error('Live-Impuls-Check fehlgeschlagen:', err.message);
     }
   }, IMPULSE_CHECK_INTERVAL_MS);
 }
