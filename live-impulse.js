@@ -24,23 +24,36 @@ function randomGenericImpulse() {
  * Personen als Kontext. Fällt auf einen generischen Impuls zurück, wenn kein
  * API-Key gesetzt ist oder der Aufruf fehlschlägt — die Funktion liefert also nie null.
  */
-async function generateImpulse({ transcriptText, hangups, participantNames }) {
+async function generateImpulse({ transcriptText, hangups, participantNames, personalHistory, effectiveExamples }) {
   if (!ANTHROPIC_API_KEY) return randomGenericImpulse();
 
   try {
     const hangupContext = (hangups || []).filter(Boolean).map((h, i) => (participantNames[i] || 'Person') + ' hängt an: "' + h + '"').join('\n');
+    const hasTranscript = !!(transcriptText && transcriptText.trim());
+
+    const historyBlock = (personalHistory || []).length
+      ? `\nFrühere Ideen dieser Personen aus vergangenen FlowValu-Calls (nur als Inspiration, falls thematisch passend — nicht erzwingen):\n${personalHistory.map(i => '- ' + i).join('\n')}\n`
+      : '';
+
+    const examplesBlock = (effectiveExamples || []).length
+      ? `\nBeispiele für Impulse, die in früheren Calls nachweislich gut funktioniert haben (das Gespräch ging danach weiter) — nutze sie als Stil-Vorbild, nicht zum Kopieren:\n${effectiveExamples.map(e => '- "' + e + '"').join('\n')}\n`
+      : '';
 
     const prompt = `Zwei Personen (${(participantNames || []).join(' und ')}) sind in einem Video-Call auf FlowValu, einer App, die Menschen mit kreativen Denkblockaden zum gemeinsamen Brainstorming verbindet. Das Gespräch stockt gerade — es herrscht seit einer Weile Stille oder es kommt nicht voran.
 
-Ursprüngliche Blockaden:
+Ursprüngliche Blockaden (nur als Hintergrund, falls das Protokoll noch nichts hergibt):
 ${hangupContext || '(keine Angabe)'}
-
-Bisheriger Gesprächsausschnitt:
+${historyBlock}${examplesBlock}
+Bisheriges Gesprächsprotokoll:
 """
-${transcriptText || '(noch nichts gesagt)'}
+${transcriptText || '(noch nichts gesagt — der Call hat gerade erst begonnen)'}
 """
 
-Formuliere EINEN kurzen, konkreten Impuls (max. 2 Sätze) auf Deutsch, der das Gespräch wieder in Gang bringt. Kein Small Talk, keine Floskeln wie "Wie geht's euch" — eine echte inhaltliche Frage oder ein Denkanstoß, der zum Thema passt. Antworte AUSSCHLIESSLICH mit dem Impuls selbst, keine Einleitung, keine Anführungszeichen.`;
+${hasTranscript
+  ? 'WICHTIG: Beziehe dich konkret auf das, was im Protokoll oben tatsächlich gesagt wurde — greife eine bestimmte Idee, ein Wort oder einen offenen Punkt aus dem Protokoll auf und baue direkt darauf auf. Kein allgemeiner Impuls, der auch ohne das Protokoll passen würde.'
+  : 'Da noch nichts gesagt wurde, orientiere dich an den ursprünglichen Blockaden oben.'}
+
+Formuliere EINEN kurzen, konkreten Impuls (max. 2 Sätze) auf Deutsch, der das Gespräch wieder in Gang bringt. Kein Small Talk, keine Floskeln wie "Wie geht's euch". Antworte AUSSCHLIESSLICH mit dem Impuls selbst, keine Einleitung, keine Anführungszeichen.`;
 
     const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',

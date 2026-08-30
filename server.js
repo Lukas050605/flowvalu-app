@@ -265,6 +265,11 @@ app.post('/api/transcribe-audio', express.raw({ type: 'audio/webm', limit: '25mb
   const segment = { speakerEmail: req.session.user.email, speakerLabel: label, text, timestamp: Date.now() };
   transcripts[roomId].push(segment);
   roomActivity[roomId] = Date.now();
+  try {
+    store.resolveOpenImpulse(roomId, true);
+  } catch (err) {
+    console.error('Impuls-Erfolg konnte nicht vermerkt werden:', err.message);
+  }
 
   const sId = userSockets[req.session.user.email];
   const otherMembers = (rooms[roomId] || []).filter(id => id !== sId);
@@ -424,8 +429,32 @@ function startImpulseWatcher(roomId) {
         return s && s.data.lastProfile ? s.data.lastProfile.hangup : '';
       });
 
-      const impulse = await generateImpulse({ transcriptText, hangups, participantNames });
+      // Persönliches Gedächtnis: Ideen dieser Personen aus früheren, ANDEREN Calls
+      let personalHistory = [];
+      try {
+        personalHistory = participantEmails.flatMap(e => store.getRecentIdeasForUser(e, roomId, 2));
+      } catch (err) {
+        console.error('Persönliches Gedächtnis konnte nicht geladen werden:', err.message);
+      }
+
+      // Globales Lernen: Beispiele für Impulse, die in der Vergangenheit nachweislich geholfen haben
+      let effectiveExamples = [];
+      try {
+        effectiveExamples = store.getEffectiveImpulseExamples(3);
+      } catch (err) {
+        console.error('Erfolgreiche Impuls-Beispiele konnten nicht geladen werden:', err.message);
+      }
+
+      const impulse = await generateImpulse({ transcriptText, hangups, participantNames, personalHistory, effectiveExamples });
       targetIds.forEach(id => io.to(id).emit('live_impulse', { text: impulse }));
+
+      // Fürs globale Lernen protokollieren — ob er geholfen hat, stellt sich erst später
+      // heraus (siehe transcript_chunk-Handler und call_ended weiter unten)
+      try {
+        store.logImpulse({ roomId, text: impulse });
+      } catch (err) {
+        console.error('Impuls konnte nicht protokolliert werden:', err.message);
+      }
     } catch (err) {
       // Wichtig: dieser try/catch umschließt JETZT den kompletten Interval-Durchlauf.
       // Ein Fehler hier (z.B. beim Lesen der users.json) darf nur diesen einen
@@ -654,6 +683,13 @@ io.on('connection', (socket) => {
     transcripts[roomId].push(segment);
     roomActivity[roomId] = Date.now();
     io.to(roomId).emit('transcript_update', segment);
+
+    // Globales Lernen: wird nach einem Impuls wieder geredet, hat er offenbar geholfen
+    try {
+      store.resolveOpenImpulse(roomId, true);
+    } catch (err) {
+      console.error('Impuls-Erfolg konnte nicht vermerkt werden:', err.message);
+    }
   });
 
   socket.on('call_ended', async ({ roomId }) => {
@@ -662,6 +698,15 @@ io.on('connection', (socket) => {
     if (!members) return;
     summaryInProgress.add(roomId);
     stopImpulseWatcher(roomId);
+
+    // Globales Lernen: falls seit dem letzten Impuls nicht mehr geredet wurde, war er
+    // offenbar nicht hilfreich — das MUSS vor dem summaryInProgress-try-Block passieren,
+    // damit es auch bei einem Fehler in der PDF-Erstellung nicht verloren geht.
+    try {
+      store.resolveAllOpenImpulsesForRoom(roomId, false);
+    } catch (err) {
+      console.error('Offene Impulse konnten nicht abgeschlossen werden:', err.message);
+    }
 
     try {
       const transcript = transcripts[roomId] || [];
@@ -672,6 +717,18 @@ io.on('connection', (socket) => {
 
       const transcriptText = transcript.map(s => s.speakerLabel + ': ' + s.text).join('\n');
       const aiSummary = transcriptText ? await summarizeWithAI(transcriptText, participantNames) : null;
+
+      // Persönliches Gedächtnis: Ideen aus diesem Call für zukünftige Calls dieser Personen merken
+      if (aiSummary && (aiSummary.ideas.length || aiSummary.actionItems.length)) {
+        try {
+          store.addCallSummary({
+            roomId, participantEmails,
+            summary: aiSummary.summary, ideas: aiSummary.ideas, actionItems: aiSummary.actionItems
+          });
+        } catch (err) {
+          console.error('Call-Zusammenfassung konnte nicht fürs Gedächtnis gespeichert werden:', err.message);
+        }
+      }
 
       const pdfBuffer = await buildPdf({
         participantNames,
@@ -840,6 +897,11 @@ io.on('connection', (socket) => {
     delete rooms[roomId];
     delete callRequests[roomId];
     stopImpulseWatcher(roomId);
+    try {
+      store.resolveAllOpenImpulsesForRoom(roomId, false);
+    } catch (err) {
+      console.error('Offene Impulse konnten nicht abgeschlossen werden:', err.message);
+    }
     sock.data.roomId = null;
   }
 });
