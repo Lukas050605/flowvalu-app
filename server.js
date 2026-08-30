@@ -415,7 +415,7 @@ function startImpulseWatcher(roomId) {
   roomImpulseTimers[roomId] = setInterval(async () => {
     try {
       const members = rooms[roomId];
-      if (!members) { stopImpulseWatcher(roomId); return; }
+      if (!members) { stopImpulseWatcher(roomId); stopGroupGrowth(roomId); return; }
 
       const state = roomImpulseState[roomId];
       if (!state || state.count >= MAX_IMPULSES_PER_CALL) return;
@@ -489,6 +489,102 @@ function stopImpulseWatcher(roomId) {
   }
   delete roomActivity[roomId];
   delete roomImpulseState[roomId];
+}
+
+// -------- Gruppen-Wachstum: aus dem 1:1-Call wird über Zeit eine Gruppe --------
+// Start: 2 Personen reden. Alle 60 Minuten darf EINE weitere Person dazukommen
+// (per Themen-Matching gegen die aktuelle Gruppe), bis maximal 6 Personen im Call sind.
+const MAX_GROUP_SIZE = 6;
+const GROUP_GROWTH_INTERVAL_MS = 60 * 60 * 1000;      // alle 60 Minuten darf eine Person dazukommen
+const GROUP_GROWTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // wie oft wir zwischendurch nachschauen, ob die Stunde um ist
+
+let roomMeta = {};          // roomId -> { lastGrowthAt }
+let groupGrowthTimers = {}; // roomId -> Interval-Handle
+
+function startGroupGrowth(roomId) {
+  roomMeta[roomId] = { lastGrowthAt: Date.now() };
+  groupGrowthTimers[roomId] = setInterval(() => {
+    tryGrowGroup(roomId).catch(err => console.error('Gruppen-Wachstum fehlgeschlagen:', err.message));
+  }, GROUP_GROWTH_CHECK_INTERVAL_MS);
+}
+
+function stopGroupGrowth(roomId) {
+  if (groupGrowthTimers[roomId]) {
+    clearInterval(groupGrowthTimers[roomId]);
+    delete groupGrowthTimers[roomId];
+  }
+  delete roomMeta[roomId];
+}
+
+// Prüft, ob eine Stunde seit dem letzten Zuwachs vergangen ist, und sucht dann EINE
+// passende Person aus der Warteschlange, die zum bisherigen Gruppen-Thema passt
+// (gleiche Kategorie ODER hoher Prozent-Score gegenüber irgendeinem Gruppenmitglied).
+async function tryGrowGroup(roomId) {
+  const members = rooms[roomId];
+  if (!members || members.length >= MAX_GROUP_SIZE) { stopGroupGrowth(roomId); return; }
+
+  const meta = roomMeta[roomId];
+  if (!meta || Date.now() - meta.lastGrowthAt < GROUP_GROWTH_INTERVAL_MS) return; // noch nicht wieder dran
+
+  const memberProfiles = members
+    .map(id => { const s = io.sockets.sockets.get(id); return s ? s.data.lastProfile : null; })
+    .filter(Boolean);
+  if (!memberProfiles.length) return;
+
+  const groupTags = [...new Set(memberProfiles.flatMap(p => p.aiTags || []))];
+  const candidates = waiting.slice(0, MAX_ASSOCIATIVE_CHECKS);
+  if (!candidates.length) return; // niemand wartet gerade — später nochmal versuchen
+
+  // 1) Schneller Weg: exakte Kategorie-Überschneidung mit irgendeinem Gruppenmitglied
+  let chosen = candidates.find(w => sharedTag(w.profile.aiTags, groupTags));
+
+  // 2) Sonst: höchsten Prozent-Score gegenüber IRGENDEINEM Gruppenmitglied ermitteln
+  if (!chosen) {
+    let bestScore = MIN_ASSOCIATION_PERCENT - 1;
+    for (const candidate of candidates) {
+      const scoresAgainstGroup = await Promise.all(
+        memberProfiles.map(p => computeAssociationScore(p.hangup, candidate.profile.hangup).catch(() => 0))
+      );
+      const bestForThisCandidate = Math.max(0, ...scoresAgainstGroup);
+      if (bestForThisCandidate > bestScore) { bestScore = bestForThisCandidate; chosen = candidate; }
+    }
+  }
+
+  if (!chosen) return; // gerade niemand passend — nächste Prüfung versucht es wieder
+
+  const newSocket = io.sockets.sockets.get(chosen.socketId);
+  if (!newSocket || newSocket.disconnected) return;
+
+  waiting = waiting.filter(w => w.socketId !== chosen.socketId);
+  members.push(chosen.socketId);
+  newSocket.join(roomId);
+  newSocket.data.roomId = roomId;
+  meta.lastGrowthAt = Date.now();
+
+  const newDisplay = store.getPublicProfile(chosen.email);
+
+  // Bestehende Mitglieder bauen die WebRTC-Verbindung zur neuen Person auf (sie
+  // "kennen" den Raum schon, die neue Person nur die Liste der schon Anwesenden)
+  members.forEach(id => {
+    if (id === chosen.socketId) return;
+    io.to(id).emit('group_member_joined', {
+      newPeerId: chosen.socketId, newPeerProfile: chosen.profile, newPeerDisplay: newDisplay
+    });
+  });
+
+  newSocket.emit('group_joined_existing_call', {
+    roomId,
+    existingPeers: members.filter(id => id !== chosen.socketId).map(id => {
+      const s = io.sockets.sockets.get(id);
+      return {
+        peerId: id,
+        peerProfile: s ? s.data.lastProfile : null,
+        peerDisplay: s ? store.getPublicProfile(s.data.email) : null
+      };
+    })
+  });
+
+  if (members.length >= MAX_GROUP_SIZE) stopGroupGrowth(roomId);
 }
 
 function logMatch(emailA, emailB, profileA, profileB, roomId) {
@@ -742,18 +838,31 @@ io.on('connection', (socket) => {
       delete callRequests[roomId];
       markCallHappened(roomId);
       startImpulseWatcher(roomId);
+      startGroupGrowth(roomId);
+      // Jeder bekommt die ID des jeweils ANDEREN Mitglieds mit — die Verbindung wird
+      // von Anfang an als "Mesh mit einem Peer" aufgebaut, damit später problemlos
+      // weitere Peers dazukommen können, ohne die Verbindungslogik umzubauen.
       members.forEach((id) => {
-        const isOfferer = id === members[0];
-        io.to(id).emit('start_call', { isOfferer });
+        const peerId = members.find(m => m !== id);
+        const peerSocket = io.sockets.sockets.get(peerId);
+        io.to(id).emit('start_call', {
+          isOfferer: id === members[0],
+          peerId,
+          peerProfile: peerSocket ? peerSocket.data.lastProfile : null,
+          peerDisplay: peerSocket ? store.getPublicProfile(peerSocket.data.email) : null
+        });
       });
     } else {
       socket.to(roomId).emit('call_requested_by_partner');
     }
   });
 
-  socket.on('webrtc_signal', ({ roomId, data }) => {
-    if (!roomId) return;
-    socket.to(roomId).emit('webrtc_signal', data);
+  // Jedes Signal ist jetzt an EINEN bestimmten Peer adressiert (nicht mehr an den
+  // ganzen Raum gebroadcastet) — notwendig, sobald mehr als 2 Personen im Call sind,
+  // da sich jedes Peer-Paar eigenständig per WebRTC verbinden muss (Mesh-Topologie).
+  socket.on('webrtc_signal', ({ roomId, to, data }) => {
+    if (!roomId || !to) return;
+    io.to(to).emit('webrtc_signal', { from: socket.id, data });
   });
 
   /* -------- Call-Protokoll & KI-Zusammenfassung -------- */
@@ -780,6 +889,7 @@ io.on('connection', (socket) => {
     if (!members) return;
     summaryInProgress.add(roomId);
     stopImpulseWatcher(roomId);
+    stopGroupGrowth(roomId);
 
     // Globales Lernen: falls seit dem letzten Impuls nicht mehr geredet wurde, war er
     // offenbar nicht hilfreich — das MUSS vor dem summaryInProgress-try-Block passieren,
@@ -1005,17 +1115,35 @@ io.on('connection', (socket) => {
   function leaveCurrentRoom(sock, notifyPartner) {
     const roomId = sock.data.roomId;
     if (!roomId) return;
-    if (notifyPartner) sock.to(roomId).emit('partner_left');
+
+    const members = rooms[roomId];
+    const remainingMembers = members ? members.filter(id => id !== sock.id) : [];
+
     sock.leave(roomId);
+    sock.data.roomId = null;
+
+    // Gruppen-Call mit noch mind. 2 verbleibenden Leuten: Raum bleibt für die anderen
+    // bestehen, nur die gehende Person wird entfernt und alle anderen informiert.
+    if (members && remainingMembers.length >= 2) {
+      rooms[roomId] = remainingMembers;
+      if (notifyPartner) {
+        io.to(roomId).emit('group_member_left', { peerId: sock.id });
+      }
+      return;
+    }
+
+    // Sonst (1:1-Call oder nur noch 1 Person übrig): kompletter Raum wird aufgelöst,
+    // wie bisher.
+    if (notifyPartner) sock.to(roomId).emit('partner_left');
     delete rooms[roomId];
     delete callRequests[roomId];
     stopImpulseWatcher(roomId);
+    stopGroupGrowth(roomId);
     try {
       store.resolveAllOpenImpulsesForRoom(roomId, false);
     } catch (err) {
       console.error('Offene Impulse konnten nicht abgeschlossen werden:', err.message);
     }
-    sock.data.roomId = null;
   }
 });
 

@@ -170,11 +170,17 @@
   }
   .call-overlay.active{ display:flex; }
   .call-box{ width:100%; max-width:640px; }
-  .video-grid{ position:relative; border-radius:14px; overflow:hidden; background:#000; aspect-ratio:4/3; border:1px solid var(--border-strong); }
-  video#remote-video{ width:100%; height:100%; object-fit:cover; display:block; background:#000; }
-  video#local-video{
-    position:absolute; bottom:14px; right:14px; width:110px; height:82px; border-radius:8px;
-    object-fit:cover; border:2px solid var(--border-strong); background:#000; transform:scaleX(-1);
+  .video-grid{
+    display:grid; gap:6px; border-radius:14px; overflow:hidden; background:#000;
+    border:1px solid var(--border-strong); min-height:280px;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .video-tile{ position:relative; background:#000; aspect-ratio:4/3; overflow:hidden; }
+  .video-tile video{ width:100%; height:100%; object-fit:cover; display:block; background:#000; }
+  .video-tile.local-tile video{ transform:scaleX(-1); }
+  .video-tile .tile-label{
+    position:absolute; bottom:6px; left:8px; font-size:11px; color:#fff; background:rgba(0,0,0,0.5);
+    padding:2px 8px; border-radius:6px; font-family:'JetBrains Mono', monospace;
   }
   .call-status{ text-align:center; font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); margin:14px 0; }
   .live-transcript{
@@ -394,11 +400,11 @@
 <!-- VIDEO CALL OVERLAY -->
 <div class="call-overlay" id="call-overlay">
   <div class="call-box">
-    <div class="video-grid">
-      <video id="remote-video" autoplay playsinline></video>
-      <video id="local-video" autoplay playsinline muted></video>
+    <div class="video-grid" id="video-grid">
+      <!-- Video-Kacheln werden dynamisch per JS eingefügt (2 bis 6 Teilnehmer) -->
     </div>
     <p class="call-status" id="call-status">Verbinde …</p>
+    <p class="call-status" id="group-status" style="color:var(--accent);"></p>
     <p class="call-status" id="protocol-indicator" style="color:var(--accent-2);"></p>
     <div class="impulse-banner" id="impulse-banner">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
@@ -868,8 +874,12 @@ socket.on('call_requested_by_partner', () => {
   addBubble('sys', 'Dein Partner möchte einen Call starten. Klick auch auf "Call starten".');
 });
 
-/* ---------- echtes WebRTC (Peer-to-Peer, kein Drittanbieter) ---------- */
-let pc = null;
+/* ---------- echtes WebRTC (Mesh: jeder mit jedem, kein Drittanbieter) ---------- */
+// Statt EINER Verbindung (pc) jetzt eine Verbindung PRO Gesprächspartner — das ist
+// die Grundlage fürs Gruppen-Wachstum: kommt später jemand dazu, wird einfach ein
+// weiterer Eintrag in dieser Map ergänzt, ohne den Rest anzufassen.
+let peerConnections = {};   // peerId -> RTCPeerConnection
+let peerDisplays = {};      // peerId -> { displayName, avatarDataUrl }
 let localStream = null;
 let speechRecognition = null;
 let mediaRecorder = null;
@@ -882,13 +892,101 @@ const ICE_SERVERS = [
   { urls: 'stun:stun1.l.google.com:19302' }
 ];
 
-async function startCall(isOfferer){
+function tileIdFor(peerId){ return 'video-tile-' + peerId; }
+
+function addVideoTile(peerId, label, isLocal){
+  const grid = document.getElementById('video-grid');
+  if(document.getElementById(tileIdFor(peerId))) return document.getElementById(tileIdFor(peerId)).querySelector('video');
+
+  const tile = document.createElement('div');
+  tile.className = 'video-tile' + (isLocal ? ' local-tile' : '');
+  tile.id = tileIdFor(peerId);
+
+  const video = document.createElement('video');
+  video.autoplay = true; video.playsInline = true;
+  if(isLocal) video.muted = true;
+  tile.appendChild(video);
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'tile-label';
+  labelEl.textContent = label;
+  tile.appendChild(labelEl);
+
+  grid.appendChild(tile);
+  return video;
+}
+
+function removeVideoTile(peerId){
+  const tile = document.getElementById(tileIdFor(peerId));
+  if(tile) tile.remove();
+}
+
+function updateGroupStatus(){
+  const count = Object.keys(peerConnections).length + 1; // + ich selbst
+  const statusEl = document.getElementById('group-status');
+  statusEl.textContent = count > 2 ? ('👥 ' + count + ' Personen im Call') : '';
+}
+
+// Baut eine einzelne Peer-Verbindung auf. isOfferer=true heißt: WIR schicken das
+// erste Angebot (z.B. wenn wir schon länger im Call sind und jemand Neues dazukommt).
+function createPeerConnection(peerId, isOfferer, peerLabel){
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  peerConnections[peerId] = pc;
+
+  if(localStream){
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  pc.ontrack = (event) => {
+    const video = addVideoTile(peerId, peerLabel || 'Teilnehmer', false);
+    video.srcObject = event.streams[0];
+    document.getElementById('call-status').textContent = 'Verbunden.';
+  };
+
+  pc.onicecandidate = (event) => {
+    if(event.candidate){
+      socket.emit('webrtc_signal', { roomId: currentRoom, to: peerId, data: { type: 'candidate', candidate: event.candidate } });
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed'){
+      console.log('Verbindung zu', peerId, 'unterbrochen.');
+    }
+  };
+
+  return pc;
+}
+
+async function connectToPeer(peerId, isOfferer, peerLabel){
+  const pc = createPeerConnection(peerId, isOfferer, peerLabel);
+  if(isOfferer){
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('webrtc_signal', { roomId: currentRoom, to: peerId, data: { type: 'offer', sdp: offer } });
+  }
+}
+
+function closePeerConnection(peerId){
+  if(peerConnections[peerId]){
+    peerConnections[peerId].close();
+    delete peerConnections[peerId];
+  }
+  removeVideoTile(peerId);
+  delete peerDisplays[peerId];
+  updateGroupStatus();
+}
+
+async function startCall(data){
   document.getElementById('call-overlay').classList.add('active');
   document.getElementById('call-status').textContent = 'Kamera wird angefragt …';
   document.getElementById('mic-toggle-btn').textContent = '🎤 Mikrofon an';
   document.getElementById('mic-toggle-btn').classList.remove('off');
   document.getElementById('camera-toggle-btn').textContent = '📷 Kamera an';
   document.getElementById('camera-toggle-btn').classList.remove('off');
+  document.getElementById('video-grid').innerHTML = '';
+  peerConnections = {};
+  peerDisplays = {};
 
   try{
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -898,35 +996,13 @@ async function startCall(isOfferer){
     return;
   }
 
-  document.getElementById('local-video').srcObject = localStream;
+  addVideoTile('local', 'Du', true).srcObject = localStream;
   document.getElementById('call-status').textContent = 'Verbinde mit deinem Partner …';
 
-  pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  pc.ontrack = (event) => {
-    document.getElementById('remote-video').srcObject = event.streams[0];
-    document.getElementById('call-status').textContent = 'Verbunden.';
-  };
-
-  pc.onicecandidate = (event) => {
-    if(event.candidate){
-      socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'candidate', candidate: event.candidate } });
-    }
-  };
-
-  pc.onconnectionstatechange = () => {
-    if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed'){
-      document.getElementById('call-status').textContent = 'Verbindung unterbrochen.';
-    }
-  };
-
-  if(isOfferer){
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'offer', sdp: offer } });
-  }
+  const peerLabel = data.peerDisplay ? data.peerDisplay.displayName : (data.peerProfile ? data.peerProfile.hangup : 'Partner');
+  peerDisplays[data.peerId] = data.peerDisplay;
+  await connectToPeer(data.peerId, data.isOfferer, peerLabel);
+  updateGroupStatus();
 
   startTranscription();
 }
@@ -957,7 +1033,7 @@ function startTranscription(){
   };
   speechRecognition.onend = () => {
     // Manche Browser beenden die Erkennung nach einer Weile von selbst - neu starten, solange der Call läuft
-    if(pc && pc.connectionState !== 'closed'){
+    if(Object.keys(peerConnections).length > 0){
       try{ speechRecognition.start(); } catch(e){}
     }
   };
@@ -1029,21 +1105,61 @@ function stopTranscription(){
 }
 
 socket.on('start_call', (data) => {
-  startCall(data.isOfferer);
+  startCall(data);
 });
 
-socket.on('webrtc_signal', async (data) => {
-  if(!pc) return;
+// Ein Signal ist jetzt von EINEM bestimmten Peer (data.from) — wichtig, sobald
+// mehrere Verbindungen gleichzeitig offen sind (Mesh statt 1:1).
+socket.on('webrtc_signal', async (msg) => {
+  const peerId = msg.from;
+  const data = msg.data;
+  let pc = peerConnections[peerId];
+
   if(data.type === 'offer'){
+    // Falls wir noch keine Verbindung zu diesem Peer haben (z.B. wir sind neu in
+    // einer Gruppe dazugekommen), jetzt eine anlegen — OHNE selbst ein Angebot zu
+    // schicken, wir antworten nur auf das eingehende.
+    if(!pc){
+      const label = (peerDisplays[peerId] && peerDisplays[peerId].displayName) || 'Teilnehmer';
+      pc = createPeerConnection(peerId, false, label);
+    }
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'answer', sdp: answer } });
+    socket.emit('webrtc_signal', { roomId: currentRoom, to: peerId, data: { type: 'answer', sdp: answer } });
   } else if(data.type === 'answer'){
-    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
   } else if(data.type === 'candidate'){
-    try{ await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e){ /* ignorierbar bei Timing-Überschneidungen */ }
+    if(pc){
+      try{ await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch(e){ /* ignorierbar bei Timing-Überschneidungen */ }
+    }
   }
+});
+
+// Gruppen-Wachstum: eine neue Person ist einem laufenden Call beigetreten.
+// Wir (schon länger dabei) bauen die Verbindung zu ihr auf und schicken das erste Angebot.
+socket.on('group_member_joined', (data) => {
+  peerDisplays[data.newPeerId] = data.newPeerDisplay;
+  const label = data.newPeerDisplay ? data.newPeerDisplay.displayName : 'Neue Person';
+  addBubble('sys', '👋 ' + label + ' ist dem Call beigetreten!');
+  connectToPeer(data.newPeerId, true, label);
+  updateGroupStatus();
+});
+
+// Wir selbst sind gerade einem bereits laufenden Gruppen-Call beigetreten — für
+// jede schon anwesende Person nur die Anzeige vorbereiten, das eigentliche WebRTC-
+// Angebot kommt von IHNEN (siehe 'offer'-Zweig oben), wir antworten nur.
+socket.on('group_joined_existing_call', (data) => {
+  (data.existingPeers || []).forEach(p => {
+    peerDisplays[p.peerId] = p.peerDisplay;
+  });
+  updateGroupStatus();
+});
+
+socket.on('group_member_left', (data) => {
+  const label = (peerDisplays[data.peerId] && peerDisplays[data.peerId].displayName) || 'Ein Teilnehmer';
+  addBubble('sys', '👋 ' + label + ' hat den Call verlassen.');
+  closePeerConnection(data.peerId);
 });
 
 socket.on('transcript_update', (seg) => {
@@ -1077,13 +1193,15 @@ document.getElementById('impulse-dismiss-btn').addEventListener('click', () => {
 });
 
 function endCall(){
-  const wasActive = !!pc;
+  const wasActive = Object.keys(peerConnections).length > 0;
   stopTranscription();
-  if(pc){ pc.close(); pc = null; }
+  Object.keys(peerConnections).forEach(peerId => peerConnections[peerId].close());
+  peerConnections = {};
+  peerDisplays = {};
   if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   document.getElementById('call-overlay').classList.remove('active');
-  document.getElementById('remote-video').srcObject = null;
-  document.getElementById('local-video').srcObject = null;
+  document.getElementById('video-grid').innerHTML = '';
+  document.getElementById('group-status').textContent = '';
   document.getElementById('protocol-indicator').textContent = '';
   document.getElementById('live-transcript').innerHTML = '';
   document.getElementById('impulse-banner').classList.remove('active');
