@@ -177,6 +177,12 @@
     object-fit:cover; border:2px solid var(--border-strong); background:#000; transform:scaleX(-1);
   }
   .call-status{ text-align:center; font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); margin:14px 0; }
+  .live-transcript{
+    max-height:110px; overflow-y:auto; background:var(--bg); border:1px solid var(--border);
+    border-radius:9px; padding:10px 12px; margin:0 0 14px; font-size:12px; line-height:1.6;
+  }
+  .live-transcript .line{ margin-bottom:3px; }
+  .live-transcript .who{ color:var(--accent-2); font-weight:600; }
   .call-controls{ display:flex; gap:10px; }
   .call-controls .btn-ghost{ margin-top:0; }
   .btn-hangup{ background:#e5484d; }
@@ -305,6 +311,7 @@
     </div>
     <p class="call-status" id="call-status">Verbinde …</p>
     <p class="call-status" id="protocol-indicator" style="color:var(--accent-2);"></p>
+    <div class="live-transcript" id="live-transcript"></div>
     <div class="call-controls">
       <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
     </div>
@@ -374,11 +381,12 @@ document.getElementById('auth-submit-btn').addEventListener('click', async () =>
       return;
     }
     if(authMode === 'register' && !data.emailVerified){
+      myEmail = data.email;
       show('screen-verify-pending');
       document.getElementById('verify-error').textContent = '';
       return;
     }
-    onAuthSuccess();
+    onAuthSuccess(data.email);
   } catch(err){
     errEl.textContent = 'Verbindung fehlgeschlagen. Nochmal versuchen.';
   }
@@ -411,7 +419,10 @@ socket.on('connect_error', (err) => {
   }
 });
 
-function onAuthSuccess(){
+let myEmail = null;
+
+function onAuthSuccess(email){
+  myEmail = email || myEmail;
   socket.connect();
   show('screen-profile');
 }
@@ -428,7 +439,7 @@ document.getElementById('logout-link').addEventListener('click', async () => {
 // Beim Laden prüfen, ob schon eine Sitzung besteht
 fetch('/api/me').then(r => r.json()).then(data => {
   if(data.user){
-    onAuthSuccess();
+    onAuthSuccess(data.user.email);
   }
 });
 
@@ -523,6 +534,9 @@ document.getElementById('history-link').addEventListener('click', async () => {
         ? '<img src="' + item.partnerAvatar + '">'
         : (item.partnerDisplayName || '?')[0].toUpperCase();
       const date = new Date(item.startedAt).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+      const pdfLinkHtml = item.pdfUrl
+        ? '<a href="' + item.pdfUrl + '" target="_blank" class="reconnect-btn" style="display:inline-block; text-decoration:none; text-align:center; margin-bottom:6px;">📄 PDF</a><br>'
+        : '';
       div.innerHTML =
         '<div class="history-avatar">' + avatarHtml + '</div>' +
         '<div class="history-info">' +
@@ -530,11 +544,14 @@ document.getElementById('history-link').addEventListener('click', async () => {
           '<div class="history-topic">' + escapeHtml(item.topic || '') + '</div>' +
           '<div class="history-meta">' + date + (item.hadCall ? ' · 📹 Call' : '') + (item.online ? ' · 🟢 online' : ' · offline') + '</div>' +
         '</div>' +
-        '<button class="reconnect-btn" data-email="' + item.partnerEmail + '"' + (item.online ? '' : ' disabled') + '>🤝 Nochmal</button>';
+        '<div style="display:flex; flex-direction:column; align-items:stretch;">' +
+          pdfLinkHtml +
+          '<button class="reconnect-btn" data-email="' + item.partnerEmail + '"' + (item.online ? '' : ' disabled') + '>🤝 Nochmal</button>' +
+        '</div>';
       list.appendChild(div);
     });
 
-    document.querySelectorAll('.reconnect-btn').forEach(btn => {
+    document.querySelectorAll('button.reconnect-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.disabled = true;
         btn.textContent = 'Anfrage läuft …';
@@ -578,11 +595,11 @@ document.getElementById('invite-decline-btn').addEventListener('click', () => {
 
 socket.on('invite_failed', (data) => {
   const reasonText = { offline: 'Person ist gerade nicht online.', busy: 'Person ist gerade in einem anderen Chat.', expired: 'Die Anfrage ist abgelaufen.' }[data.reason] || 'Anfrage fehlgeschlagen.';
-  document.querySelectorAll('.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = reasonText; } });
+  document.querySelectorAll('button.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = reasonText; } });
 });
 
 socket.on('invite_declined', () => {
-  document.querySelectorAll('.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = 'Abgelehnt'; } });
+  document.querySelectorAll('button.reconnect-btn').forEach(b => { if(b.disabled){ b.textContent = 'Abgelehnt'; } });
 });
 
 /* ---------- restliche App-Logik ---------- */
@@ -685,6 +702,9 @@ socket.on('call_requested_by_partner', () => {
 let pc = null;
 let localStream = null;
 let speechRecognition = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let usingAudioFallback = false;
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -739,7 +759,7 @@ async function startCall(isOfferer){
 function startTranscription(){
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SpeechRecognitionAPI){
-    document.getElementById('protocol-indicator').textContent = '🎙️ Protokoll in diesem Browser nicht verfügbar (nutz Chrome/Edge)';
+    startAudioFallbackRecording();
     return;
   }
   speechRecognition = new SpeechRecognitionAPI();
@@ -775,6 +795,47 @@ function startTranscription(){
   }
 }
 
+function startAudioFallbackRecording(){
+  if(!window.MediaRecorder || !localStream){
+    document.getElementById('protocol-indicator').textContent = 'Protokoll in diesem Browser nicht verfügbar';
+    return;
+  }
+  usingAudioFallback = true;
+  audioChunks = [];
+  try{
+    mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
+    mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.start();
+    document.getElementById('protocol-indicator').textContent = '🎙️ Protokoll läuft (wird am Ende verarbeitet)';
+  } catch(e){
+    document.getElementById('protocol-indicator').textContent = 'Protokoll in diesem Browser nicht verfügbar';
+    console.log('Audio-Fallback-Aufnahme fehlgeschlagen:', e.message);
+  }
+}
+
+async function stopAudioFallbackRecordingAndUpload(){
+  if(!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  const room = currentRoom;
+  await new Promise((resolve) => {
+    mediaRecorder.onstop = resolve;
+    mediaRecorder.stop();
+  });
+  mediaRecorder = null;
+  if(!audioChunks.length || !room) return;
+
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  audioChunks = [];
+  try{
+    await fetch('/api/transcribe-audio?roomId=' + room, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/webm' },
+      body: blob
+    });
+  } catch(e){
+    console.log('Audio-Upload fehlgeschlagen:', e.message);
+  }
+}
+
 function stopTranscription(){
   if(speechRecognition){
     speechRecognition.onend = null; // verhindert Auto-Neustart beim bewussten Stoppen
@@ -801,6 +862,16 @@ socket.on('webrtc_signal', async (data) => {
   }
 });
 
+socket.on('transcript_update', (seg) => {
+  const panel = document.getElementById('live-transcript');
+  const div = document.createElement('div');
+  div.className = 'line';
+  const who = seg.speakerEmail === myEmail ? 'Du' : (seg.speakerLabel || 'Partner');
+  div.innerHTML = '<span class="who">' + who + ':</span> ' + escapeHtml(seg.text);
+  panel.appendChild(div);
+  panel.scrollTop = panel.scrollHeight;
+});
+
 function endCall(){
   const wasActive = !!pc;
   stopTranscription();
@@ -810,8 +881,19 @@ function endCall(){
   document.getElementById('remote-video').srcObject = null;
   document.getElementById('local-video').srcObject = null;
   document.getElementById('protocol-indicator').textContent = '';
-  if(wasActive && currentRoom){
-    socket.emit('call_ended', { roomId: currentRoom });
+  document.getElementById('live-transcript').innerHTML = '';
+
+  const finish = () => {
+    if(wasActive && currentRoom){
+      socket.emit('call_ended', { roomId: currentRoom });
+    }
+  };
+
+  if(usingAudioFallback){
+    usingAudioFallback = false;
+    stopAudioFallbackRecordingAndUpload().then(finish);
+  } else {
+    finish();
   }
 }
 

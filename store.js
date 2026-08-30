@@ -53,7 +53,11 @@ function getPublicProfile(email) {
   };
 }
 
+function findMatchByPdfToken(token) {
+  return readMatches().find(m => m.pdfToken === token);
+}
+
 module.exports = {
   readUsers, writeUsers, readReports, writeReports,
-  readMatches, writeMatches, findUserByEmail, getPublicProfile
+  readMatches, writeMatches, findUserByEmail, getPublicProfile, findMatchByPdfToken
 };

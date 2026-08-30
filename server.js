@@ -2,11 +2,17 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const store = require('./store');
-const { summarizeWithAI, buildPdf } = require('./call-summary');
+const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
+
+const PDF_DIR = path.join(__dirname, 'data', 'call-pdfs');
+function ensurePdfDir() {
+  if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
+}
 
 const REPORT_BAN_THRESHOLD = 3; // ab so vielen Meldungen wird automatisch gesperrt
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
@@ -198,17 +204,40 @@ app.post('/api/profile', (req, res) => {
 
 /* ---------------- Verlauf-Route ---------------- */
 
-/* ---------------- Call-PDF-Download ---------------- */
+/* ---------------- Call-PDF-Download (dauerhaft, auch aus dem Verlauf) ---------------- */
 app.get('/api/call-pdf/:token', (req, res) => {
   if (!req.session.user) return res.status(401).send('Nicht eingeloggt.');
-  const entry = pendingPdfs[req.params.token];
-  if (!entry) return res.status(404).send('Diese Zusammenfassung ist nicht mehr verfügbar (evtl. abgelaufen).');
-  if (!entry.participantEmails.includes(req.session.user.email)) {
+  const match = store.findMatchByPdfToken(req.params.token);
+  if (!match) return res.status(404).send('Diese Zusammenfassung wurde nicht gefunden.');
+  if (match.userAEmail !== req.session.user.email && match.userBEmail !== req.session.user.email) {
     return res.status(403).send('Kein Zugriff auf diese Zusammenfassung.');
   }
+  const filePath = path.join(PDF_DIR, req.params.token + '.pdf');
+  if (!fs.existsSync(filePath)) return res.status(404).send('Die PDF-Datei ist nicht mehr vorhanden.');
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'attachment; filename="flowvalu-call-zusammenfassung.pdf"');
-  res.send(entry.buffer);
+  res.send(fs.readFileSync(filePath));
+});
+
+/* ---------------- Audio-Fallback-Transkription (Whisper) für Browser ohne Web Speech API ---------------- */
+app.post('/api/transcribe-audio', express.raw({ type: 'audio/webm', limit: '25mb' }), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { roomId } = req.query;
+  if (!roomId || !req.body || !req.body.length) return res.status(400).json({ error: 'roomId und Audiodaten erforderlich.' });
+
+  const text = await transcribeAudioFallback(req.body);
+  if (!text) return res.json({ ok: true, transcribed: false });
+
+  if (!transcripts[roomId]) transcripts[roomId] = [];
+  const label = store.getPublicProfile(req.session.user.email).displayName;
+  const segment = { speakerEmail: req.session.user.email, speakerLabel: label, text, timestamp: Date.now() };
+  transcripts[roomId].push(segment);
+
+  const sId = userSockets[req.session.user.email];
+  const otherMembers = (rooms[roomId] || []).filter(id => id !== sId);
+  otherMembers.forEach(id => { const s = io.sockets.sockets.get(id); if (s) s.emit('transcript_update', segment); });
+
+  res.json({ ok: true, transcribed: true });
 });
 
 app.get('/api/history', (req, res) => {
@@ -230,6 +259,7 @@ app.get('/api/history', (req, res) => {
         partnerAvatar: partnerProfile.avatarDataUrl,
         topic: partnerTopic,
         hadCall: m.hadCall,
+        pdfUrl: m.pdfToken ? '/api/call-pdf/' + m.pdfToken : null,
         startedAt: m.startedAt,
         online: !!userSockets[partnerEmail]
       };
@@ -244,18 +274,9 @@ let waiting = [];           // [{ socketId, profile, email }]
 let rooms = {};             // roomId -> [socketIdA, socketIdB]
 let callRequests = {};      // roomId -> Set(socketId)
 let userSockets = {};       // email -> socketId (für Melden/Sperren/Verlauf)
-let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall nachzutragen)
+let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall/pdfToken nachzutragen)
 let transcripts = {};       // roomId -> [{ speakerEmail, speakerLabel, text, timestamp }]
-let pendingPdfs = {};       // token -> { buffer, participantEmails, createdAt }
 let summaryInProgress = new Set(); // roomIds, die gerade ihre PDF erzeugen (Doppel-Erzeugung verhindern)
-
-// Alte PDFs nach 1 Stunde aus dem Speicher entfernen
-setInterval(() => {
-  const cutoff = Date.now() - 1000 * 60 * 60;
-  Object.keys(pendingPdfs).forEach(token => {
-    if (pendingPdfs[token].createdAt < cutoff) delete pendingPdfs[token];
-  });
-}, 1000 * 60 * 10);
 
 function logMatch(emailA, emailB, profileA, profileB, roomId) {
   const matches = store.readMatches();
@@ -409,7 +430,19 @@ io.on('connection', (socket) => {
       });
 
       const token = crypto.randomUUID();
-      pendingPdfs[token] = { buffer: pdfBuffer, participantEmails, createdAt: Date.now() };
+      ensurePdfDir();
+      fs.writeFileSync(path.join(PDF_DIR, token + '.pdf'), pdfBuffer);
+
+      // Token dauerhaft am Verlaufs-Eintrag speichern, damit später nochmal abrufbar
+      const matchId = roomToMatchId[roomId];
+      if (matchId) {
+        const matches = store.readMatches();
+        const entry = matches.find(m => m.id === matchId);
+        if (entry) {
+          entry.pdfToken = token;
+          store.writeMatches(matches);
+        }
+      }
 
       participantEmails.forEach(email => {
         const sId = userSockets[email];

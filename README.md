@@ -11,9 +11,16 @@ Während eines Video-Calls wird das Gespräch live per Browser-Spracherkennung m
 **Für die KI-Zusammenfassung** (statt nur dem rohen Protokoll):
 1. Auf [console.anthropic.com](https://console.anthropic.com) einen Account anlegen und einen API-Key erstellen
 2. Bei Render unter "Environment" die Variable `ANTHROPIC_API_KEY` mit deinem Key setzen
-3. Ohne diesen Key bekommen beide trotzdem ein PDF, aber nur mit dem rohen Gesprächsprotokoll statt einer aufbereiteten Ideen-Zusammenfassung
+3. Ohne diesen Key bekommen beide trotzdem ein PDF, aber nur mit dem rohen Gesprächsprotokoll statt einer aufbereiteten Ideen-Zusammenfassung mit Aufgaben-Checkboxen
 
-Die Anthropic-API wird nach Nutzung abgerechnet (nicht kostenlos wie Resend), die Kosten pro Zusammenfassung sind aber sehr gering (kurzer Text-Prompt).
+**Für Browser ohne Live-Spracherkennung (Firefox, Safari)**, optionaler Audio-Fallback:
+1. Auf [platform.openai.com](https://platform.openai.com) einen Account anlegen und einen API-Key erstellen
+2. Bei Render die Variable `OPENAI_API_KEY` setzen
+3. Ohne diesen Key wird bei nicht unterstützten Browsern kein Protokoll erstellt (nur die Chrome/Edge-Seite liefert dann Text)
+
+Die Anthropic- und OpenAI-APIs werden nach Nutzung abgerechnet (nicht kostenlos wie Resend), die Kosten pro Call sind aber sehr gering.
+
+**Neu:** Jede Call-Zusammenfassung bleibt dauerhaft im Verlauf abrufbar (📄-Button neben jedem Match), nicht nur als einmaliger Download direkt nach dem Call. Während des Calls läuft außerdem eine Live-Mitschrift im Anruf-Fenster mit.
 
 ## E-Mail-Bestätigung einrichten (empfohlen für den Live-Betrieb)
 
