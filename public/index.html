@@ -826,6 +826,8 @@ socket.on('matched', (data) => {
   document.getElementById('chat-log').innerHTML = '';
   if (data.matchedTag && data.matchedTag !== p.topic) {
     addBubble('sys', 'Verwandtes Thema erkannt: ' + data.matchedTag + ' — passt vielleicht besser zusammen, als es aussieht.');
+  } else if (data.matchScore != null && data.matchScore < 100) {
+    addBubble('sys', '🔗 ' + data.matchScore + '% thematische Übereinstimmung erkannt.');
   }
   addBubble('sys', 'Ihr seid verbunden. Eisbrecher: Wer hat sowas Ähnliches schon gelöst?');
   show('screen-chat');

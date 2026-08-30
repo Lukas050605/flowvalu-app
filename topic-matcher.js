@@ -27,7 +27,7 @@ const TOPIC_TAGS = [
 // Aufruf fehlschlägt. Pro Kategorie mehrere Wortformen/Synonyme, damit auch Varianten
 // wie "Bäckerei" oder "backen" erkannt werden.
 const FALLBACK_KEYWORDS = {
-  'Fahrzeuge & Mobilität': ['auto', 'autos', 'autofirma', 'autohaus', 'autowerkstatt', 'autoteile', 'autoverkauf', 'gebrauchtwagen', 'kfz', 'werkstatt', 'motorrad', 'fahrzeug', 'fahrzeuge', 'reifen', 'verkehr', 'lkw', 'e-auto', 'elektroauto', 'tuning', 'fahrrad'],
+  'Fahrzeuge & Mobilität': ['auto', 'autos', 'autofirma', 'autohaus', 'autowerkstatt', 'autoteile', 'autoverkauf', 'autopflege', 'gebrauchtwagen', 'kfz', 'werkstatt', 'motorrad', 'fahrzeug', 'fahrzeuge', 'reifen', 'verkehr', 'lkw', 'e-auto', 'elektroauto', 'tuning', 'fahrrad'],
   'Landwirtschaft & Natur': ['landwirtschaft', 'bauernhof', 'blume', 'blumen', 'blumenladen', 'blumengeschäft', 'garten', 'pflanze', 'pflanzen', 'acker', 'feld', 'tiere', 'natur', 'gärtnerei', 'ernte'],
   'Essen & Kulinarik': ['kochen', 'koche', 'koch', 'gekocht', 'kochbuch', 'kochkurs', 'kochshow', 'backen', 'bäckerei', 'bäcker', 'konditor', 'café', 'restaurant', 'restaurantkette', 'rezept', 'küche', 'essen', 'gastro', 'gastronomie', 'topf', 'kochtopf', 'menü', 'speisekarte', 'catering'],
   'Mode & Beauty': ['mode', 'modelabel', 'kleidung', 'style', 'beauty', 'kosmetik', 'schmuck', 'friseur', 'boutique'],
@@ -86,7 +86,8 @@ const WORD_TREE = {
   auto: ['fahrzeug', 'motor', 'werkstatt', 'mobilität', 'verkehr'],
   fahrzeug: ['auto', 'motor', 'mobilität', 'verkehr', 'lkw'],
   motor: ['auto', 'fahrzeug', 'technik', 'mechanik'],
-  werkstatt: ['auto', 'reparatur', 'handwerk', 'mechanik'],
+  werkstatt: ['auto', 'reparatur', 'handwerk', 'mechanik', 'autopflege'],
+  autopflege: ['auto', 'werkstatt', 'fahrzeug'],
   mobilität: ['auto', 'fahrzeug', 'verkehr', 'reisen'],
 
   kochen: ['essen', 'rezept', 'küche', 'kochtopf', 'zutaten'],
@@ -141,7 +142,12 @@ const STOPWORDS = new Set([
   'nach', 'über', 'unter', 'aus', 'als', 'wie', 'was', 'wer', 'wo', 'wann', 'warum',
   'nicht', 'auch', 'noch', 'nur', 'schon', 'mal', 'gerade', 'gern', 'gerne', 'sehr',
   'mein', 'meine', 'meinen', 'meinem', 'meiner', 'dein', 'deine',
-  'thema', 'idee', 'name', 'namen', 'brauche', 'suche', 'mag', 'finde', 'komme', 'weiter'
+  'thema', 'idee', 'name', 'namen', 'brauche', 'suche', 'mag', 'finde', 'komme', 'weiter',
+  // Generische Gründungs-/Business-Begriffe: würden sonst z.B. "Café-Business" und
+  // "Autopflege-Business" trivial verbinden, nur weil beide "business"/"aufbauen"
+  // wörtlich enthalten — obwohl die eigentlichen Branchen nichts miteinander zu tun haben.
+  'business', 'firma', 'unternehmen', 'aufbauen', 'aufgebaut', 'gründen', 'gegründet',
+  'start', 'startup', 'geschäft', 'gewerbe', 'aufmachen', 'eröffnen', 'eröffnung'
 ]);
 
 // Sehr einfache Endungs-Kappung (kein echter Lemmatizer, aber deckt die häufigsten
@@ -314,19 +320,25 @@ function pairKey(textA, textB) {
 }
 
 /**
- * Prüft per Claude, ob zwei freie Texte inhaltlich/assoziativ zusammenpassen könnten
- * — auch wenn sie in unterschiedliche feste Kategorien fallen würden.
- * Beispiel: "Ich will eine Uhr bauen" und "Idee zum Thema Zeit" sind verwandt,
- * auch wenn eines "Handwerk" und das andere "Sonstiges" wäre.
- * Gibt false zurück, wenn kein API-Key gesetzt ist oder der Aufruf fehlschlägt
- * (dann greift nur noch das grobe Kategorie-Matching).
+ * Bewertet, wie stark zwei freie Texte inhaltlich/assoziativ zusammenpassen —
+ * als Prozentwert von 0 (keine Verbindung) bis 100 (praktisch dasselbe Thema),
+ * statt nur ja/nein. Dadurch lässt sich bei mehreren Wartenden die BESTE
+ * Übereinstimmung auswählen, statt einfach die erste zu nehmen, die irgendwie passt.
+ *
+ * Beispiel: "Ich will eine Uhr bauen" und "Idee zum Thema Zeit" bekommen einen hohen
+ * Prozentwert, auch wenn sie in unterschiedliche feste Kategorien fallen würden.
+ *
+ * Nutzt Claude, wenn ein API-Key gesetzt ist. Ohne Key (oder bei fehlgeschlagenem
+ * Aufruf) wird ein lokaler Näherungswert über den Wörter-Baum berechnet (Jaccard-
+ * Ähnlichkeit der erweiterten Wortmengen) — gröber als die KI, aber immer noch
+ * abgestuft statt nur ja/nein.
  */
-async function areAssociativelyRelated(textA, textB) {
-  if (!textA || !textB) return false;
+async function computeAssociationScore(textA, textB) {
+  if (!textA || !textB) return 0;
   const key = pairKey(textA, textB);
   if (pairCache.has(key)) return pairCache.get(key);
 
-  let result = false;
+  let score = 0;
   let checkedWithAI = false;
 
   if (ANTHROPIC_API_KEY) {
@@ -336,7 +348,7 @@ async function areAssociativelyRelated(textA, textB) {
 Person A: "${textA}"
 Person B: "${textB}"
 
-Gibt es eine inhaltliche, assoziative oder thematische Verbindung zwischen beiden Aussagen (auch über mehrere Ecken, z.B. gleicher Gegenstand, gleiches Konzept, gleiche Branche)? Antworte AUSSCHLIESSLICH mit "ja" oder "nein", kein weiterer Text.`;
+Wie stark hängen diese beiden Aussagen inhaltlich, assoziativ oder thematisch zusammen (auch über mehrere Ecken, z.B. gleicher Gegenstand, gleiches Konzept, gleiche Branche)? Bewerte die Verbindung als Prozentzahl von 0 bis 100 (0 = überhaupt keine Verbindung, 100 = praktisch dasselbe Thema). Antworte AUSSCHLIESSLICH mit der Zahl, kein Prozentzeichen, kein weiterer Text.`;
 
       const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -354,25 +366,36 @@ Gibt es eine inhaltliche, assoziative oder thematische Verbindung zwischen beide
 
       if (res.ok) {
         const data = await res.json();
-        const raw = (data.content && data.content[0] && data.content[0].text || '').trim().toLowerCase();
-        result = raw.startsWith('ja');
-        checkedWithAI = true;
+        const raw = (data.content && data.content[0] && data.content[0].text || '').trim();
+        const parsed = parseInt(raw.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(parsed)) {
+          score = Math.max(0, Math.min(100, parsed));
+          checkedWithAI = true;
+        }
       } else {
-        console.error('Assoziativ-Check: Anthropic API Fehler', res.status, await res.text());
+        console.error('Prozent-Bewertung: Anthropic API Fehler', res.status, await res.text());
       }
     } catch (err) {
-      console.error('Assoziativ-Check fehlgeschlagen:', err.message);
+      console.error('Prozent-Bewertung fehlgeschlagen:', err.message);
     }
   }
 
-  // Ohne Key oder bei fehlgeschlagenem API-Aufruf: lokalen Wörter-Baum als Fallback nutzen
+  // Ohne Key oder bei fehlgeschlagenem API-Aufruf: Jaccard-Ähnlichkeit über den
+  // Wörter-Baum als grober, aber ebenfalls abgestufter Näherungswert.
   if (!checkedWithAI) {
-    result = !!findWordTreeConnection(textA, textB);
+    const setA = expandWithWordTree(tokenize(textA));
+    const setB = expandWithWordTree(tokenize(textB));
+    if (setA.size > 0 && setB.size > 0) {
+      let intersectionSize = 0;
+      setA.forEach(w => { if (setB.has(w)) intersectionSize++; });
+      const unionSize = new Set([...setA, ...setB]).size;
+      score = unionSize > 0 ? Math.round((intersectionSize / unionSize) * 100) : 0;
+    }
   }
 
   if (pairCache.size >= MAX_PAIR_CACHE_SIZE) pairCache.clear();
-  pairCache.set(key, result);
-  return result;
+  pairCache.set(key, score);
+  return score;
 }
 
-module.exports = { classifyTopic, areAssociativelyRelated, findWordTreeConnection, TOPIC_TAGS };
+module.exports = { classifyTopic, computeAssociationScore, findWordTreeConnection, TOPIC_TAGS };

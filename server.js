@@ -8,7 +8,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
-const { classifyTopic, areAssociativelyRelated } = require('./topic-matcher');
+const { classifyTopic, computeAssociationScore } = require('./topic-matcher');
 const { generateImpulse } = require('./live-impulse');
 
 // Globales Sicherheitsnetz: ein einzelner unerwarteter Fehler (z.B. beim Lesen einer
@@ -541,9 +541,18 @@ function isGenderCompatible(profileA, profileB) {
 }
 
 // Findet ein gemeinsames Tag zwischen zwei Themen-Cluster-Listen, sonst null.
+// Diese Kategorien sind zu allgemein, um allein einen Match zu rechtfertigen — sonst
+// würden z.B. "Café-Business aufbauen" und "Autopflege-Business aufbauen" fälschlich
+// matchen, nur weil beide "Business & Gründung" als Tag bekommen, obwohl die Branchen
+// komplett unterschiedlich sind. "KFZ-Werkstatt" und "Autopflege-Business" sollen aber
+// über die spezifischere Kategorie "Fahrzeuge & Mobilität" trotzdem zueinander finden.
+const GENERIC_TAGS = new Set(['Business & Gründung', 'Sonstiges']);
+
 function sharedTag(tagsA, tagsB) {
   if (!Array.isArray(tagsA) || !Array.isArray(tagsB)) return null;
-  return tagsA.find(t => tagsB.includes(t)) || null;
+  const specificA = tagsA.filter(t => !GENERIC_TAGS.has(t));
+  const specificB = tagsB.filter(t => !GENERIC_TAGS.has(t));
+  return specificA.find(t => specificB.includes(t)) || null;
 }
 
 // Gibt { idx, matchedTag } zurück oder null, wenn niemand passt.
@@ -567,14 +576,14 @@ async function findPartnerIndex(profile) {
   if (profile.mode === 'thema') {
     if (profile.topic) {
       const entry = candidates.find(w => w.profile.topic === profile.topic);
-      if (entry) return { idx: waiting.indexOf(entry), matchedTag: profile.topic };
+      if (entry) return { idx: waiting.indexOf(entry), matchedTag: profile.topic, matchScore: 100 };
     }
 
     let entry = candidates.find(w => sharedTag(w.profile.aiTags, profile.aiTags));
-    if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags) };
+    if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags), matchScore: 100 };
 
-    const assocEntry = await findAssociativeMatch(candidates, profile);
-    if (assocEntry) return { idx: waiting.indexOf(assocEntry), matchedTag: null };
+    const assocMatch = await findAssociativeMatch(candidates, profile);
+    if (assocMatch) return { idx: waiting.indexOf(assocMatch.entry), matchedTag: null, matchScore: assocMatch.score };
 
     return null; // keine echte Verbindung gefunden -> lieber warten als wahllos matchen
   }
@@ -584,12 +593,12 @@ async function findPartnerIndex(profile) {
   if (!candidates.length) return null;
 
   let entry = candidates.find(w => sharedTag(w.profile.aiTags, profile.aiTags));
-  if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags) };
+  if (entry) return { idx: waiting.indexOf(entry), matchedTag: sharedTag(entry.profile.aiTags, profile.aiTags), matchScore: 100 };
 
-  const assocEntry = await findAssociativeMatch(candidates, profile);
-  if (assocEntry) return { idx: waiting.indexOf(assocEntry), matchedTag: null };
+  const assocMatch = await findAssociativeMatch(candidates, profile);
+  if (assocMatch) return { idx: waiting.indexOf(assocMatch.entry), matchedTag: null, matchScore: assocMatch.score };
 
-  return { idx: waiting.indexOf(candidates[0]), matchedTag: null };
+  return { idx: waiting.indexOf(candidates[0]), matchedTag: null, matchScore: null };
 }
 
 // Prüft die ersten paar (geschlechts-kompatiblen) Wartenden per Direkt-Vergleich
@@ -599,15 +608,28 @@ async function findPartnerIndex(profile) {
 // einmal die Zeit für einen API-Aufruf (bzw. dessen Timeout), statt bis zu
 // MAX_ASSOCIATIVE_CHECKS-mal hintereinander — das würde sonst die Warteschlange für
 // ALLE Nutzer unnötig lange blockieren, da diese Prüfung innerhalb der Matching-Sperre läuft.
+// Ab diesem Prozentwert gilt eine Verbindung als "echt genug" fürs Matching im Thema-Modus
+const MIN_ASSOCIATION_PERCENT = 50;
+
+// Bewertet alle (geschlechts-kompatiblen) Kandidaten per Prozent-Score und wählt die
+// BESTE Übereinstimmung, die den Mindestwert erreicht — statt einfach den ersten zu
+// nehmen, der irgendwie passt. Läuft parallel (siehe Kommentar oben in server.js zu
+// Timeout/Blockier-Risiko).
 async function findAssociativeMatch(candidates, profile) {
   const subset = candidates.slice(0, MAX_ASSOCIATIVE_CHECKS);
   if (!subset.length) return null;
 
-  const results = await Promise.all(
-    subset.map(c => areAssociativelyRelated(profile.hangup, c.profile.hangup).catch(() => false))
+  const scores = await Promise.all(
+    subset.map(c => computeAssociationScore(profile.hangup, c.profile.hangup).catch(() => 0))
   );
-  const idx = results.findIndex(r => r === true);
-  return idx === -1 ? null : subset[idx];
+
+  let bestIdx = -1;
+  let bestScore = MIN_ASSOCIATION_PERCENT - 1; // muss den Mindestwert übertreffen
+  scores.forEach((score, i) => {
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  });
+
+  return bestIdx === -1 ? null : { entry: subset[bestIdx], score: scores[bestIdx] };
 }
 
 io.use((socket, next) => {
@@ -686,12 +708,12 @@ io.on('connection', (socket) => {
       logMatch(partner.email, socket.data.email, partner.profile, profile, roomId);
 
       socket.emit('matched', {
-        roomId, partnerProfile: partner.profile, youAre: 'b', matchedTag: match.matchedTag,
+        roomId, partnerProfile: partner.profile, youAre: 'b', matchedTag: match.matchedTag, matchScore: match.matchScore,
         partnerDisplay: store.getPublicProfile(partner.email)
       });
       if (partnerSocket) {
         partnerSocket.emit('matched', {
-          roomId, partnerProfile: profile, youAre: 'a', matchedTag: match.matchedTag,
+          roomId, partnerProfile: profile, youAre: 'a', matchedTag: match.matchedTag, matchScore: match.matchScore,
           partnerDisplay: store.getPublicProfile(socket.data.email)
         });
       }
