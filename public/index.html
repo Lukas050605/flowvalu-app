@@ -252,6 +252,7 @@
     font-family:'Inter', sans-serif;
   }
   .toggle-btn.off{ background:#e5484d; border-color:#e5484d; color:#fff; }
+  .toggle-btn.active{ background:var(--accent-2); border-color:var(--accent-2); color:#fff; }
 </style>
 </head>
 <body>
@@ -419,6 +420,7 @@
     <div class="toggle-controls">
       <button class="toggle-btn" id="mic-toggle-btn">🎤 Mikrofon an</button>
       <button class="toggle-btn" id="camera-toggle-btn">📷 Kamera an</button>
+      <button class="toggle-btn" id="screenshare-btn">🖥️ Bildschirm teilen</button>
     </div>
     <div class="call-controls">
       <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
@@ -886,6 +888,8 @@ let mediaRecorder = null;
 let audioChunks = [];
 let usingAudioFallback = false;
 let recordedMimeType = '';
+let screenStream = null;
+let isScreenSharing = false;
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -934,7 +938,14 @@ function createPeerConnection(peerId, isOfferer, peerLabel){
   peerConnections[peerId] = pc;
 
   if(localStream){
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    // Audio und Video getrennt hinzufügen, damit wir später gezielt NUR den
+    // Video-Track austauschen können (für die Bildschirmfreigabe), ohne die
+    // Verbindung neu aufbauen zu müssen.
+    localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
+    const videoTrack = (isScreenSharing && screenStream)
+      ? screenStream.getVideoTracks()[0]
+      : localStream.getVideoTracks()[0];
+    if(videoTrack) pc.addTrack(videoTrack, localStream);
   }
 
   pc.ontrack = (event) => {
@@ -977,6 +988,72 @@ function closePeerConnection(peerId){
   updateGroupStatus();
 }
 
+/* ---------- Bildschirmfreigabe ---------- */
+// Tauscht in ALLEN offenen Peer-Verbindungen gleichzeitig den Video-Track aus
+// (funktioniert auch bei mehreren Personen im Gruppen-Call, da hier über die
+// komplette peerConnections-Map iteriert wird statt nur über eine einzelne Verbindung).
+function replaceVideoTrackEverywhere(newTrack){
+  Object.values(peerConnections).forEach(pc => {
+    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    if(sender) sender.replaceTrack(newTrack);
+  });
+}
+
+async function startScreenShare(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    addBubble('sys', 'Bildschirmfreigabe wird von diesem Browser nicht unterstützt.');
+    return;
+  }
+  try{
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+  } catch(err){
+    // Nutzer hat den Freigabe-Dialog abgebrochen o.ä. — kein Fehler, einfach nichts tun
+    return;
+  }
+
+  const screenTrack = screenStream.getVideoTracks()[0];
+  replaceVideoTrackEverywhere(screenTrack);
+
+  // Eigene Vorschau (lokale Kachel) zeigt jetzt den geteilten Bildschirm statt der Kamera
+  const localVideoEl = document.querySelector('#' + tileIdFor('local') + ' video');
+  if(localVideoEl) localVideoEl.srcObject = screenStream;
+
+  isScreenSharing = true;
+  const btn = document.getElementById('screenshare-btn');
+  btn.textContent = '🛑 Freigabe beenden';
+  btn.classList.add('active');
+  addBubble('sys', '🖥️ Du teilst jetzt deinen Bildschirm.');
+
+  // Falls die Freigabe über die BROWSER-EIGENE Leiste beendet wird (nicht über
+  // unseren Button), müssen wir das auch mitbekommen und sauber zurückschalten.
+  screenTrack.onended = () => { stopScreenShare(); };
+}
+
+function stopScreenShare(){
+  if(!isScreenSharing) return;
+
+  if(screenStream){
+    screenStream.getTracks().forEach(t => t.stop());
+    screenStream = null;
+  }
+
+  const cameraTrack = localStream ? localStream.getVideoTracks()[0] : null;
+  if(cameraTrack) replaceVideoTrackEverywhere(cameraTrack);
+
+  const localVideoEl = document.querySelector('#' + tileIdFor('local') + ' video');
+  if(localVideoEl && localStream) localVideoEl.srcObject = localStream;
+
+  isScreenSharing = false;
+  const btn = document.getElementById('screenshare-btn');
+  btn.textContent = '🖥️ Bildschirm teilen';
+  btn.classList.remove('active');
+  addBubble('sys', 'Bildschirmfreigabe beendet.');
+}
+
+document.getElementById('screenshare-btn').addEventListener('click', () => {
+  if(isScreenSharing){ stopScreenShare(); } else { startScreenShare(); }
+});
+
 async function startCall(data){
   document.getElementById('call-overlay').classList.add('active');
   document.getElementById('call-status').textContent = 'Kamera wird angefragt …';
@@ -984,6 +1061,9 @@ async function startCall(data){
   document.getElementById('mic-toggle-btn').classList.remove('off');
   document.getElementById('camera-toggle-btn').textContent = '📷 Kamera an';
   document.getElementById('camera-toggle-btn').classList.remove('off');
+  document.getElementById('screenshare-btn').textContent = '🖥️ Bildschirm teilen';
+  document.getElementById('screenshare-btn').classList.remove('active');
+  isScreenSharing = false;
   document.getElementById('video-grid').innerHTML = '';
   peerConnections = {};
   peerDisplays = {};
@@ -1198,6 +1278,8 @@ function endCall(){
   Object.keys(peerConnections).forEach(peerId => peerConnections[peerId].close());
   peerConnections = {};
   peerDisplays = {};
+  if(screenStream){ screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+  isScreenSharing = false;
   if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   document.getElementById('call-overlay').classList.remove('active');
   document.getElementById('video-grid').innerHTML = '';
