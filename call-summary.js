@@ -6,7 +6,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 /**
  * Ruft Claude auf und bittet um eine strukturierte JSON-Antwort.
- * Gibt bei Erfolg { summary, ideas: [], actionItems: [], problemLoesungen: [] } zurück, sonst null.
+ * Gibt bei Erfolg { summary, ideas: [], actionItems: [], problemLoesungen: [], denkImpulse: [] } zurück, sonst null.
  */
 async function callClaudeForStructuredSummary(transcriptText, participantNames, hangups) {
   const hangupContext = (hangups || []).filter(Boolean)
@@ -30,12 +30,15 @@ Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt (keine Einleitung, kein
   "actionItems": ["Konkreter nächster Schritt 1", "Konkreter nächster Schritt 2", ...],
   "problemLoesungen": [
     { "problem": "Kurze, konkrete Problem-/Herausforderungs-Beschreibung, die IRGENDWO im Gespräch erwähnt wurde", "loesung": "Dein eigener, konkreter Lösungsansatz dafür" }
-  ]
+  ],
+  "denkImpulse": ["Offene, weiterführende Frage oder Denkanstoß 1 zum konkreten Thema des Gesprächs", "Denkanstoß 2", ...]
 }
 
 WICHTIG zu "problemLoesungen": Lies das GESAMTE Transkript aufmerksam durch und identifiziere JEDES Problem, jede Herausforderung oder offene Frage, die die Personen ansprechen — nicht nur die eingangs genannte Blockade, sondern alles, was während des Gesprächs als Schwierigkeit auftaucht (auch Nebensätze wie "das Problem ist...", "ich weiß nicht wie...", "schwierig ist..."). Schreibe für JEDES erkannte Problem einen EIGENEN, konkreten Lösungsansatz — nutze dabei dein eigenes Wissen, nicht nur eine Wiederholung dessen, was die Personen selbst schon gesagt haben. Wenn im Gespräch kein klares Problem erkennbar ist, lass das Array leer — erfinde nichts.
 
-Lass "ideas" oder "actionItems" als leeres Array [], wenn dazu nichts Konkretes im Gespräch vorkam.`;
+WICHTIG zu "denkImpulse": Das sind 3-4 offene Fragen oder Denkanstöße, die NACH dem Call zum Weiterdenken anregen sollen — kein Small Talk, keine allgemeinen Floskeln wie "Wie geht's weiter?". Beziehe dich konkret auf das im Transkript besprochene Thema und die genannten Ideen. Formuliere sie so, dass sie auch noch Tage später als Ausgangspunkt für eine neue Denkrichtung taugen, z.B. eine ungewöhnliche Perspektive, eine "was wäre wenn"-Frage zum konkreten Thema, oder ein Aspekt, der im Gespräch nur kurz angerissen, aber nicht vertieft wurde.
+
+Lass "ideas", "actionItems" oder "denkImpulse" als leeres Array [], wenn dazu nichts Konkretes im Gespräch vorkam.`;
 
   const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -46,7 +49,7 @@ Lass "ideas" oder "actionItems" als leeres Array [], wenn dazu nichts Konkretes 
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
+      max_tokens: 1400,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -79,11 +82,12 @@ function parseStructuredSummary(rawText) {
       summary: parsed.summary || '',
       ideas: Array.isArray(parsed.ideas) ? parsed.ideas : [],
       actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
-      problemLoesungen
+      problemLoesungen,
+      denkImpulse: Array.isArray(parsed.denkImpulse) ? parsed.denkImpulse.map(String) : []
     };
   } catch (err) {
     // Kein gültiges JSON — als Fließtext-Zusammenfassung ohne Struktur behandeln
-    return { summary: rawText.trim(), ideas: [], actionItems: [], problemLoesungen: [] };
+    return { summary: rawText.trim(), ideas: [], actionItems: [], problemLoesungen: [], denkImpulse: [] };
   }
 }
 
@@ -202,6 +206,7 @@ function buildPdf({ participantNames, startedAt, aiSummary, transcript }) {
     const LINE = '#e7e4f5';
     const AMBER = '#f5a524';
     const GREEN = '#22c55e';
+    const TEAL = '#14b8a6';
 
     const PAGE_W = doc.page.width;
     const MARGIN = 50;
@@ -300,6 +305,14 @@ function buildPdf({ participantNames, startedAt, aiSummary, transcript }) {
       if (aiSummary.actionItems && aiSummary.actionItems.length) {
         sectionHeader('Nächste Schritte', GREEN);
         aiSummary.actionItems.forEach(item => checkboxItem(item));
+      }
+
+      if (aiSummary.denkImpulse && aiSummary.denkImpulse.length) {
+        sectionHeader('Denk-Impulse für danach', TEAL);
+        doc.font('Helvetica').fontSize(9.5).fillColor(MUTED)
+          .text('Ein paar offene Fragen, um auch nach dem Call an dem Thema weiterzudenken:', MARGIN, doc.y, { width: CONTENT_W });
+        doc.moveDown(0.4);
+        aiSummary.denkImpulse.forEach(impuls => bulletItem(impuls, TEAL));
       }
     } else {
       sectionHeader('Zusammenfassung', ACCENT);
