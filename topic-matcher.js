@@ -348,7 +348,13 @@ async function computeAssociationScore(textA, textB) {
 Person A: "${textA}"
 Person B: "${textB}"
 
-Wie stark hängen diese beiden Aussagen inhaltlich, assoziativ oder thematisch zusammen (auch über mehrere Ecken, z.B. gleicher Gegenstand, gleiches Konzept, gleiche Branche)? Bewerte die Verbindung als Prozentzahl von 0 bis 100 (0 = überhaupt keine Verbindung, 100 = praktisch dasselbe Thema). Antworte AUSSCHLIESSLICH mit der Zahl, kein Prozentzeichen, kein weiterer Text.`;
+Wie stark hängen diese beiden Aussagen thematisch/inhaltlich zusammen (auch über mehrere Ecken, z.B. gleicher Gegenstand, gleiches Konzept, gleiche Branche)?
+
+WICHTIG: Zähle NUR echte fachliche/thematische Nähe (gleiches Themengebiet, gleiche Branche, gleicher Gegenstand). Zähle NICHT oberflächliche, strukturelle Ähnlichkeiten wie "beide gründen ein Unternehmen", "beide brauchen einen Namen", "beide sind kreative Ideen" oder "beide brauchen Kunden" — das sind keine echten Verbindungen.
+Beispiel für eine ECHTE Verbindung: "Café eröffnen" und "Bäckerei eröffnen" (beide Gastronomie/Lebensmittel) -> hoher Wert.
+Beispiel für KEINE Verbindung trotz oberflächlicher Ähnlichkeit: "Blumenladen eröffnen" und "Autowerkstatt eröffnen" (beide gründen zwar ein Geschäft, aber völlig unterschiedliche Branchen) -> niedriger Wert (unter 20).
+
+Bewerte die Verbindung als Prozentzahl von 0 bis 100 (0 = überhaupt keine echte Verbindung, 100 = praktisch dasselbe Thema). Antworte AUSSCHLIESSLICH mit der Zahl, kein Prozentzeichen, kein weiterer Text.`;
 
       const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',

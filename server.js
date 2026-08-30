@@ -608,8 +608,10 @@ async function findPartnerIndex(profile) {
 // einmal die Zeit für einen API-Aufruf (bzw. dessen Timeout), statt bis zu
 // MAX_ASSOCIATIVE_CHECKS-mal hintereinander — das würde sonst die Warteschlange für
 // ALLE Nutzer unnötig lange blockieren, da diese Prüfung innerhalb der Matching-Sperre läuft.
-// Ab diesem Prozentwert gilt eine Verbindung als "echt genug" fürs Matching im Thema-Modus
-const MIN_ASSOCIATION_PERCENT = 50;
+// Ab diesem Prozentwert gilt eine Verbindung als "echt genug" fürs Matching im Thema-Modus.
+// Bewusst eher hoch angesetzt (60 statt z.B. 50), weil oberflächliche Ähnlichkeiten wie
+// "beide gründen ein Geschäft" sonst zu leicht als Verbindung durchgehen können.
+const MIN_ASSOCIATION_PERCENT = 60;
 
 // Bewertet alle (geschlechts-kompatiblen) Kandidaten per Prozent-Score und wählt die
 // BESTE Übereinstimmung, die den Mindestwert erreicht — statt einfach den ersten zu
