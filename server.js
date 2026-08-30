@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const store = require('./store');
+const { summarizeWithAI, buildPdf } = require('./call-summary');
 
 const REPORT_BAN_THRESHOLD = 3; // ab so vielen Meldungen wird automatisch gesperrt
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
@@ -197,6 +198,19 @@ app.post('/api/profile', (req, res) => {
 
 /* ---------------- Verlauf-Route ---------------- */
 
+/* ---------------- Call-PDF-Download ---------------- */
+app.get('/api/call-pdf/:token', (req, res) => {
+  if (!req.session.user) return res.status(401).send('Nicht eingeloggt.');
+  const entry = pendingPdfs[req.params.token];
+  if (!entry) return res.status(404).send('Diese Zusammenfassung ist nicht mehr verfügbar (evtl. abgelaufen).');
+  if (!entry.participantEmails.includes(req.session.user.email)) {
+    return res.status(403).send('Kein Zugriff auf diese Zusammenfassung.');
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename="flowvalu-call-zusammenfassung.pdf"');
+  res.send(entry.buffer);
+});
+
 app.get('/api/history', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const myEmail = req.session.user.email;
@@ -231,6 +245,17 @@ let rooms = {};             // roomId -> [socketIdA, socketIdB]
 let callRequests = {};      // roomId -> Set(socketId)
 let userSockets = {};       // email -> socketId (für Melden/Sperren/Verlauf)
 let roomToMatchId = {};     // roomId -> matches.json Eintrags-ID (um hadCall nachzutragen)
+let transcripts = {};       // roomId -> [{ speakerEmail, speakerLabel, text, timestamp }]
+let pendingPdfs = {};       // token -> { buffer, participantEmails, createdAt }
+let summaryInProgress = new Set(); // roomIds, die gerade ihre PDF erzeugen (Doppel-Erzeugung verhindern)
+
+// Alte PDFs nach 1 Stunde aus dem Speicher entfernen
+setInterval(() => {
+  const cutoff = Date.now() - 1000 * 60 * 60;
+  Object.keys(pendingPdfs).forEach(token => {
+    if (pendingPdfs[token].createdAt < cutoff) delete pendingPdfs[token];
+  });
+}, 1000 * 60 * 10);
 
 function logMatch(emailA, emailB, profileA, profileB, roomId) {
   const matches = store.readMatches();
@@ -348,6 +373,55 @@ io.on('connection', (socket) => {
   socket.on('webrtc_signal', ({ roomId, data }) => {
     if (!roomId) return;
     socket.to(roomId).emit('webrtc_signal', data);
+  });
+
+  /* -------- Call-Protokoll & KI-Zusammenfassung -------- */
+  socket.on('transcript_chunk', ({ roomId, text }) => {
+    if (!roomId || !text) return;
+    if (!transcripts[roomId]) transcripts[roomId] = [];
+    const label = store.getPublicProfile(socket.data.email).displayName;
+    const segment = { speakerEmail: socket.data.email, speakerLabel: label, text, timestamp: Date.now() };
+    transcripts[roomId].push(segment);
+    io.to(roomId).emit('transcript_update', segment);
+  });
+
+  socket.on('call_ended', async ({ roomId }) => {
+    if (!roomId || summaryInProgress.has(roomId)) return;
+    const members = rooms[roomId];
+    if (!members) return;
+    summaryInProgress.add(roomId);
+
+    try {
+      const transcript = transcripts[roomId] || [];
+      const participantEmails = members
+        .map(id => { const s = io.sockets.sockets.get(id); return s ? s.data.email : null; })
+        .filter(Boolean);
+      const participantNames = participantEmails.map(e => store.getPublicProfile(e).displayName);
+
+      const transcriptText = transcript.map(s => s.speakerLabel + ': ' + s.text).join('\n');
+      const aiSummary = transcriptText ? await summarizeWithAI(transcriptText, participantNames) : null;
+
+      const pdfBuffer = await buildPdf({
+        participantNames,
+        startedAt: transcript[0] ? transcript[0].timestamp : Date.now(),
+        aiSummary,
+        transcript
+      });
+
+      const token = crypto.randomUUID();
+      pendingPdfs[token] = { buffer: pdfBuffer, participantEmails, createdAt: Date.now() };
+
+      participantEmails.forEach(email => {
+        const sId = userSockets[email];
+        const s = sId && io.sockets.sockets.get(sId);
+        if (s) s.emit('call_summary_ready', { url: '/api/call-pdf/' + token });
+      });
+    } catch (err) {
+      console.error('Fehler beim Erstellen der Call-Zusammenfassung:', err.message);
+    } finally {
+      delete transcripts[roomId];
+      summaryInProgress.delete(roomId);
+    }
   });
 
   socket.on('report_user', ({ roomId, reason }) => {

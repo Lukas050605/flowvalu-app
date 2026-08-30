@@ -304,6 +304,7 @@
       <video id="local-video" autoplay playsinline muted></video>
     </div>
     <p class="call-status" id="call-status">Verbinde …</p>
+    <p class="call-status" id="protocol-indicator" style="color:var(--accent-2);"></p>
     <div class="call-controls">
       <button class="btn btn-hangup" id="hangup-btn">Call beenden</button>
     </div>
@@ -683,6 +684,7 @@ socket.on('call_requested_by_partner', () => {
 /* ---------- echtes WebRTC (Peer-to-Peer, kein Drittanbieter) ---------- */
 let pc = null;
 let localStream = null;
+let speechRecognition = null;
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -730,6 +732,55 @@ async function startCall(isOfferer){
     await pc.setLocalDescription(offer);
     socket.emit('webrtc_signal', { roomId: currentRoom, data: { type: 'offer', sdp: offer } });
   }
+
+  startTranscription();
+}
+
+function startTranscription(){
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognitionAPI){
+    document.getElementById('protocol-indicator').textContent = '🎙️ Protokoll in diesem Browser nicht verfügbar (nutz Chrome/Edge)';
+    return;
+  }
+  speechRecognition = new SpeechRecognitionAPI();
+  speechRecognition.lang = 'de-DE';
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = false;
+
+  speechRecognition.onresult = (event) => {
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      if(event.results[i].isFinal){
+        const text = event.results[i][0].transcript.trim();
+        if(text && currentRoom){
+          socket.emit('transcript_chunk', { roomId: currentRoom, text });
+        }
+      }
+    }
+  };
+  speechRecognition.onerror = (e) => {
+    if(e.error !== 'no-speech') console.log('Spracherkennung-Fehler:', e.error);
+  };
+  speechRecognition.onend = () => {
+    // Manche Browser beenden die Erkennung nach einer Weile von selbst - neu starten, solange der Call läuft
+    if(pc && pc.connectionState !== 'closed'){
+      try{ speechRecognition.start(); } catch(e){}
+    }
+  };
+
+  try{
+    speechRecognition.start();
+    document.getElementById('protocol-indicator').textContent = '🎙️ Protokoll läuft';
+  } catch(e){
+    console.log('Konnte Spracherkennung nicht starten:', e.message);
+  }
+}
+
+function stopTranscription(){
+  if(speechRecognition){
+    speechRecognition.onend = null; // verhindert Auto-Neustart beim bewussten Stoppen
+    speechRecognition.stop();
+    speechRecognition = null;
+  }
 }
 
 socket.on('start_call', (data) => {
@@ -751,14 +802,30 @@ socket.on('webrtc_signal', async (data) => {
 });
 
 function endCall(){
+  const wasActive = !!pc;
+  stopTranscription();
   if(pc){ pc.close(); pc = null; }
   if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
   document.getElementById('call-overlay').classList.remove('active');
   document.getElementById('remote-video').srcObject = null;
   document.getElementById('local-video').srcObject = null;
+  document.getElementById('protocol-indicator').textContent = '';
+  if(wasActive && currentRoom){
+    socket.emit('call_ended', { roomId: currentRoom });
+  }
 }
 
 document.getElementById('hangup-btn').addEventListener('click', endCall);
+
+socket.on('call_summary_ready', (data) => {
+  addBubble('sys', '📄 Zusammenfassung ist fertig! Wird automatisch heruntergeladen …');
+  const a = document.createElement('a');
+  a.href = data.url;
+  a.download = 'flowvalu-call-zusammenfassung.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
 
 /* ---------- Melden ---------- */
 let selectedReason = null;
@@ -807,8 +874,8 @@ document.getElementById('skip-btn').addEventListener('click', () => {
 
 socket.on('partner_left', () => {
   addBubble('sys', 'Dein Gesprächspartner hat den Chat verlassen.');
-  currentRoom = null;
   endCall();
+  currentRoom = null;
 });
 </script>
 </body>

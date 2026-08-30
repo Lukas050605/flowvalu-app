@@ -13,6 +13,7 @@
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "pdfkit": "^0.20.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   }

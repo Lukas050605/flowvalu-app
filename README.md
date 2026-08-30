@@ -1,6 +1,19 @@
 # FlowValu — Live-Matching-App
 
-Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung mit E-Mail-Bestätigung, Profilbild/Verlauf und einem Melde-System mit automatischer Sperre.
+Echtes Text-Chat-Matching mit Warteschlange, echtem Video-Call per WebRTC, Login/Registrierung mit E-Mail-Bestätigung, Profilbild/Verlauf, einem Melde-System mit automatischer Sperre — und einer KI-gestützten Call-Zusammenfassung als PDF.
+
+## Call-Zusammenfassung einrichten (optional, aber empfohlen)
+
+Während eines Video-Calls wird das Gespräch live per Browser-Spracherkennung mitgeschrieben (Text bleibt lokal in den Browsern, es werden keine Audiodaten hochgeladen). Nach dem Call bekommen beide automatisch ein PDF mit den wichtigsten Ideen.
+
+**Wichtige Einschränkung:** Die Live-Spracherkennung nutzt die Web Speech API des Browsers — funktioniert zuverlässig in **Chrome und Edge**, ist in Firefox nicht und in Safari nur eingeschränkt verfügbar. Das lässt sich technisch nicht umgehen, da es eine Browser-Funktion ist.
+
+**Für die KI-Zusammenfassung** (statt nur dem rohen Protokoll):
+1. Auf [console.anthropic.com](https://console.anthropic.com) einen Account anlegen und einen API-Key erstellen
+2. Bei Render unter "Environment" die Variable `ANTHROPIC_API_KEY` mit deinem Key setzen
+3. Ohne diesen Key bekommen beide trotzdem ein PDF, aber nur mit dem rohen Gesprächsprotokoll statt einer aufbereiteten Ideen-Zusammenfassung
+
+Die Anthropic-API wird nach Nutzung abgerechnet (nicht kostenlos wie Resend), die Kosten pro Zusammenfassung sind aber sehr gering (kurzer Text-Prompt).
 
 ## E-Mail-Bestätigung einrichten (empfohlen für den Live-Betrieb)
 
