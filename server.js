@@ -231,7 +231,12 @@ app.get('/api/profile', (req, res) => {
     mentorMode: !!user.mentorMode,
     rating: store.getUserRatingSummary(req.session.user.email),
     canUploadReels: store.isEligibleForReels(req.session.user.email),
-    reelsThreshold: { minRating: store.MENTOR_REEL_MIN_RATING, minCount: store.MENTOR_REEL_MIN_COUNT }
+    mentorStatus: store.getMentorStatus(req.session.user.email),
+    reelsThreshold: {
+      minRating: store.MENTOR_REEL_MIN_RATING,
+      tier1: { minMonthlyRatings: store.MENTOR_TIER1_MIN_MONTHLY_RATINGS, uploadLimit: store.MENTOR_TIER1_UPLOAD_LIMIT },
+      tier2: { minMonthlyRatings: store.MENTOR_TIER2_MIN_MONTHLY_RATINGS, uploadLimit: store.MENTOR_TIER2_UPLOAD_LIMIT }
+    }
   });
 });
 
@@ -299,12 +304,18 @@ app.get('/api/reels', (req, res) => {
   res.json({ reels: store.getReelsFeed() });
 });
 
-// Video-Upload: nur wer die Bewertungs-Schwelle erreicht hat, darf hochladen —
-// wird HIER SERVERSEITIG geprüft, nie nur im Frontend versteckt.
+// Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch
+// nicht aufgebraucht hat, darf hochladen — wird HIER SERVERSEITIG geprüft, nie nur
+// im Frontend versteckt.
 app.post('/api/reels/upload', express.raw({ type: () => true, limit: '80mb' }), (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  if (!store.isEligibleForReels(req.session.user.email)) {
-    return res.status(403).json({ error: 'Du erreichst die Bewertungs-Schwelle für Reels noch nicht.' });
+
+  const status = store.getMentorStatus(req.session.user.email);
+  if (status.tier === 0) {
+    return res.status(403).json({ error: `Du brauchst mindestens ${store.MENTOR_TIER1_MIN_MONTHLY_RATINGS} Bewertungen in diesem Monat (Ø mind. ${store.MENTOR_REEL_MIN_RATING}★), um Reels hochzuladen.` });
+  }
+  if (status.remainingThisMonth <= 0) {
+    return res.status(403).json({ error: `Monatliches Upload-Kontingent aufgebraucht (${status.uploadLimit} Videos/Monat auf deiner Stufe). Setzt sich am 1. des nächsten Monats zurück.` });
   }
   if (!req.body || !req.body.length) {
     return res.status(400).json({ error: 'Keine Videodaten erhalten.' });

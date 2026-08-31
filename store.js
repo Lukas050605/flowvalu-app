@@ -11,11 +11,17 @@ const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
 const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
 const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 
-// Schwelle, ab der ein Mentor gut genug bewertet wurde, um Reels hochladen zu dürfen.
-// Durchschnitt aus Beliebtheit + Kreativität muss mindestens 4.0 (von 5) sein, UND
-// es müssen mindestens 3 Bewertungen vorliegen (schützt vor einer einzelnen Glücks-Bewertung).
+// Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
+// automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
+// Stufe 1 ab 10 Bewertungen/Monat -> 5 Video-Uploads erlaubt.
+// Stufe 2 ab 200 Bewertungen/Monat -> 100 Video-Uploads erlaubt.
+// Zusätzlich muss der GESAMT-Bewertungsschnitt (alle Zeit) mindestens 4.0 sein — sonst
+// könnte jemand mit vielen, aber schlechten Bewertungen trotzdem hochladen.
 const MENTOR_REEL_MIN_RATING = 4.0;
-const MENTOR_REEL_MIN_COUNT = 3;
+const MENTOR_TIER1_MIN_MONTHLY_RATINGS = 10;
+const MENTOR_TIER1_UPLOAD_LIMIT = 5;
+const MENTOR_TIER2_MIN_MONTHLY_RATINGS = 200;
+const MENTOR_TIER2_UPLOAD_LIMIT = 100;
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -188,7 +194,9 @@ module.exports = {
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
   addRating, getUserRatingSummary, hasRated,
   trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts,
-  isEligibleForReels, MENTOR_REEL_MIN_RATING, MENTOR_REEL_MIN_COUNT,
+  isEligibleForReels, getMentorStatus, getMentorTier,
+  MENTOR_REEL_MIN_RATING, MENTOR_TIER1_MIN_MONTHLY_RATINGS, MENTOR_TIER1_UPLOAD_LIMIT,
+  MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
   addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel,
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved
@@ -299,15 +307,63 @@ function getUserRatingSummary(email) {
   };
 }
 
-/* ---------------- Mentor-Modus: Berechtigung fürs Reels-Hochladen ---------------- */
+/* ---------------- Mentor-Modus: Stufen-System fürs Reels-Hochladen ---------------- */
 
-// Wird bei JEDEM Check neu berechnet (nicht dauerhaft gespeichert) — sinkt der
-// Bewertungs-Schnitt später wieder ab, verliert man das Recht auch automatisch wieder.
-function isEligibleForReels(email) {
+// Millisekunden-Zeitpunkt, ab dem der aktuelle Kalendermonat begann — alles davor
+// zählt nicht mehr mit. Das ist der ganze Trick fürs automatische "Zurücksetzen":
+// wir speichern nichts, sondern filtern bei jedem Aufruf einfach nach diesem Datum.
+function startOfCurrentMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+}
+
+// Wie viele Bewertungen diese Person SEIT BEGINN DES AKTUELLEN MONATS bekommen hat.
+function getMonthlyRatingCount(email) {
+  const monthStart = startOfCurrentMonth();
+  return readRatings().filter(r => r.ratedEmail === email && r.createdAt >= monthStart).length;
+}
+
+// Wie viele Reels diese Person SEIT BEGINN DES AKTUELLEN MONATS schon hochgeladen hat.
+function getMonthlyUploadCount(email) {
+  const monthStart = startOfCurrentMonth();
+  return readReels().filter(r => r.uploaderEmail === email && r.createdAt >= monthStart).length;
+}
+
+// Ermittelt die aktuelle Mentor-Stufe inkl. monatlichem Upload-Kontingent.
+// Wird bei JEDEM Aufruf frisch berechnet — sinkt die Monats-Bewertungszahl (z.B. weil
+// ein neuer Monat begonnen hat), sinkt die Stufe automatisch mit.
+function getMentorTier(email) {
   const rating = getUserRatingSummary(email);
-  if (rating.count < MENTOR_REEL_MIN_COUNT) return false;
+  if (rating.count === 0) return { tier: 0, uploadLimit: 0 };
+
   const overallAvg = (rating.avgBeliebtheit + rating.avgKreativitaet) / 2;
-  return overallAvg >= MENTOR_REEL_MIN_RATING;
+  if (overallAvg < MENTOR_REEL_MIN_RATING) return { tier: 0, uploadLimit: 0 };
+
+  const monthlyCount = getMonthlyRatingCount(email);
+  if (monthlyCount >= MENTOR_TIER2_MIN_MONTHLY_RATINGS) return { tier: 2, uploadLimit: MENTOR_TIER2_UPLOAD_LIMIT };
+  if (monthlyCount >= MENTOR_TIER1_MIN_MONTHLY_RATINGS) return { tier: 1, uploadLimit: MENTOR_TIER1_UPLOAD_LIMIT };
+  return { tier: 0, uploadLimit: 0 };
+}
+
+// Vollständiger Status fürs Profil/UI: Stufe, Kontingent, schon genutzt, noch übrig.
+function getMentorStatus(email) {
+  const { tier, uploadLimit } = getMentorTier(email);
+  const usedThisMonth = getMonthlyUploadCount(email);
+  const remainingThisMonth = Math.max(0, uploadLimit - usedThisMonth);
+  return {
+    tier,
+    uploadLimit,
+    usedThisMonth,
+    remainingThisMonth,
+    monthlyRatingCount: getMonthlyRatingCount(email),
+    canUploadNow: remainingThisMonth > 0
+  };
+}
+
+// Einfache Ja/Nein-Prüfung: darf JETZT noch ein weiteres Reel hochgeladen werden?
+// (Stufe erreicht UND monatliches Kontingent noch nicht aufgebraucht.)
+function isEligibleForReels(email) {
+  return getMentorStatus(email).canUploadNow;
 }
 
 /* ---------------- Mentor-Reels: Speicher für Video-Metadaten ---------------- */

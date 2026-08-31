@@ -797,14 +797,18 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   document.getElementById('match-preference-select').value = data.matchPreference || 'gemischt';
   document.getElementById('mentor-mode-toggle').checked = !!data.mentorMode;
 
-  const rating = data.rating || { count: 0 };
   const statusEl = document.getElementById('reels-status-text');
-  if (data.canUploadReels) {
-    statusEl.textContent = '🎬 Du bist gut genug bewertet, um Reels hochzuladen!';
+  const status = data.mentorStatus || { tier: 0, monthlyRatingCount: 0, uploadLimit: 0, remainingThisMonth: 0 };
+  const thresholds = data.reelsThreshold || { tier1: { minMonthlyRatings: 10, uploadLimit: 5 }, tier2: { minMonthlyRatings: 200, uploadLimit: 100 } };
+
+  if (status.tier === 2) {
+    statusEl.textContent = `🎬 Stufe 2 erreicht! ${status.remainingThisMonth} von ${status.uploadLimit} Videos diesen Monat noch übrig.`;
+    statusEl.style.color = 'var(--accent-2)';
+  } else if (status.tier === 1) {
+    statusEl.textContent = `🎬 Stufe 1 erreicht! ${status.remainingThisMonth} von ${status.uploadLimit} Videos diesen Monat noch übrig. Ab ${thresholds.tier2.minMonthlyRatings} Bewertungen/Monat gibt's ${thresholds.tier2.uploadLimit} Videos (aktuell: ${status.monthlyRatingCount}).`;
     statusEl.style.color = 'var(--accent-2)';
   } else {
-    const need = data.reelsThreshold || { minRating: 4, minCount: 3 };
-    statusEl.textContent = `Reels-Upload ab Ø ${need.minRating}★ bei mind. ${need.minCount} Bewertungen (du: ${rating.count} Bewertungen).`;
+    statusEl.textContent = `🔒 Ab ${thresholds.tier1.minMonthlyRatings} Bewertungen in diesem Monat gibt's ${thresholds.tier1.uploadLimit} Reels-Uploads (aktuell: ${status.monthlyRatingCount}). Zählt jeden Monat neu.`;
     statusEl.style.color = 'var(--muted)';
   }
 
@@ -946,7 +950,13 @@ function closeReelsOverlay(){
 async function loadReelsUploadStatus(){
   const res = await fetch('/api/profile');
   const data = await res.json();
-  document.getElementById('reels-open-upload-btn').style.display = data.canUploadReels ? 'inline-block' : 'none';
+  const btn = document.getElementById('reels-open-upload-btn');
+  if(data.canUploadReels){
+    btn.style.display = 'inline-block';
+    btn.textContent = '+ Hochladen (' + data.mentorStatus.remainingThisMonth + ' übrig)';
+  } else {
+    btn.style.display = 'none';
+  }
 }
 
 // Nur das Video, das gerade wirklich im Bild ist, spielt automatisch ab — genau wie
