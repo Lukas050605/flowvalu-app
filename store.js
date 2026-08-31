@@ -8,6 +8,13 @@ const CALL_SUMMARIES_FILE = path.join(__dirname, 'data', 'call-summaries.json');
 const IMPULSE_LOG_FILE = path.join(__dirname, 'data', 'impulse-log.json');
 const RATINGS_FILE = path.join(__dirname, 'data', 'ratings.json');
 const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
+const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
+
+// Schwelle, ab der ein Mentor gut genug bewertet wurde, um Reels hochladen zu dürfen.
+// Durchschnitt aus Beliebtheit + Kreativität muss mindestens 4.0 (von 5) sein, UND
+// es müssen mindestens 3 Bewertungen vorliegen (schützt vor einer einzelnen Glücks-Bewertung).
+const MENTOR_REEL_MIN_RATING = 4.0;
+const MENTOR_REEL_MIN_COUNT = 3;
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -19,6 +26,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(IMPULSE_LOG_FILE)) fs.writeFileSync(IMPULSE_LOG_FILE, '[]');
   if (!fs.existsSync(RATINGS_FILE)) fs.writeFileSync(RATINGS_FILE, '[]');
   if (!fs.existsSync(CUSTOM_CHIPS_FILE)) fs.writeFileSync(CUSTOM_CHIPS_FILE, '{}');
+  if (!fs.existsSync(REELS_FILE)) fs.writeFileSync(REELS_FILE, '[]');
 }
 
 function readUsers() {
@@ -177,7 +185,9 @@ module.exports = {
   addCallSummary, getRecentIdeasForUser,
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
   addRating, getUserRatingSummary, hasRated,
-  trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts
+  trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts,
+  isEligibleForReels, MENTOR_REEL_MIN_RATING, MENTOR_REEL_MIN_COUNT,
+  addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -283,4 +293,62 @@ function getUserRatingSummary(email) {
     avgKreativitaet: Math.round((sumKreativitaet / received.length) * 10) / 10,
     punkte: sumBeliebtheit + sumKreativitaet
   };
+}
+
+/* ---------------- Mentor-Modus: Berechtigung fürs Reels-Hochladen ---------------- */
+
+// Wird bei JEDEM Check neu berechnet (nicht dauerhaft gespeichert) — sinkt der
+// Bewertungs-Schnitt später wieder ab, verliert man das Recht auch automatisch wieder.
+function isEligibleForReels(email) {
+  const rating = getUserRatingSummary(email);
+  if (rating.count < MENTOR_REEL_MIN_COUNT) return false;
+  const overallAvg = (rating.avgBeliebtheit + rating.avgKreativitaet) / 2;
+  return overallAvg >= MENTOR_REEL_MIN_RATING;
+}
+
+/* ---------------- Mentor-Reels: Speicher für Video-Metadaten ---------------- */
+// Die eigentliche Videodatei liegt separat auf der Festplatte (siehe server.js,
+// gleiches Muster wie bei den Call-PDFs) — hier nur die Metadaten dazu.
+
+function readReels() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(REELS_FILE, 'utf-8'));
+}
+
+function writeReels(reels) {
+  fs.writeFileSync(REELS_FILE, JSON.stringify(reels, null, 2));
+}
+
+function addReel({ token, uploaderEmail, title, mimeType }) {
+  const reels = readReels();
+  reels.push({
+    token, uploaderEmail, title: title || '', mimeType: mimeType || 'video/webm',
+    createdAt: Date.now()
+  });
+  writeReels(reels);
+}
+
+function findReelByToken(token) {
+  return readReels().find(r => r.token === token);
+}
+
+// Öffentlicher Feed: neueste zuerst, mit Anzeige-Infos der Uploader angereichert.
+function getReelsFeed(limit = 50) {
+  return readReels()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, limit)
+    .map(r => ({ ...r, uploaderDisplay: getPublicProfile(r.uploaderEmail) }));
+}
+
+function getUserReels(email) {
+  return readReels().filter(r => r.uploaderEmail === email).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Nur der Uploader selbst darf sein eigenes Reel löschen.
+function deleteReel(token, requesterEmail) {
+  const reels = readReels();
+  const reel = reels.find(r => r.token === token);
+  if (!reel || reel.uploaderEmail !== requesterEmail) return false;
+  writeReels(reels.filter(r => r.token !== token));
+  return true;
 }

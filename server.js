@@ -28,6 +28,20 @@ function ensurePdfDir() {
   if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 }
 
+const REELS_DIR = path.join(__dirname, 'data', 'reels-videos');
+function ensureReelsDir() {
+  if (!fs.existsSync(REELS_DIR)) fs.mkdirSync(REELS_DIR, { recursive: true });
+}
+
+// Ordnet einem MIME-Type die passende Dateiendung zu (fürs Speichern auf der Platte)
+function extensionForVideoMimeType(mimeType) {
+  const type = (mimeType || '').toLowerCase();
+  if (type.includes('mp4')) return 'mp4';
+  if (type.includes('quicktime') || type.includes('mov')) return 'mov';
+  if (type.includes('ogg')) return 'ogv';
+  return 'webm';
+}
+
 const REPORT_BAN_THRESHOLD = 3; // ab so vielen Meldungen wird automatisch gesperrt
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -214,13 +228,16 @@ app.get('/api/profile', (req, res) => {
     liveImpulsesEnabled: user.liveImpulsesEnabled !== false, // Standard: an
     gender: user.gender || '',
     matchPreference: user.matchPreference || 'gemischt',
-    rating: store.getUserRatingSummary(req.session.user.email)
+    mentorMode: !!user.mentorMode,
+    rating: store.getUserRatingSummary(req.session.user.email),
+    canUploadReels: store.isEligibleForReels(req.session.user.email),
+    reelsThreshold: { minRating: store.MENTOR_REEL_MIN_RATING, minCount: store.MENTOR_REEL_MIN_COUNT }
   });
 });
 
 app.post('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const { displayName, avatarDataUrl, liveImpulsesEnabled, gender, matchPreference } = req.body || {};
+  const { displayName, avatarDataUrl, liveImpulsesEnabled, gender, matchPreference, mentorMode } = req.body || {};
 
   if (displayName !== undefined && String(displayName).length > 40) {
     return res.status(400).json({ error: 'Anzeigename darf höchstens 40 Zeichen haben.' });
@@ -249,6 +266,7 @@ app.post('/api/profile', (req, res) => {
   if (liveImpulsesEnabled !== undefined) user.liveImpulsesEnabled = !!liveImpulsesEnabled;
   if (gender !== undefined) user.gender = gender || null;
   if (matchPreference !== undefined) user.matchPreference = matchPreference;
+  if (mentorMode !== undefined) user.mentorMode = !!mentorMode;
 
   store.writeUsers(users);
   res.json({ ok: true });
@@ -270,6 +288,78 @@ app.get('/api/call-pdf/:token', (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'attachment; filename="flowvalu-call-zusammenfassung.pdf"');
   res.send(fs.readFileSync(filePath));
+});
+
+/* ---------------- Mentor-Reels: Video-Upload, Feed, Wiedergabe, Löschen ---------------- */
+
+// Öffentlicher Feed aller hochgeladenen Reels (neueste zuerst) — sichtbar für alle
+// eingeloggten Nutzer, nicht nur für Mentoren selbst.
+app.get('/api/reels', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ reels: store.getReelsFeed() });
+});
+
+// Video-Upload: nur wer die Bewertungs-Schwelle erreicht hat, darf hochladen —
+// wird HIER SERVERSEITIG geprüft, nie nur im Frontend versteckt.
+app.post('/api/reels/upload', express.raw({ type: () => true, limit: '80mb' }), (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  if (!store.isEligibleForReels(req.session.user.email)) {
+    return res.status(403).json({ error: 'Du erreichst die Bewertungs-Schwelle für Reels noch nicht.' });
+  }
+  if (!req.body || !req.body.length) {
+    return res.status(400).json({ error: 'Keine Videodaten erhalten.' });
+  }
+
+  const { title, mimeType } = req.query;
+  const cleanTitle = (title || '').toString().slice(0, 80);
+  const ext = extensionForVideoMimeType(mimeType);
+  const token = crypto.randomUUID();
+
+  try {
+    ensureReelsDir();
+    fs.writeFileSync(path.join(REELS_DIR, token + '.' + ext), req.body);
+    store.addReel({ token, uploaderEmail: req.session.user.email, title: cleanTitle, mimeType: mimeType || 'video/webm' });
+    res.json({ ok: true, token });
+  } catch (err) {
+    console.error('Reel-Upload fehlgeschlagen:', err.message);
+    res.status(500).json({ error: 'Video konnte nicht gespeichert werden.' });
+  }
+});
+
+// Video-Wiedergabe (streambar per <video src="...">)
+app.get('/api/reels/:token/video', (req, res) => {
+  if (!req.session.user) return res.status(401).send('Nicht eingeloggt.');
+  const reel = store.findReelByToken(req.params.token);
+  if (!reel) return res.status(404).send('Reel nicht gefunden.');
+  const ext = extensionForVideoMimeType(reel.mimeType);
+  const filePath = path.join(REELS_DIR, req.params.token + '.' + ext);
+  if (!fs.existsSync(filePath)) return res.status(404).send('Videodatei nicht mehr vorhanden.');
+  res.setHeader('Content-Type', reel.mimeType || 'video/webm');
+  res.send(fs.readFileSync(filePath));
+});
+
+// Löschen: nur der Uploader selbst (oder ein Admin) darf ein Reel entfernen.
+app.post('/api/reels/:token/delete', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const reel = store.findReelByToken(req.params.token);
+  if (!reel) return res.status(404).json({ error: 'Reel nicht gefunden.' });
+
+  const isOwner = reel.uploaderEmail === req.session.user.email;
+  if (!isOwner && !isAdminEmail(req.session.user.email)) {
+    return res.status(403).json({ error: 'Kein Zugriff.' });
+  }
+
+  const success = store.deleteReel(req.params.token, reel.uploaderEmail);
+  if (success) {
+    try {
+      const ext = extensionForVideoMimeType(reel.mimeType);
+      const filePath = path.join(REELS_DIR, req.params.token + '.' + ext);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error('Video-Datei konnte nicht gelöscht werden:', err.message);
+    }
+  }
+  res.json({ ok: success });
 });
 
 /* ---------------- Audio-Fallback-Transkription (Whisper) für Browser ohne Web Speech API ---------------- */
@@ -782,10 +872,12 @@ io.on('connection', (socket) => {
       const dbUser = store.findUserByEmail(socket.data.email);
       profile.gender = (dbUser && dbUser.gender) || null;
       profile.matchPreference = (dbUser && dbUser.matchPreference) || 'gemischt';
+      profile.mentorMode = !!(dbUser && dbUser.mentorMode);
     } catch (err) {
       console.error('Geschlechts-/Matching-Einstellung konnte nicht geladen werden:', err.message);
       profile.gender = null;
       profile.matchPreference = 'gemischt';
+      profile.mentorMode = false;
     }
 
     // Freitext ("Woran hängst du gerade?") einem breiten Themen-Cluster zuordnen,

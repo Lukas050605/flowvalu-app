@@ -101,6 +101,53 @@
   .auth-switch a{ color:var(--accent-2); cursor:pointer; }
   .logout-link{ text-align:right; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); margin-bottom:14px; cursor:pointer; }
   .top-links{ display:flex; justify-content:space-between; margin-bottom:14px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+
+  #reels-icon-btn{
+    position:fixed; right:20px; bottom:26px; z-index:40; width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; font-size:24px;
+    cursor:pointer; box-shadow:0 6px 20px rgba(76,141,255,0.4); display:flex; align-items:center; justify-content:center;
+  }
+
+  .reels-overlay{
+    position:fixed; inset:0; background:#000; z-index:70; display:none; flex-direction:column;
+  }
+  .reels-overlay.active{ display:flex; }
+  .reels-scroll{
+    flex:1; overflow-y:scroll; scroll-snap-type:y mandatory; scrollbar-width:none;
+  }
+  .reels-scroll::-webkit-scrollbar{ display:none; }
+  .reel-tile{
+    position:relative; height:100%; scroll-snap-align:start; scroll-snap-stop:always;
+    display:flex; align-items:center; justify-content:center; background:#000;
+  }
+  .reel-tile video{ width:100%; height:100%; object-fit:contain; background:#000; }
+  .reel-tile .reel-caption{
+    position:absolute; left:16px; right:70px; bottom:26px; color:#fff; font-family:'Inter', sans-serif;
+  }
+  .reel-tile .reel-caption .reel-name{ font-weight:700; font-size:15px; margin-bottom:3px; }
+  .reel-tile .reel-caption .reel-title-text{ font-size:13px; color:rgba(255,255,255,0.85); }
+  .reel-tile .reel-delete-btn{
+    position:absolute; right:14px; bottom:26px; background:rgba(229,72,77,0.9); border:none; color:#fff;
+    font-family:'Inter', sans-serif; font-size:12px; padding:7px 12px; border-radius:20px; cursor:pointer;
+  }
+  .reels-topbar{
+    position:absolute; top:0; left:0; right:0; z-index:2; display:flex; justify-content:space-between;
+    align-items:center; padding:16px 18px; color:#fff;
+  }
+  .reels-topbar .reels-close-btn{
+    background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:18px; width:36px; height:36px;
+    border-radius:50%; cursor:pointer;
+  }
+  .reels-upload-fab{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:13px; padding:8px 16px; border-radius:20px;
+    cursor:pointer;
+  }
+  .reel-upload-panel{
+    position:absolute; inset:0; background:rgba(8,8,10,0.97); z-index:3; display:none;
+    flex-direction:column; justify-content:center; padding:24px;
+  }
+  .reel-upload-panel.active{ display:flex; }
   .top-links span{ cursor:pointer; }
   .top-links span:hover{ color:var(--ink); }
 
@@ -294,6 +341,7 @@
       <span id="points-badge" title="Beliebtheit + Kreativität aus Bewertungen anderer">⭐ …</span>
       <span id="logout-link">Ausloggen</span>
     </div>
+    <button id="reels-icon-btn" title="Mentor-Reels ansehen">🎬</button>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
@@ -365,6 +413,18 @@
       </label>
     </div>
 
+    <div class="impulse-setting-row">
+      <div>
+        <div style="font-weight:600; font-size:13.5px;">🎓 Mentor-Modus</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:2px;">Zeigt anderen, dass du heute vor allem helfen willst.</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="mentor-mode-toggle">
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <p id="reels-status-text" style="font-size:11.5px; color:var(--muted); margin:-14px 0 20px;"></p>
+
     <div class="field-error" id="profile-error"></div>
     <button class="btn btn-primary" id="save-profile-btn">Speichern</button>
     <button class="btn btn-ghost" id="back-from-profile-btn">Zurück</button>
@@ -378,6 +438,31 @@
     <div class="empty-history" id="empty-history" style="display:none;">Noch keine Matches — leg direkt los!</div>
     <button class="btn btn-ghost" id="back-from-history-btn">Zurück</button>
   </section>
+
+  <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
+  <div class="reels-overlay" id="reels-overlay">
+    <div class="reels-topbar">
+      <span style="font-weight:700; font-family:'Inter', sans-serif;">Mentor-Reels</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="reels-upload-fab" id="reels-open-upload-btn" style="display:none;">+ Hochladen</button>
+        <button class="reels-close-btn" id="reels-close-btn">✕</button>
+      </div>
+    </div>
+
+    <div class="reels-scroll" id="reels-scroll"></div>
+    <div class="empty-history" id="empty-reels" style="display:none; color:#fff; text-align:center; padding-top:120px;">Noch keine Reels vorhanden.</div>
+
+    <div class="reel-upload-panel" id="reel-upload-panel">
+      <button class="reels-close-btn" id="reel-upload-close-btn" style="position:absolute; top:16px; right:18px;">✕</button>
+      <div style="font-weight:700; font-size:16px; margin-bottom:14px; color:#fff;">🎬 Eigenes Reel hochladen</div>
+      <input type="text" id="reel-title-input" placeholder="Kurzer Titel (optional)" maxlength="80" style="margin-bottom:10px;">
+      <input type="file" id="reel-file-input" accept="video/*" style="display:none;">
+      <button class="btn" id="reel-pick-btn" style="margin-bottom:8px;">Video auswählen</button>
+      <div id="reel-selected-name" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
+      <button class="btn btn-primary" id="reel-upload-btn">Hochladen</button>
+      <div class="field-error" id="reel-upload-error"></div>
+    </div>
+  </div>
 
   <!-- QUEUE -->
   <section class="screen" id="screen-queue">
@@ -633,6 +718,19 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   document.getElementById('live-impulses-toggle').checked = data.liveImpulsesEnabled !== false;
   document.getElementById('gender-select').value = data.gender || '';
   document.getElementById('match-preference-select').value = data.matchPreference || 'gemischt';
+  document.getElementById('mentor-mode-toggle').checked = !!data.mentorMode;
+
+  const rating = data.rating || { count: 0 };
+  const statusEl = document.getElementById('reels-status-text');
+  if (data.canUploadReels) {
+    statusEl.textContent = '🎬 Du bist gut genug bewertet, um Reels hochzuladen!';
+    statusEl.style.color = 'var(--accent-2)';
+  } else {
+    const need = data.reelsThreshold || { minRating: 4, minCount: 3 };
+    statusEl.textContent = `Reels-Upload ab Ø ${need.minRating}★ bei mind. ${need.minCount} Bewertungen (du: ${rating.count} Bewertungen).`;
+    statusEl.style.color = 'var(--muted)';
+  }
+
   renderAvatarPreview();
   document.getElementById('profile-error').textContent = '';
   show('screen-profile-edit');
@@ -678,6 +776,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
   const liveImpulsesEnabled = document.getElementById('live-impulses-toggle').checked;
   const gender = document.getElementById('gender-select').value;
   const matchPreference = document.getElementById('match-preference-select').value;
+  const mentorMode = document.getElementById('mentor-mode-toggle').checked;
   const errEl = document.getElementById('profile-error');
   errEl.textContent = '';
 
@@ -690,7 +789,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled, gender, matchPreference })
+      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled, gender, matchPreference, mentorMode })
     });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
@@ -748,6 +847,152 @@ document.getElementById('history-link').addEventListener('click', async () => {
 });
 
 document.getElementById('back-from-history-btn').addEventListener('click', () => show('screen-profile'));
+
+/* ---------- Mentor-Reels: Vollbild-Scroll wie bei Instagram Reels ---------- */
+let selectedReelFile = null;
+let reelsObserver = null;
+
+document.getElementById('reels-icon-btn').addEventListener('click', async () => {
+  document.getElementById('reels-overlay').classList.add('active');
+  await loadReelsUploadStatus();
+  await loadReelsFeed();
+});
+
+document.getElementById('reels-close-btn').addEventListener('click', closeReelsOverlay);
+
+function closeReelsOverlay(){
+  document.getElementById('reels-overlay').classList.remove('active');
+  // Alle Videos anhalten, damit im Hintergrund nichts weiterläuft
+  document.querySelectorAll('#reels-scroll video').forEach(v => v.pause());
+}
+
+async function loadReelsUploadStatus(){
+  const res = await fetch('/api/profile');
+  const data = await res.json();
+  document.getElementById('reels-open-upload-btn').style.display = data.canUploadReels ? 'inline-block' : 'none';
+}
+
+// Nur das Video, das gerade wirklich im Bild ist, spielt automatisch ab — genau wie
+// beim Durchscrollen von Instagram Reels. Alle anderen werden pausiert.
+function setupReelsAutoplay(){
+  if(reelsObserver) reelsObserver.disconnect();
+  reelsObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = entry.target.querySelector('video');
+      if(!video) return;
+      if(entry.isIntersecting && entry.intersectionRatio > 0.6){
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
+  }, { threshold: [0, 0.6, 1] });
+
+  document.querySelectorAll('.reel-tile').forEach(tile => reelsObserver.observe(tile));
+}
+
+async function loadReelsFeed(){
+  const scroll = document.getElementById('reels-scroll');
+  const empty = document.getElementById('empty-reels');
+  scroll.innerHTML = '';
+  try{
+    const res = await fetch('/api/reels');
+    const data = await res.json();
+    if(!data.reels || !data.reels.length){
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.reels.forEach(reel => {
+      const tile = document.createElement('div');
+      tile.className = 'reel-tile';
+      const isOwn = reel.uploaderEmail === myEmail;
+      const deleteBtnHtml = isOwn
+        ? '<button class="reel-delete-btn" data-token="' + reel.token + '">Löschen</button>'
+        : '';
+      tile.innerHTML =
+        '<video src="/api/reels/' + reel.token + '/video" loop muted playsinline></video>' +
+        '<div class="reel-caption">' +
+          '<div class="reel-name">' + escapeHtml(reel.uploaderDisplay.displayName) + '</div>' +
+          (reel.title ? '<div class="reel-title-text">' + escapeHtml(reel.title) + '</div>' : '') +
+        '</div>' +
+        deleteBtnHtml;
+
+      // Tippen aufs Video: Ton an/aus — wie beim Reels-Prinzip üblich
+      const videoEl = tile.querySelector('video');
+      videoEl.addEventListener('click', () => { videoEl.muted = !videoEl.muted; });
+
+      scroll.appendChild(tile);
+    });
+
+    document.querySelectorAll('.reel-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if(!confirm('Dieses Reel wirklich löschen?')) return;
+        await fetch('/api/reels/' + btn.dataset.token + '/delete', { method: 'POST' });
+        loadReelsFeed();
+      });
+    });
+
+    setupReelsAutoplay();
+  } catch(e){
+    empty.style.display = 'block';
+  }
+}
+
+document.getElementById('reels-open-upload-btn').addEventListener('click', () => {
+  document.getElementById('reel-upload-panel').classList.add('active');
+  document.querySelectorAll('#reels-scroll video').forEach(v => v.pause());
+});
+document.getElementById('reel-upload-close-btn').addEventListener('click', () => {
+  document.getElementById('reel-upload-panel').classList.remove('active');
+});
+
+document.getElementById('reel-pick-btn').addEventListener('click', () => {
+  document.getElementById('reel-file-input').click();
+});
+
+document.getElementById('reel-file-input').addEventListener('change', (e) => {
+  selectedReelFile = e.target.files[0] || null;
+  document.getElementById('reel-selected-name').textContent = selectedReelFile ? selectedReelFile.name : '';
+});
+
+document.getElementById('reel-upload-btn').addEventListener('click', async () => {
+  const errEl = document.getElementById('reel-upload-error');
+  errEl.textContent = '';
+  if(!selectedReelFile){
+    errEl.textContent = 'Bitte zuerst ein Video auswählen.';
+    return;
+  }
+  const title = document.getElementById('reel-title-input').value.trim();
+  const btn = document.getElementById('reel-upload-btn');
+  btn.disabled = true;
+  btn.textContent = 'Wird hochgeladen …';
+
+  try{
+    const url = '/api/reels/upload?title=' + encodeURIComponent(title) + '&mimeType=' + encodeURIComponent(selectedReelFile.type || 'video/webm');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': selectedReelFile.type || 'video/webm' },
+      body: selectedReelFile
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errEl.textContent = data.error || 'Upload fehlgeschlagen.';
+    } else {
+      selectedReelFile = null;
+      document.getElementById('reel-title-input').value = '';
+      document.getElementById('reel-selected-name').textContent = '';
+      document.getElementById('reel-upload-panel').classList.remove('active');
+      loadReelsFeed();
+    }
+  } catch(e){
+    errEl.textContent = 'Verbindung fehlgeschlagen.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Hochladen';
+  }
+});
 
 function escapeHtml(str){
   const div = document.createElement('div');
@@ -933,8 +1178,11 @@ socket.on('matched', (data) => {
     avatarEl.textContent = ((display.displayName || p.topic || 'F')[0]).toUpperCase();
   }
   document.getElementById('partner-hangup').textContent = display.displayName ? display.displayName + ' — ' + (p.hangup || '') : (p.hangup || 'Jemand Neues');
-  document.getElementById('partner-tag').textContent = (p.topic || 'Zufällig') + ' · gerade gematcht';
+  document.getElementById('partner-tag').textContent = (p.mentorMode ? '🎓 Mentor · ' : '') + (p.topic || 'Zufällig') + ' · gerade gematcht';
   document.getElementById('chat-log').innerHTML = '';
+  if (p.mentorMode) {
+    addBubble('sys', '🎓 Dein Partner ist heute im Mentor-Modus — will vor allem helfen.');
+  }
   if (data.matchedTag && data.matchedTag !== p.topic) {
     addBubble('sys', 'Verwandtes Thema erkannt: ' + data.matchedTag + ' — passt vielleicht besser zusammen, als es aussieht.');
   } else if (data.matchScore != null && data.matchScore < 100) {
