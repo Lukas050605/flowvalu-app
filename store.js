@@ -9,6 +9,7 @@ const IMPULSE_LOG_FILE = path.join(__dirname, 'data', 'impulse-log.json');
 const RATINGS_FILE = path.join(__dirname, 'data', 'ratings.json');
 const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
 const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
+const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 
 // Schwelle, ab der ein Mentor gut genug bewertet wurde, um Reels hochladen zu dürfen.
 // Durchschnitt aus Beliebtheit + Kreativität muss mindestens 4.0 (von 5) sein, UND
@@ -27,6 +28,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(RATINGS_FILE)) fs.writeFileSync(RATINGS_FILE, '[]');
   if (!fs.existsSync(CUSTOM_CHIPS_FILE)) fs.writeFileSync(CUSTOM_CHIPS_FILE, '{}');
   if (!fs.existsSync(REELS_FILE)) fs.writeFileSync(REELS_FILE, '[]');
+  if (!fs.existsSync(PINBOARD_FILE)) fs.writeFileSync(PINBOARD_FILE, '[]');
 }
 
 function readUsers() {
@@ -187,7 +189,9 @@ module.exports = {
   addRating, getUserRatingSummary, hasRated,
   trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts,
   isEligibleForReels, MENTOR_REEL_MIN_RATING, MENTOR_REEL_MIN_COUNT,
-  addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel
+  addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel,
+  addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
+  deletePinboardPost, setPinboardPostResolved
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -350,5 +354,100 @@ function deleteReel(token, requesterEmail) {
   const reel = reels.find(r => r.token === token);
   if (!reel || reel.uploaderEmail !== requesterEmail) return false;
   writeReels(reels.filter(r => r.token !== token));
+  return true;
+}
+
+/* ---------------- Async-Pinnwand: offene Fragen/Blockaden posten, andere antworten ---------------- */
+// Macht die App auch dann nützlich, wenn gerade niemand zum Live-Matchen online ist —
+// eine Frage/Idee hinterlassen, andere können später (auch offline) drauf antworten.
+
+function readPinboardPosts() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(PINBOARD_FILE, 'utf-8'));
+}
+
+function writePinboardPosts(posts) {
+  fs.writeFileSync(PINBOARD_FILE, JSON.stringify(posts, null, 2));
+}
+
+function addPinboardPost({ authorEmail, text, topic }) {
+  const trimmed = String(text || '').trim();
+  if (!authorEmail || !trimmed) return null;
+  const posts = readPinboardPosts();
+  const post = {
+    id: require('crypto').randomUUID(),
+    authorEmail,
+    text: trimmed.slice(0, 500),
+    topic: (topic || '').trim().slice(0, 40) || null,
+    resolved: false,
+    createdAt: Date.now(),
+    replies: []
+  };
+  posts.push(post);
+  writePinboardPosts(posts.slice(-1000)); // Deckel, damit die Datei nicht unbegrenzt wächst
+  return post;
+}
+
+// Liste für die Übersicht: neueste zuerst, mit Anzeige-Infos des Autors und Antwort-Anzahl,
+// aber OHNE die vollen Antworten selbst (die holt man erst beim Öffnen eines Beitrags).
+function getPinboardPosts(limit = 100) {
+  return readPinboardPosts()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, limit)
+    .map(p => ({
+      id: p.id,
+      authorEmail: p.authorEmail,
+      authorDisplay: getPublicProfile(p.authorEmail),
+      text: p.text,
+      topic: p.topic,
+      resolved: p.resolved,
+      createdAt: p.createdAt,
+      replyCount: p.replies.length
+    }));
+}
+
+// Einzelner Beitrag inkl. aller Antworten (Anzeige-Infos werden hier erst angereichert).
+function getPinboardPost(id) {
+  const post = readPinboardPosts().find(p => p.id === id);
+  if (!post) return null;
+  return {
+    ...post,
+    authorDisplay: getPublicProfile(post.authorEmail),
+    replies: post.replies.map(r => ({ ...r, authorDisplay: getPublicProfile(r.authorEmail) }))
+  };
+}
+
+function addPinboardReply(postId, { authorEmail, text }) {
+  const trimmed = String(text || '').trim();
+  if (!authorEmail || !trimmed) return false;
+  const posts = readPinboardPosts();
+  const post = posts.find(p => p.id === postId);
+  if (!post) return false;
+  post.replies.push({
+    id: require('crypto').randomUUID(),
+    authorEmail,
+    text: trimmed.slice(0, 500),
+    createdAt: Date.now()
+  });
+  writePinboardPosts(posts);
+  return true;
+}
+
+// Nur der Autor (oder ein Admin, das prüft server.js) darf seinen Beitrag löschen.
+function deletePinboardPost(id, requesterEmail) {
+  const posts = readPinboardPosts();
+  const post = posts.find(p => p.id === id);
+  if (!post || post.authorEmail !== requesterEmail) return false;
+  writePinboardPosts(posts.filter(p => p.id !== id));
+  return true;
+}
+
+// Nur der Autor darf seinen eigenen Beitrag als "gelöst" markieren (oder wieder öffnen).
+function setPinboardPostResolved(id, requesterEmail, resolved) {
+  const posts = readPinboardPosts();
+  const post = posts.find(p => p.id === id);
+  if (!post || post.authorEmail !== requesterEmail) return false;
+  post.resolved = !!resolved;
+  writePinboardPosts(posts);
   return true;
 }

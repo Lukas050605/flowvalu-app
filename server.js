@@ -362,6 +362,58 @@ app.post('/api/reels/:token/delete', (req, res) => {
   res.json({ ok: success });
 });
 
+/* ---------------- Async-Pinnwand: offene Fragen posten, andere antworten später ---------------- */
+
+app.get('/api/pinboard', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ posts: store.getPinboardPosts() });
+});
+
+app.post('/api/pinboard', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { text, topic } = req.body || {};
+  if (!text || !String(text).trim()) return res.status(400).json({ error: 'Text darf nicht leer sein.' });
+  const post = store.addPinboardPost({ authorEmail: req.session.user.email, text, topic });
+  if (!post) return res.status(400).json({ error: 'Beitrag konnte nicht erstellt werden.' });
+  res.json({ ok: true, post });
+});
+
+app.get('/api/pinboard/:id', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const post = store.getPinboardPost(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Beitrag nicht gefunden.' });
+  res.json({ post });
+});
+
+app.post('/api/pinboard/:id/reply', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { text } = req.body || {};
+  if (!text || !String(text).trim()) return res.status(400).json({ error: 'Antwort darf nicht leer sein.' });
+  const success = store.addPinboardReply(req.params.id, { authorEmail: req.session.user.email, text });
+  if (!success) return res.status(404).json({ error: 'Beitrag nicht gefunden.' });
+  res.json({ ok: true });
+});
+
+app.post('/api/pinboard/:id/resolve', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { resolved } = req.body || {};
+  const success = store.setPinboardPostResolved(req.params.id, req.session.user.email, !!resolved);
+  if (!success) return res.status(403).json({ error: 'Nur der Autor kann den Status ändern.' });
+  res.json({ ok: true });
+});
+
+app.post('/api/pinboard/:id/delete', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const post = store.getPinboardPost(req.params.id);
+  if (!post) return res.status(404).json({ error: 'Beitrag nicht gefunden.' });
+  const isOwner = post.authorEmail === req.session.user.email;
+  if (!isOwner && !isAdminEmail(req.session.user.email)) {
+    return res.status(403).json({ error: 'Kein Zugriff.' });
+  }
+  const success = store.deletePinboardPost(req.params.id, post.authorEmail);
+  res.json({ ok: success });
+});
+
 /* ---------------- Audio-Fallback-Transkription (Whisper) für Browser ohne Web Speech API ---------------- */
 // type: () => true statt fest 'audio/webm' — Safari/iOS liefert z.B. audio/mp4, das sonst
 // stillschweigend abgelehnt worden wäre (req.body wäre leer geblieben statt geparst zu werden).

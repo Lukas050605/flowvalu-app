@@ -107,6 +107,44 @@
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; font-size:24px;
     cursor:pointer; box-shadow:0 6px 20px rgba(76,141,255,0.4); display:flex; align-items:center; justify-content:center;
   }
+  #pinboard-icon-btn{
+    position:fixed; left:20px; bottom:26px; z-index:40; width:56px; height:56px; border-radius:50%;
+    background:var(--surface-2); border:1px solid var(--border-strong); font-size:22px;
+    cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center;
+  }
+
+  .pinboard-overlay{
+    position:fixed; inset:0; background:var(--bg); z-index:70; display:none; flex-direction:column;
+  }
+  .pinboard-overlay.active{ display:flex; }
+  .pinboard-topbar{
+    display:flex; justify-content:space-between; align-items:center; padding:18px 20px;
+    border-bottom:1px solid var(--border-strong);
+  }
+  .pinboard-topbar h2{ margin:0; font-size:17px; }
+  .pinboard-body{ flex:1; overflow-y:auto; padding:16px 20px 100px; }
+  .pinboard-post-card{
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:12px;
+    padding:14px 16px; margin-bottom:12px; cursor:pointer;
+  }
+  .pinboard-post-card:hover{ border-color:var(--accent-2); }
+  .pinboard-post-topic{
+    display:inline-block; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--accent-2);
+    background:rgba(76,141,255,0.12); padding:2px 8px; border-radius:999px; margin-bottom:6px;
+  }
+  .pinboard-post-text{ font-size:14px; margin-bottom:6px; }
+  .pinboard-post-meta{ font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; }
+  .pinboard-resolved-badge{ color:#22c55e; }
+  .pinboard-fab{
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:75;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border:none;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:13.5px; padding:12px 22px; border-radius:999px;
+    cursor:pointer; box-shadow:0 6px 20px rgba(76,141,255,0.4);
+  }
+  .pinboard-reply{
+    background:var(--surface-2); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px;
+  }
+  .pinboard-reply .reply-author{ font-weight:600; font-size:12px; color:var(--accent-2); margin-bottom:3px; }
 
   .reels-overlay{
     position:fixed; inset:0; background:#000; z-index:70; display:none; flex-direction:column;
@@ -342,6 +380,7 @@
       <span id="logout-link">Ausloggen</span>
     </div>
     <button id="reels-icon-btn" title="Mentor-Reels ansehen">🎬</button>
+    <button id="pinboard-icon-btn" title="Pinnwand: offene Fragen ansehen">📌</button>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
@@ -461,6 +500,44 @@
       <div id="reel-selected-name" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
       <button class="btn btn-primary" id="reel-upload-btn">Hochladen</button>
       <div class="field-error" id="reel-upload-error"></div>
+    </div>
+  </div>
+
+  <!-- ASYNC-PINNWAND -->
+  <div class="pinboard-overlay" id="pinboard-overlay">
+    <div class="pinboard-topbar">
+      <h2 id="pinboard-title">📌 Pinnwand</h2>
+      <button class="reels-close-btn" id="pinboard-close-btn" style="background:var(--surface-2); color:var(--ink);">✕</button>
+    </div>
+
+    <!-- ÜBERSICHT -->
+    <div class="pinboard-body" id="pinboard-list-view">
+      <p style="font-size:13px; color:var(--muted); margin-top:0;">Gerade niemand zum Live-Matchen da? Hinterlass eine Frage — andere können später (auch offline) antworten.</p>
+      <div id="pinboard-posts"></div>
+      <div class="empty-history" id="empty-pinboard" style="display:none;">Noch keine Beiträge — sei die erste Person!</div>
+    </div>
+    <button class="pinboard-fab" id="pinboard-new-btn">+ Neue Frage</button>
+
+    <!-- NEUER BEITRAG -->
+    <div class="pinboard-body" id="pinboard-new-view" style="display:none;">
+      <label class="field-label">Deine Frage / Idee</label>
+      <textarea id="pinboard-new-text" placeholder="z. B. Mir fehlt der Name für mein Café …" maxlength="500" style="min-height:100px;"></textarea>
+      <label class="field-label">Thema (optional)</label>
+      <input type="text" id="pinboard-new-topic" placeholder="z. B. Business" maxlength="40" style="margin-bottom:16px;">
+      <div class="field-error" id="pinboard-new-error"></div>
+      <button class="btn btn-primary" id="pinboard-publish-btn">Veröffentlichen</button>
+      <button class="btn btn-ghost" id="pinboard-cancel-new-btn">Abbrechen</button>
+    </div>
+
+    <!-- DETAILANSICHT -->
+    <div class="pinboard-body" id="pinboard-detail-view" style="display:none;">
+      <button class="btn btn-ghost" id="pinboard-back-to-list-btn" style="margin-bottom:14px;">← Zurück zur Übersicht</button>
+      <div id="pinboard-detail-content"></div>
+      <label class="field-label" style="margin-top:20px;">Antworten</label>
+      <div id="pinboard-detail-replies"></div>
+      <textarea id="pinboard-reply-text" placeholder="Deine Antwort …" maxlength="500" style="min-height:70px; margin-top:10px;"></textarea>
+      <div class="field-error" id="pinboard-reply-error"></div>
+      <button class="btn btn-primary" id="pinboard-send-reply-btn">Antworten</button>
     </div>
   </div>
 
@@ -999,6 +1076,174 @@ function escapeHtml(str){
   div.textContent = str || '';
   return div.innerHTML;
 }
+
+/* ---------- Async-Pinnwand ---------- */
+let currentPinboardPostId = null;
+
+function pinboardShowView(viewId){
+  ['pinboard-list-view', 'pinboard-new-view', 'pinboard-detail-view'].forEach(id => {
+    document.getElementById(id).style.display = id === viewId ? 'block' : 'none';
+  });
+  document.getElementById('pinboard-new-btn').style.display = viewId === 'pinboard-list-view' ? 'block' : 'none';
+}
+
+document.getElementById('pinboard-icon-btn').addEventListener('click', async () => {
+  document.getElementById('pinboard-overlay').classList.add('active');
+  pinboardShowView('pinboard-list-view');
+  await loadPinboardList();
+});
+
+document.getElementById('pinboard-close-btn').addEventListener('click', () => {
+  document.getElementById('pinboard-overlay').classList.remove('active');
+});
+
+function pinboardTimeAgo(timestamp){
+  const diffMin = Math.round((Date.now() - timestamp) / 60000);
+  if(diffMin < 1) return 'gerade eben';
+  if(diffMin < 60) return 'vor ' + diffMin + ' Min';
+  const diffH = Math.round(diffMin / 60);
+  if(diffH < 24) return 'vor ' + diffH + ' Std';
+  return 'vor ' + Math.round(diffH / 24) + ' Tagen';
+}
+
+async function loadPinboardList(){
+  const container = document.getElementById('pinboard-posts');
+  const empty = document.getElementById('empty-pinboard');
+  container.innerHTML = '';
+  try{
+    const res = await fetch('/api/pinboard');
+    const data = await res.json();
+    if(!data.posts || !data.posts.length){
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.posts.forEach(post => {
+      const card = document.createElement('div');
+      card.className = 'pinboard-post-card';
+      card.innerHTML =
+        (post.topic ? '<span class="pinboard-post-topic">' + escapeHtml(post.topic) + '</span><br>' : '') +
+        '<div class="pinboard-post-text">' + escapeHtml(post.text) + '</div>' +
+        '<div class="pinboard-post-meta">' +
+          '<span>' + escapeHtml(post.authorDisplay.displayName) + ' · ' + pinboardTimeAgo(post.createdAt) + '</span>' +
+          '<span>' + (post.resolved ? '<span class="pinboard-resolved-badge">✓ gelöst</span> · ' : '') + '💬 ' + post.replyCount + '</span>' +
+        '</div>';
+      card.addEventListener('click', () => openPinboardDetail(post.id));
+      container.appendChild(card);
+    });
+  } catch(e){
+    empty.style.display = 'block';
+  }
+}
+
+document.getElementById('pinboard-new-btn').addEventListener('click', () => {
+  document.getElementById('pinboard-new-text').value = '';
+  document.getElementById('pinboard-new-topic').value = '';
+  document.getElementById('pinboard-new-error').textContent = '';
+  pinboardShowView('pinboard-new-view');
+});
+
+document.getElementById('pinboard-cancel-new-btn').addEventListener('click', () => pinboardShowView('pinboard-list-view'));
+
+document.getElementById('pinboard-publish-btn').addEventListener('click', async () => {
+  const text = document.getElementById('pinboard-new-text').value.trim();
+  const topic = document.getElementById('pinboard-new-topic').value.trim();
+  const errEl = document.getElementById('pinboard-new-error');
+  errEl.textContent = '';
+  if(!text){
+    errEl.textContent = 'Bitte eine Frage oder Idee eingeben.';
+    return;
+  }
+  try{
+    const res = await fetch('/api/pinboard', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, topic })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Veröffentlichen.'; return; }
+    pinboardShowView('pinboard-list-view');
+    loadPinboardList();
+  } catch(e){
+    errEl.textContent = 'Verbindung fehlgeschlagen.';
+  }
+});
+
+async function openPinboardDetail(postId){
+  currentPinboardPostId = postId;
+  pinboardShowView('pinboard-detail-view');
+  await renderPinboardDetail();
+}
+
+async function renderPinboardDetail(){
+  const res = await fetch('/api/pinboard/' + currentPinboardPostId);
+  if(!res.ok) return;
+  const data = await res.json();
+  const post = data.post;
+  const isOwn = post.authorEmail === myEmail;
+
+  const content = document.getElementById('pinboard-detail-content');
+  content.innerHTML =
+    (post.topic ? '<span class="pinboard-post-topic">' + escapeHtml(post.topic) + '</span><br>' : '') +
+    '<div style="font-size:15px; margin:8px 0;">' + escapeHtml(post.text) + '</div>' +
+    '<div class="pinboard-post-meta" style="margin-bottom:10px;">' +
+      '<span>' + escapeHtml(post.authorDisplay.displayName) + ' · ' + pinboardTimeAgo(post.createdAt) + '</span>' +
+    '</div>' +
+    (isOwn
+      ? '<button class="btn-sm" id="pinboard-toggle-resolved-btn" style="background:' + (post.resolved ? 'var(--surface-2)' : '#22c55e') + '; border:none; color:#fff; font-family:inherit; font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer; margin-right:6px;">' +
+          (post.resolved ? 'Als offen markieren' : '✓ Als gelöst markieren') + '</button>' +
+        '<button class="btn-sm" id="pinboard-delete-post-btn" style="background:#e5484d; border:none; color:#fff; font-family:inherit; font-size:12px; padding:6px 12px; border-radius:8px; cursor:pointer;">Löschen</button>'
+      : '');
+
+  const repliesEl = document.getElementById('pinboard-detail-replies');
+  repliesEl.innerHTML = post.replies.length
+    ? post.replies.map(r =>
+        '<div class="pinboard-reply"><div class="reply-author">' + escapeHtml(r.authorDisplay.displayName) + ' · ' + pinboardTimeAgo(r.createdAt) + '</div>' + escapeHtml(r.text) + '</div>'
+      ).join('')
+    : '<p style="font-size:13px; color:var(--muted);">Noch keine Antworten.</p>';
+
+  if(isOwn){
+    document.getElementById('pinboard-toggle-resolved-btn').addEventListener('click', async () => {
+      await fetch('/api/pinboard/' + currentPinboardPostId + '/resolve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved: !post.resolved })
+      });
+      renderPinboardDetail();
+    });
+    document.getElementById('pinboard-delete-post-btn').addEventListener('click', async () => {
+      if(!confirm('Diesen Beitrag wirklich löschen?')) return;
+      await fetch('/api/pinboard/' + currentPinboardPostId + '/delete', { method: 'POST' });
+      pinboardShowView('pinboard-list-view');
+      loadPinboardList();
+    });
+  }
+}
+
+document.getElementById('pinboard-back-to-list-btn').addEventListener('click', () => {
+  pinboardShowView('pinboard-list-view');
+  loadPinboardList();
+});
+
+document.getElementById('pinboard-send-reply-btn').addEventListener('click', async () => {
+  const text = document.getElementById('pinboard-reply-text').value.trim();
+  const errEl = document.getElementById('pinboard-reply-error');
+  errEl.textContent = '';
+  if(!text){
+    errEl.textContent = 'Bitte eine Antwort eingeben.';
+    return;
+  }
+  try{
+    const res = await fetch('/api/pinboard/' + currentPinboardPostId + '/reply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Antworten.'; return; }
+    document.getElementById('pinboard-reply-text').value = '';
+    renderPinboardDetail();
+  } catch(e){
+    errEl.textContent = 'Verbindung fehlgeschlagen.';
+  }
+});
 
 /* ---------- Einladungen ("Nochmal connecten") ---------- */
 let pendingInviteFrom = null;
