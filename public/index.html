@@ -53,6 +53,10 @@
     border:1px solid var(--border-strong); background:var(--bg); color:var(--muted); cursor:pointer;
   }
   .chip.selected{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border-color:transparent; }
+  .chip-remove{
+    display:inline-block; margin-left:4px; opacity:0.6; font-weight:700;
+  }
+  .chip-remove:hover{ opacity:1; }
 
   .segmented{ display:flex; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px; padding:4px; margin-bottom:22px; }
   .segmented button{ flex:1; background:transparent; border:none; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px; border-radius:7px; cursor:pointer; }
@@ -799,6 +803,17 @@ function show(id){
 // hinzukommen (eigene Themen, beliebte Vorschläge von anderen Nutzern).
 // Klar als EINZEL-Auswahl geregelt: es kann immer nur ein Thema aktiv sein.
 document.getElementById('chips').addEventListener('click', (e) => {
+  // Klick auf das "×" entfernt den Chip nur aus der Ansicht, statt ihn auszuwählen
+  const removeBtn = e.target.closest('.chip-remove');
+  if(removeBtn){
+    const chip = removeBtn.closest('.chip');
+    if(chip && chip.dataset.chip){
+      selectedChips = selectedChips.filter(c => c !== chip.dataset.chip);
+      chip.remove();
+    }
+    return;
+  }
+
   const chip = e.target.closest('.chip');
   if (!chip || chip.id === 'custom-chip-btn' || !chip.dataset.chip) return;
   const wasSelected = chip.classList.contains('selected');
@@ -810,17 +825,30 @@ document.getElementById('chips').addEventListener('click', (e) => {
   }
 });
 
+// Baut einen dynamischen (nicht-festen) Chip inkl. kleinem "×" zum Entfernen aus
+// der aktuellen Ansicht — betrifft nur eigene/vorgeschlagene Themen, nicht die 5 festen.
+function buildDynamicChip(text){
+  const chip = document.createElement('button');
+  chip.className = 'chip';
+  chip.type = 'button';
+  chip.dataset.chip = text;
+  chip.innerHTML = escapeChipText(text) + ' <span class="chip-remove" title="Entfernen">×</span>';
+  return chip;
+}
+
+function escapeChipText(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
 // Fügt ein neues Thema als Chip hinzu (oder wählt es, falls es schon existiert —
 // z.B. weil es bereits als beliebter Vorschlag angezeigt wird) und markiert es aktiv.
 function createAndSelectChip(text){
   const existing = [...document.querySelectorAll('#chips .chip[data-chip]')].find(c => c.dataset.chip === text);
   let target = existing;
   if(!target){
-    target = document.createElement('button');
-    target.className = 'chip';
-    target.type = 'button';
-    target.dataset.chip = text;
-    target.textContent = text;
+    target = buildDynamicChip(text);
     document.getElementById('custom-chip-btn').insertAdjacentElement('beforebegin', target);
   }
   document.querySelectorAll('#chips .chip[data-chip]').forEach(c => c.classList.remove('selected'));
@@ -858,11 +886,7 @@ async function loadPopularChips(){
     const data = await res.json();
     (data.chips || []).forEach(topic => {
       if([...document.querySelectorAll('#chips .chip[data-chip]')].some(c => c.dataset.chip === topic)) return;
-      const btn = document.createElement('button');
-      btn.className = 'chip';
-      btn.type = 'button';
-      btn.dataset.chip = topic;
-      btn.textContent = topic;
+      const btn = buildDynamicChip(topic);
       document.getElementById('custom-chip-btn').insertAdjacentElement('beforebegin', btn);
     });
   } catch(e) { /* egal, dann gibt's halt nur die festen Chips */ }

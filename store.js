@@ -177,7 +177,7 @@ module.exports = {
   addCallSummary, getRecentIdeasForUser,
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
   addRating, getUserRatingSummary, hasRated,
-  trackCustomChipUsage, getPopularCustomChips
+  trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -214,6 +214,24 @@ function getPopularCustomChips(limit = 6) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([topic]) => topic);
+}
+
+// Für den Admin-Bereich: ALLE getrackten Chips mit Häufigkeit, nicht nur die Top-N.
+function getAllCustomChipsWithCounts() {
+  const counts = readCustomChipCounts();
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([topic, count]) => ({ topic, count }));
+}
+
+// Entfernt einen Chip komplett aus der geteilten Vorschlagsliste (z.B. bei
+// unangemessenen/Spam-Themen) — nur für den Admin-Bereich gedacht.
+function deleteCustomChip(topic) {
+  const counts = readCustomChipCounts();
+  if (!(topic in counts)) return false;
+  delete counts[topic];
+  writeCustomChipCounts(counts);
+  return true;
 }
 
 /* ---------------- Punkte-System: gegenseitige Bewertung nach Calls ---------------- */

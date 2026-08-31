@@ -337,6 +337,18 @@ app.post('/api/admin/unban', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/admin/chips', requireAdmin, (req, res) => {
+  res.json({ chips: store.getAllCustomChipsWithCounts() });
+});
+
+app.post('/api/admin/chips/delete', requireAdmin, (req, res) => {
+  const { topic } = req.body || {};
+  if (!topic) return res.status(400).json({ error: 'Thema erforderlich.' });
+  const success = store.deleteCustomChip(topic);
+  if (!success) return res.status(404).json({ error: 'Thema nicht gefunden.' });
+  res.json({ ok: true });
+});
+
 app.get('/api/history', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const myEmail = req.session.user.email;
