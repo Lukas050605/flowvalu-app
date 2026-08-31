@@ -62,10 +62,57 @@
   <div id="content">Lädt …</div>
 
   <hr class="section-divider">
+  <h1>🎓 Mentor-Modus: Vorschau</h1>
+  <p class="sub">Setzt auf DEINEM eigenen Account testweise eine Mentor-Stufe, ohne echte Bewertungen sammeln zu müssen — perfekt zum Ansehen der UI, während wir weiterbauen. Betrifft nur dich, keine echten Nutzer-Daten.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+    <button class="btn-sm mentor-preview-btn" data-tier="0" style="background:var(--surface-2);">Stufe 0 (gesperrt)</button>
+    <button class="btn-sm mentor-preview-btn" data-tier="1" style="background:var(--accent-2); border:none; color:#fff;">Stufe 1 simulieren (5 Videos)</button>
+    <button class="btn-sm mentor-preview-btn" data-tier="2" style="background:var(--accent); border:none; color:#fff;">Stufe 2 simulieren (100 Videos)</button>
+    <button class="btn-sm" id="mentor-preview-reset-btn" style="background:var(--danger); border:none; color:#fff;">Zurücksetzen (echte Daten)</button>
+  </div>
+  <div id="mentor-preview-status" style="font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--muted); margin-bottom:10px;">Lädt Status …</div>
+  <p class="sub" style="margin-bottom:30px;">Nach dem Setzen: geh in die App (<a href="/" target="_blank">FlowValu öffnen</a>) → Profil oder 🎬-Icon, um die simulierte Ansicht live zu sehen.</p>
+
+  <hr class="section-divider">
   <h1>Eigene Themen-Chips</h1>
   <p class="sub">Von Nutzern erstellte Themen, die anderen als Vorschlag angezeigt werden. Unangemessene oder Spam-Themen hier entfernen.</p>
   <div id="chips-content">Lädt …</div>
 </div>
+
+<script>
+async function loadMentorPreviewStatus(){
+  const el = document.getElementById('mentor-preview-status');
+  try{
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    const s = data.mentorStatus;
+    el.textContent = (s.isSimulated ? '🧪 VORSCHAU AKTIV — ' : 'Echte Daten — ') +
+      'Stufe ' + s.tier + ', ' + s.remainingThisMonth + '/' + s.uploadLimit + ' Videos übrig diesen Monat.';
+  } catch(e){
+    el.textContent = 'Status konnte nicht geladen werden.';
+  }
+}
+
+document.querySelectorAll('.mentor-preview-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    await fetch('/api/admin/mentor-preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier: Number(btn.dataset.tier) })
+    });
+    loadMentorPreviewStatus();
+  });
+});
+
+document.getElementById('mentor-preview-reset-btn').addEventListener('click', async () => {
+  await fetch('/api/admin/mentor-preview', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier: null })
+  });
+  loadMentorPreviewStatus();
+});
+
+loadMentorPreviewStatus();
+</script>
 
 <script>
 async function loadChips(){

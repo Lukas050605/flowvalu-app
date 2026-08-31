@@ -51,6 +51,28 @@ function isAdminEmail(email) {
   return !!email && ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
+// Liefert den Mentor-Status für die UI/API — entweder die ECHTEN Werte, oder (nur für
+// Admins, die sich selbst eine Vorschau-Stufe gesetzt haben) simulierte "So-tun-als-ob"-
+// Werte. Betrifft NIE echte Nutzer-Daten, nur die Anzeige für den Admin-Account selbst.
+function getEffectiveMentorStatus(email) {
+  const user = store.findUserByEmail(email);
+  if (isAdminEmail(email) && user && user.mentorDebugTier !== undefined && user.mentorDebugTier !== null) {
+    const tier = user.mentorDebugTier;
+    const limits = { 0: 0, 1: store.MENTOR_TIER1_UPLOAD_LIMIT, 2: store.MENTOR_TIER2_UPLOAD_LIMIT };
+    const ratingCounts = { 0: 0, 1: store.MENTOR_TIER1_MIN_MONTHLY_RATINGS, 2: store.MENTOR_TIER2_MIN_MONTHLY_RATINGS };
+    return {
+      tier,
+      uploadLimit: limits[tier] || 0,
+      usedThisMonth: 0,
+      remainingThisMonth: limits[tier] || 0,
+      monthlyRatingCount: ratingCounts[tier] || 0,
+      canUploadNow: (limits[tier] || 0) > 0,
+      isSimulated: true
+    };
+  }
+  return store.getMentorStatus(email);
+}
+
 function requireAdmin(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Nicht eingeloggt.' });
@@ -222,6 +244,7 @@ app.get('/api/popular-chips', (req, res) => {
 app.get('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const user = store.findUserByEmail(req.session.user.email);
+  const mentorStatus = getEffectiveMentorStatus(req.session.user.email);
   res.json({
     displayName: user.displayName || '',
     avatarDataUrl: user.avatarDataUrl || null,
@@ -230,8 +253,8 @@ app.get('/api/profile', (req, res) => {
     matchPreference: user.matchPreference || 'gemischt',
     mentorMode: !!user.mentorMode,
     rating: store.getUserRatingSummary(req.session.user.email),
-    canUploadReels: store.isEligibleForReels(req.session.user.email),
-    mentorStatus: store.getMentorStatus(req.session.user.email),
+    canUploadReels: mentorStatus.canUploadNow,
+    mentorStatus,
     reelsThreshold: {
       minRating: store.MENTOR_REEL_MIN_RATING,
       tier1: { minMonthlyRatings: store.MENTOR_TIER1_MIN_MONTHLY_RATINGS, uploadLimit: store.MENTOR_TIER1_UPLOAD_LIMIT },
@@ -310,7 +333,7 @@ app.get('/api/reels', (req, res) => {
 app.post('/api/reels/upload', express.raw({ type: () => true, limit: '80mb' }), (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
 
-  const status = store.getMentorStatus(req.session.user.email);
+  const status = getEffectiveMentorStatus(req.session.user.email);
   if (status.tier === 0) {
     return res.status(403).json({ error: `Du brauchst mindestens ${store.MENTOR_TIER1_MIN_MONTHLY_RATINGS} Bewertungen in diesem Monat (Ø mind. ${store.MENTOR_REEL_MIN_RATING}★), um Reels hochzuladen.` });
   }
@@ -488,6 +511,18 @@ app.post('/api/admin/unban', requireAdmin, (req, res) => {
   user.reportCount = 0;
   store.writeUsers(users);
   res.json({ ok: true });
+});
+
+// Admin-Vorschau: setzt (nur) auf dem eigenen Admin-Account eine "So-tun-als-ob"-Stufe,
+// damit man die Mentor-Reels-UI ansehen und wirklich testen kann, ohne 200 echte
+// Bewertungen sammeln zu müssen. tier: 0, 1, 2 oder null (= zurück zu echten Daten).
+app.post('/api/admin/mentor-preview', requireAdmin, (req, res) => {
+  const { tier } = req.body || {};
+  if (tier !== null && tier !== 0 && tier !== 1 && tier !== 2) {
+    return res.status(400).json({ error: 'Ungültige Stufe (0, 1, 2 oder null erwartet).' });
+  }
+  store.setMentorDebugTier(req.session.user.email, tier);
+  res.json({ ok: true, mentorStatus: getEffectiveMentorStatus(req.session.user.email) });
 });
 
 app.get('/api/admin/chips', requireAdmin, (req, res) => {

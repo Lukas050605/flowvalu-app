@@ -194,7 +194,7 @@ module.exports = {
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
   addRating, getUserRatingSummary, hasRated,
   trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts,
-  isEligibleForReels, getMentorStatus, getMentorTier,
+  isEligibleForReels, getMentorStatus, getMentorTier, setMentorDebugTier,
   MENTOR_REEL_MIN_RATING, MENTOR_TIER1_MIN_MONTHLY_RATINGS, MENTOR_TIER1_UPLOAD_LIMIT,
   MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
   addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel,
@@ -505,5 +505,23 @@ function setPinboardPostResolved(id, requesterEmail, resolved) {
   if (!post || post.authorEmail !== requesterEmail) return false;
   post.resolved = !!resolved;
   writePinboardPosts(posts);
+  return true;
+}
+
+/* ---------------- Mentor-Vorschau (nur fürs Testen/Debuggen) ---------------- */
+// Setzt eine "so tun als ob"-Stufe auf dem eigenen Account, damit man die Mentor-UI
+// ansehen kann, ohne wirklich 200 echte Bewertungen sammeln zu müssen. Wird in
+// server.js streng auf Admin-Accounts beschränkt — betrifft NIE echte Nutzer-Daten,
+// nur die Anzeige für den Account, der sie selbst gesetzt hat.
+function setMentorDebugTier(email, tier) {
+  const users = readUsers();
+  const user = users.find(u => u.email === email);
+  if (!user) return false;
+  if (tier === null || tier === undefined) {
+    delete user.mentorDebugTier;
+  } else {
+    user.mentorDebugTier = tier;
+  }
+  writeUsers(users);
   return true;
 }
