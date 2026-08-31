@@ -291,6 +291,7 @@
       <span id="logout-link">Ausloggen</span>
     </div>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
+    <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
     <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
     <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
@@ -890,6 +891,11 @@ document.getElementById('cancel-queue-btn').addEventListener('click', () => {
 
 socket.on('waiting', (data) => {
   document.getElementById('queue-status').textContent = 'Wartet auf jemand anderen … (Position ' + data.position + ')';
+});
+
+socket.on('active_users_count', (data) => {
+  const badge = document.getElementById('active-users-badge');
+  if(badge) badge.textContent = '🟢 ' + data.count + ' gerade online';
 });
 
 socket.on('matched', (data) => {

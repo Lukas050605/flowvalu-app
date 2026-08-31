@@ -751,6 +751,11 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   userSockets[socket.data.email] = socket.id;
 
+  // Live-Zähler: bei jedem Verbinden/Trennen die aktuelle Anzahl an alle senden.
+  // io.sockets.sockets.size zählt nur Sockets, die die Auth-Middleware (io.use oben)
+  // schon durchlaufen haben — also wirklich eingeloggte, aktive Verbindungen.
+  io.emit('active_users_count', { count: io.sockets.sockets.size });
+
   socket.on('join_queue', (profile) => {
     processJoinQueue(socket, profile);
   });
@@ -1123,6 +1128,9 @@ io.on('connection', (socket) => {
     if (userSockets[socket.data.email] === socket.id) {
       delete userSockets[socket.data.email];
     }
+    // Kurze Verzögerung, damit io.sockets.sockets die Trennung schon verarbeitet hat,
+    // bevor wir die neue Zahl an alle Verbliebenen senden.
+    setImmediate(() => io.emit('active_users_count', { count: io.sockets.sockets.size }));
   });
 
   function leaveCurrentRoom(sock, notifyPartner) {
