@@ -74,9 +74,30 @@
   @keyframes spin{ to{ transform:rotate(360deg); } }
   .center{ text-align:center; }
 
-  .partner-row{ display:flex; align-items:center; gap:10px; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); }
-  .avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+  .partner-row{ display:flex; align-items:center; gap:10px; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); position:relative; }
+  .avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; position:relative; }
   .partner-tag{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+
+  .mentor-avatar-badge{
+    position:absolute; bottom:-3px; right:-3px; width:16px; height:16px; border-radius:50%;
+    background:linear-gradient(135deg, #f5a524, #f97316); display:none; align-items:center; justify-content:center;
+    font-size:9px; border:2px solid var(--bg);
+  }
+  .mentor-avatar-badge.active{ display:flex; }
+
+  .mentor-pill{
+    display:none; align-items:center; gap:4px; font-family:'Inter', sans-serif; font-weight:700; font-size:11px;
+    color:#fff; background:linear-gradient(135deg, #f5a524, #f97316); padding:3px 10px; border-radius:999px;
+    margin-left:8px;
+  }
+  .mentor-pill.active{ display:inline-flex; }
+
+  .own-mentor-badge{
+    display:none; align-items:center; gap:5px; font-family:'JetBrains Mono', monospace; font-weight:600; font-size:11px;
+    color:#f5a524; background:rgba(245,165,36,0.12); border:1px solid rgba(245,165,36,0.4); padding:4px 10px;
+    border-radius:999px; margin-left:8px;
+  }
+  .own-mentor-badge.active{ display:inline-flex; }
 
   .chat-log{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:14px; }
   .bubble{ font-size:13.5px; line-height:1.5; padding:9px 12px; border-radius:9px; max-width:82%; }
@@ -383,6 +404,7 @@
     <button id="pinboard-icon-btn" title="Pinnwand: offene Fragen ansehen">📌</button>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
+    <span class="own-mentor-badge" id="own-mentor-badge">🎓 Mentor-Modus aktiv</span>
     <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
     <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
     <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
@@ -554,9 +576,12 @@
   <!-- CHAT -->
   <section class="screen" id="screen-chat">
     <div class="partner-row">
-      <div class="avatar" id="partner-avatar">?</div>
+      <div class="avatar" id="partner-avatar"><span id="partner-avatar-inner">?</span><span class="mentor-avatar-badge" id="partner-mentor-avatar-badge" title="Mentor">🎓</span></div>
       <div>
-        <div style="font-weight:600; font-size:14px;" id="partner-hangup">—</div>
+        <div style="font-weight:600; font-size:14px; display:flex; align-items:center;" id="partner-hangup-row">
+          <span id="partner-hangup">—</span>
+          <span class="mentor-pill" id="partner-mentor-pill">🎓 Mentor</span>
+        </div>
         <div class="partner-tag" id="partner-tag">gerade gematcht</div>
       </div>
     </div>
@@ -760,6 +785,15 @@ function onAuthSuccess(email){
   show('screen-profile');
   refreshPointsBadge();
   loadPopularChips();
+  refreshOwnMentorBadge();
+}
+
+async function refreshOwnMentorBadge(){
+  try{
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    document.getElementById('own-mentor-badge').classList.toggle('active', !!data.mentorMode);
+  } catch(e){ /* egal, Badge bleibt einfach aus */ }
 }
 
 document.getElementById('logout-link').addEventListener('click', async () => {
@@ -874,6 +908,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
+    refreshOwnMentorBadge();
     show('screen-profile');
   } catch(err){
     errEl.textContent = 'Verbindung fehlgeschlagen.';
@@ -1426,14 +1461,20 @@ socket.on('matched', (data) => {
   currentRoom = data.roomId;
   const p = data.partnerProfile || {};
   const display = data.partnerDisplay || {};
-  const avatarEl = document.getElementById('partner-avatar');
+  const avatarInner = document.getElementById('partner-avatar-inner');
   if(display.avatarDataUrl){
-    avatarEl.innerHTML = '<img src="' + display.avatarDataUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+    avatarInner.innerHTML = '<img src="' + display.avatarDataUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
   } else {
-    avatarEl.textContent = ((display.displayName || p.topic || 'F')[0]).toUpperCase();
+    avatarInner.textContent = ((display.displayName || p.topic || 'F')[0]).toUpperCase();
   }
   document.getElementById('partner-hangup').textContent = display.displayName ? display.displayName + ' — ' + (p.hangup || '') : (p.hangup || 'Jemand Neues');
-  document.getElementById('partner-tag').textContent = (p.mentorMode ? '🎓 Mentor · ' : '') + (p.topic || 'Zufällig') + ' · gerade gematcht';
+  document.getElementById('partner-tag').textContent = (p.topic || 'Zufällig') + ' · gerade gematcht';
+
+  // Mentor-Kennzeichnung bleibt jetzt DAUERHAFT sichtbar (Abzeichen am Profilbild +
+  // farbige Pille neben dem Namen), statt nur einmalig als Chat-Nachricht zu erscheinen.
+  document.getElementById('partner-mentor-avatar-badge').classList.toggle('active', !!p.mentorMode);
+  document.getElementById('partner-mentor-pill').classList.toggle('active', !!p.mentorMode);
+
   document.getElementById('chat-log').innerHTML = '';
   if (p.mentorMode) {
     addBubble('sys', '🎓 Dein Partner ist heute im Mentor-Modus — will vor allem helfen.');
