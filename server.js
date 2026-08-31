@@ -200,6 +200,11 @@ app.get('/api/me', (req, res) => {
 
 /* ---------------- Profil-Routen ---------------- */
 
+app.get('/api/popular-chips', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ chips: store.getPopularCustomChips(6) });
+});
+
 app.get('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const user = store.findUserByEmail(req.session.user.email);
@@ -776,6 +781,14 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('Themen-Klassifizierung fehlgeschlagen:', err.message);
       profile.aiTags = ['Sonstiges'];
+    }
+
+    // Eigene (nicht-feste) Themen-Chips zählen, damit beliebte Vorschläge für alle
+    // Nutzer entstehen können (siehe /api/popular-chips).
+    try {
+      store.trackCustomChipUsage(profile.topic);
+    } catch (err) {
+      console.error('Themen-Chip konnte nicht gezählt werden:', err.message);
     }
 
     // Falls sich der Nutzer zwischenzeitlich schon getrennt hat (Tab zu etc.), abbrechen

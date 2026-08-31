@@ -7,6 +7,7 @@ const MATCHES_FILE = path.join(__dirname, 'data', 'matches.json');
 const CALL_SUMMARIES_FILE = path.join(__dirname, 'data', 'call-summaries.json');
 const IMPULSE_LOG_FILE = path.join(__dirname, 'data', 'impulse-log.json');
 const RATINGS_FILE = path.join(__dirname, 'data', 'ratings.json');
+const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -17,6 +18,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(CALL_SUMMARIES_FILE)) fs.writeFileSync(CALL_SUMMARIES_FILE, '[]');
   if (!fs.existsSync(IMPULSE_LOG_FILE)) fs.writeFileSync(IMPULSE_LOG_FILE, '[]');
   if (!fs.existsSync(RATINGS_FILE)) fs.writeFileSync(RATINGS_FILE, '[]');
+  if (!fs.existsSync(CUSTOM_CHIPS_FILE)) fs.writeFileSync(CUSTOM_CHIPS_FILE, '{}');
 }
 
 function readUsers() {
@@ -174,8 +176,45 @@ module.exports = {
   readMatches, writeMatches, findUserByEmail, getPublicProfile, findMatchByPdfToken,
   addCallSummary, getRecentIdeasForUser,
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
-  addRating, getUserRatingSummary, hasRated
+  addRating, getUserRatingSummary, hasRated,
+  trackCustomChipUsage, getPopularCustomChips
 };
+
+/* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
+
+// Die 5 festen Chips zählen nicht als "eigenes" Thema — die sind ja schon fest sichtbar.
+const BUILTIN_CHIPS = new Set(['Text', 'Design', 'Business', 'Musik', 'Sonstiges']);
+
+function readCustomChipCounts() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(CUSTOM_CHIPS_FILE, 'utf-8'));
+}
+
+function writeCustomChipCounts(counts) {
+  fs.writeFileSync(CUSTOM_CHIPS_FILE, JSON.stringify(counts, null, 2));
+}
+
+// Zählt eine Themen-Auswahl mit. Wird bei JEDEM Beitritt zur Warteschlange mit Modus
+// "Nach Thema" aufgerufen — feste Chips werden ignoriert, nur eigene Eingaben zählen.
+function trackCustomChipUsage(topic) {
+  if (!topic) return;
+  const trimmed = String(topic).trim();
+  if (!trimmed || trimmed.length > 40 || BUILTIN_CHIPS.has(trimmed)) return;
+
+  const counts = readCustomChipCounts();
+  counts[trimmed] = (counts[trimmed] || 0) + 1;
+  writeCustomChipCounts(counts);
+}
+
+// Gibt die beliebtesten eigenen Themen zurück (für alle Nutzer als zusätzliche
+// Vorschlags-Chips), absteigend nach Häufigkeit sortiert.
+function getPopularCustomChips(limit = 6) {
+  const counts = readCustomChipCounts();
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([topic]) => topic);
+}
 
 /* ---------------- Punkte-System: gegenseitige Bewertung nach Calls ---------------- */
 
