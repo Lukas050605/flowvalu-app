@@ -167,6 +167,23 @@
   }
   .pinboard-reply .reply-author{ font-weight:600; font-size:12px; color:var(--accent-2); margin-bottom:3px; }
 
+  .info-modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:90; display:none;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .info-modal-overlay.active{ display:flex; }
+  .info-modal-box{
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:16px;
+    padding:26px 24px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto;
+  }
+  .info-modal-box h3{ margin:0 0 14px; font-size:17px; }
+  .info-modal-box .tier-row{
+    display:flex; justify-content:space-between; align-items:center; background:var(--surface-2);
+    border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px;
+  }
+  .info-modal-box .tier-row .tier-name{ font-weight:600; }
+  .info-modal-box .tier-row .tier-value{ font-family:'JetBrains Mono', monospace; color:var(--accent-2); font-size:12.5px; }
+
   .reels-overlay{
     position:fixed; inset:0; background:#000; z-index:70; display:none; flex-direction:column;
   }
@@ -476,7 +493,7 @@
 
     <div class="impulse-setting-row">
       <div>
-        <div style="font-weight:600; font-size:13.5px;">🎓 Mentor-Modus</div>
+        <div style="font-weight:600; font-size:13.5px;">🎓 Mentor-Modus <span id="mentor-info-btn" style="cursor:pointer; color:var(--accent-2); font-weight:400;" title="Was ist das?">ⓘ</span></div>
         <div style="font-size:12px; color:var(--muted); margin-top:2px;">Zeigt anderen, dass du heute vor allem helfen willst.</div>
       </div>
       <label class="switch">
@@ -503,7 +520,7 @@
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
-      <span style="font-weight:700; font-family:'Inter', sans-serif;">Mentor-Reels</span>
+      <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="reels-upload-fab" id="reels-open-upload-btn" style="display:none;">+ Hochladen</button>
         <button class="reels-close-btn" id="reels-close-btn">✕</button>
@@ -560,6 +577,35 @@
       <textarea id="pinboard-reply-text" placeholder="Deine Antwort …" maxlength="500" style="min-height:70px; margin-top:10px;"></textarea>
       <div class="field-error" id="pinboard-reply-error"></div>
       <button class="btn btn-primary" id="pinboard-send-reply-btn">Antworten</button>
+    </div>
+  </div>
+
+  <!-- INFO-MODAL: Erklärung des Mentor-Systems -->
+  <div class="info-modal-overlay" id="mentor-info-overlay">
+    <div class="info-modal-box">
+      <h3>🎓 Was ist der Mentor-Modus?</h3>
+      <p style="font-size:13.5px; line-height:1.5;">
+        Schaltest du den Mentor-Modus ein, sehen andere direkt beim Matchen und im Chat, dass du heute vor allem <strong>helfen</strong> möchtest, statt selbst eine Denkblockade zu lösen.
+      </p>
+      <p style="font-size:13.5px; line-height:1.5;">
+        Wirst du oft gut bewertet (Beliebtheit + Kreativität), schaltest du zusätzlich das Hochladen kurzer Video-Tipps ("Reels") frei, die alle Nutzer ansehen können:
+      </p>
+      <div class="tier-row">
+        <span class="tier-name">🔒 Unter 10 Bewertungen/Monat</span>
+        <span class="tier-value">kein Upload</span>
+      </div>
+      <div class="tier-row">
+        <span class="tier-name">🥈 Ab 10 Bewertungen/Monat</span>
+        <span class="tier-value">5 Videos/Monat</span>
+      </div>
+      <div class="tier-row">
+        <span class="tier-name">🥇 Ab 200 Bewertungen/Monat</span>
+        <span class="tier-value">100 Videos/Monat</span>
+      </div>
+      <p style="font-size:12px; color:var(--muted); line-height:1.5; margin-top:12px;">
+        Wichtig: Es zählen nur Bewertungen aus dem <strong>aktuellen Kalendermonat</strong> — die Zählung startet jeden Monat automatisch wieder bei 0. Außerdem muss dein Bewertungs-Durchschnitt mindestens 4,0 von 5 Sternen betragen.
+      </p>
+      <button class="btn btn-primary" id="mentor-info-close-btn" style="margin-top:16px;">Verstanden</button>
     </div>
   </div>
 
@@ -1288,6 +1334,20 @@ document.getElementById('pinboard-send-reply-btn').addEventListener('click', asy
   } catch(e){
     errEl.textContent = 'Verbindung fehlgeschlagen.';
   }
+});
+
+/* ---------- Mentor-Info-Modal (von Profil UND Reels-Ansicht aus aufrufbar) ---------- */
+function openMentorInfo(){
+  document.getElementById('mentor-info-overlay').classList.add('active');
+}
+function closeMentorInfo(){
+  document.getElementById('mentor-info-overlay').classList.remove('active');
+}
+document.getElementById('mentor-info-btn').addEventListener('click', openMentorInfo);
+document.getElementById('reels-info-btn').addEventListener('click', openMentorInfo);
+document.getElementById('mentor-info-close-btn').addEventListener('click', closeMentorInfo);
+document.getElementById('mentor-info-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'mentor-info-overlay') closeMentorInfo(); // Klick auf den dunklen Hintergrund schließt auch
 });
 
 /* ---------- Einladungen ("Nochmal connecten") ---------- */
