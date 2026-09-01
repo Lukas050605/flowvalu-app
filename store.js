@@ -201,7 +201,7 @@ module.exports = {
   isEligibleForReels, getMentorStatus, getMentorTier, setMentorDebugTier,
   MENTOR_REEL_MIN_RATING, MENTOR_TIER1_MIN_MONTHLY_RATINGS, MENTOR_TIER1_UPLOAD_LIMIT,
   MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
-  addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel,
+  addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel, getMentorProfiles,
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved,
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats
@@ -407,6 +407,27 @@ function getReelsFeed(limit = 50) {
 
 function getUserReels(email) {
   return readReels().filter(r => r.uploaderEmail === email).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Liste aller Mentoren, die mindestens ein Reel hochgeladen haben — für die
+// Mentoren-Übersicht (Profil, Bio, Bewertung, Anzahl Videos), statt nur den
+// anonymen Video-Feed zu zeigen.
+function getMentorProfiles() {
+  const reels = readReels();
+  const emails = [...new Set(reels.map(r => r.uploaderEmail))];
+  return emails.map(email => {
+    const display = getPublicProfile(email);
+    const ownReels = reels.filter(r => r.uploaderEmail === email);
+    return {
+      email,
+      displayName: display.displayName,
+      avatarDataUrl: display.avatarDataUrl,
+      bio: display.bio,
+      rating: display.rating,
+      reelCount: ownReels.length,
+      latestReelAt: Math.max(...ownReels.map(r => r.createdAt))
+    };
+  }).sort((a, b) => b.latestReelAt - a.latestReelAt);
 }
 
 // Nur der Uploader selbst darf sein eigenes Reel löschen.

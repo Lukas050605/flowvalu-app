@@ -589,7 +589,13 @@
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
-      <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
+        <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:999px; padding:2px;">
+          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
+          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎓 Mentoren</button>
+        </div>
+      </div>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="reels-upload-fab" id="reels-open-upload-btn" style="display:none;">+ Hochladen</button>
         <button class="reels-close-btn" id="reels-close-btn">✕</button>
@@ -598,6 +604,19 @@
 
     <div class="reels-scroll" id="reels-scroll"></div>
     <div class="empty-history" id="empty-reels" style="display:none; color:#fff; text-align:center; padding-top:120px;">Noch keine Reels vorhanden.</div>
+
+    <!-- MENTOREN-ÜBERSICHT: Profile statt anonymer Video-Kacheln -->
+    <div id="mentors-list-view" style="display:none; flex:1; overflow-y:auto; padding:70px 16px 24px;">
+      <div id="mentors-list"></div>
+      <div class="empty-history" id="empty-mentors" style="display:none; color:#fff; text-align:center; padding-top:60px;">Noch keine Mentoren mit Reels vorhanden.</div>
+    </div>
+
+    <!-- EIN BESTIMMTER MENTOR: Profil-Header + seine Reels darunter -->
+    <div id="mentor-detail-view" style="display:none; flex:1; overflow-y:auto; padding:70px 16px 24px;">
+      <button id="mentor-detail-back-btn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; font-family:'Inter', sans-serif; font-size:12.5px; padding:7px 14px; border-radius:999px; cursor:pointer; margin-bottom:16px;">← Alle Mentoren</button>
+      <div id="mentor-detail-header"></div>
+      <div id="mentor-detail-reels" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-top:16px;"></div>
+    </div>
 
     <div class="reel-upload-panel" id="reel-upload-panel">
       <button class="reels-close-btn" id="reel-upload-close-btn" style="position:absolute; top:16px; right:18px;">✕</button>
@@ -1144,6 +1163,7 @@ let reelsObserver = null;
 
 document.getElementById('reels-icon-btn').addEventListener('click', async () => {
   document.getElementById('reels-overlay').classList.add('active');
+  showReelsTab('videos');
   await loadReelsUploadStatus();
   await loadReelsFeed();
 });
@@ -1167,6 +1187,108 @@ async function loadReelsUploadStatus(){
     btn.style.display = 'none';
   }
 }
+
+/* ---------- Tabs: Video-Feed vs. Mentoren-Übersicht ---------- */
+function showReelsTab(tab){
+  document.getElementById('reels-scroll').style.display = tab === 'videos' ? 'block' : 'none';
+  document.getElementById('mentors-list-view').style.display = tab === 'mentors' ? 'flex' : 'none';
+  document.getElementById('mentor-detail-view').style.display = 'none';
+
+  const videosBtn = document.getElementById('reels-tab-videos-btn');
+  const mentorsBtn = document.getElementById('reels-tab-mentors-btn');
+  videosBtn.style.background = tab === 'videos' ? '#fff' : 'transparent';
+  videosBtn.style.color = tab === 'videos' ? '#000' : '#fff';
+  mentorsBtn.style.background = tab === 'mentors' ? '#fff' : 'transparent';
+  mentorsBtn.style.color = tab === 'mentors' ? '#000' : '#fff';
+
+  if(tab === 'videos'){
+    document.querySelectorAll('#reels-scroll video').forEach(v => v.pause());
+  }
+  if(tab === 'mentors') loadMentorsList();
+}
+
+document.getElementById('reels-tab-videos-btn').addEventListener('click', () => showReelsTab('videos'));
+document.getElementById('reels-tab-mentors-btn').addEventListener('click', () => showReelsTab('mentors'));
+
+async function loadMentorsList(){
+  const list = document.getElementById('mentors-list');
+  const empty = document.getElementById('empty-mentors');
+  list.innerHTML = '';
+  try{
+    const res = await fetch('/api/mentors');
+    const data = await res.json();
+    if(!data.mentors || !data.mentors.length){
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.mentors.forEach(mentor => {
+      const card = document.createElement('div');
+      card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; margin-bottom:10px; cursor:pointer;';
+      const avatarHtml = mentor.avatarDataUrl
+        ? '<img src="' + mentor.avatarDataUrl + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
+        : '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + escapeHtml(mentor.displayName[0].toUpperCase()) + '</div>';
+      const ratingText = mentor.rating.count
+        ? '⭐ ' + mentor.rating.avgBeliebtheit + ' · 💡 ' + mentor.rating.avgKreativitaet
+        : 'Noch keine Bewertungen';
+      card.innerHTML =
+        avatarHtml +
+        '<div style="flex:1; color:#fff;">' +
+          '<div style="font-weight:700; font-size:14px;">' + escapeHtml(mentor.displayName) + '</div>' +
+          (mentor.bio ? '<div style="font-size:12px; color:rgba(255,255,255,0.7); margin-top:2px;">' + escapeHtml(mentor.bio) + '</div>' : '') +
+          '<div style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:3px;">' + ratingText + ' · 🎬 ' + mentor.reelCount + ' Video(s)</div>' +
+        '</div>';
+      card.addEventListener('click', () => openMentorDetail(mentor));
+      list.appendChild(card);
+    });
+  } catch(e){
+    empty.style.display = 'block';
+  }
+}
+
+async function openMentorDetail(mentor){
+  document.getElementById('mentors-list-view').style.display = 'none';
+  document.getElementById('mentor-detail-view').style.display = 'block';
+
+  const header = document.getElementById('mentor-detail-header');
+  const avatarHtml = mentor.avatarDataUrl
+    ? '<img src="' + mentor.avatarDataUrl + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">'
+    : '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:22px;">' + escapeHtml(mentor.displayName[0].toUpperCase()) + '</div>';
+  const ratingText = mentor.rating.count
+    ? '⭐ ' + mentor.rating.avgBeliebtheit + ' Beliebtheit · 💡 ' + mentor.rating.avgKreativitaet + ' Kreativität (' + mentor.rating.count + ' Bewertungen)'
+    : 'Noch keine Bewertungen';
+  header.innerHTML =
+    '<div style="display:flex; align-items:center; gap:14px; color:#fff;">' +
+      avatarHtml +
+      '<div>' +
+        '<div style="font-weight:700; font-size:18px;">' + escapeHtml(mentor.displayName) + '</div>' +
+        (mentor.bio ? '<div style="font-size:13px; color:rgba(255,255,255,0.75); margin-top:3px;">' + escapeHtml(mentor.bio) + '</div>' : '') +
+        '<div style="font-size:12px; color:rgba(255,255,255,0.55); margin-top:4px;">' + ratingText + '</div>' +
+      '</div>' +
+    '</div>';
+
+  const grid = document.getElementById('mentor-detail-reels');
+  grid.innerHTML = '';
+  try{
+    const res = await fetch('/api/reels/by/' + encodeURIComponent(mentor.email));
+    const data = await res.json();
+    (data.reels || []).forEach(reel => {
+      const tile = document.createElement('div');
+      tile.style.cssText = 'position:relative; aspect-ratio:9/16; background:#000; border-radius:6px; overflow:hidden; cursor:pointer;';
+      tile.innerHTML = '<video src="/api/reels/' + reel.token + '/video" muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>';
+      tile.addEventListener('click', () => {
+        const v = tile.querySelector('video');
+        if(v.paused){ v.controls = true; v.play(); } else { v.pause(); }
+      });
+      grid.appendChild(tile);
+    });
+  } catch(e){ /* egal, Raster bleibt einfach leer */ }
+}
+
+document.getElementById('mentor-detail-back-btn').addEventListener('click', () => {
+  document.getElementById('mentor-detail-view').style.display = 'none';
+  document.getElementById('mentors-list-view').style.display = 'flex';
+});
 
 // Nur das Video, das gerade wirklich im Bild ist, spielt automatisch ab — genau wie
 // beim Durchscrollen von Instagram Reels. Alle anderen werden pausiert.

@@ -347,6 +347,20 @@ app.get('/api/reels/mine', (req, res) => {
   res.json({ reels: store.getUserReels(req.session.user.email) });
 });
 
+// Übersicht aller Mentoren, die mindestens ein Reel hochgeladen haben.
+app.get('/api/mentors', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ mentors: store.getMentorProfiles() });
+});
+
+// Reels EINES bestimmten Mentors (für die Detailansicht, wenn man in der
+// Mentoren-Übersicht auf jemanden klickt).
+app.get('/api/reels/by/:email', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const reels = store.getUserReels(req.params.email.toLowerCase());
+  res.json({ reels: reels.map(r => ({ ...r, uploaderDisplay: store.getPublicProfile(r.uploaderEmail) })) });
+});
+
 // Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch
 // nicht aufgebraucht hat, darf hochladen — wird HIER SERVERSEITIG geprüft, nie nur
 // im Frontend versteckt.
