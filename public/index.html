@@ -2231,18 +2231,72 @@ socket.on('transcript_update', (seg) => {
 });
 
 let impulseHideTimeout = null;
+/* ---------- Valu spricht: Sprachausgabe mit weiblicher Stimme ---------- */
+let cachedFemaleVoice = null;
+
+function pickFemaleGermanVoice(){
+  if(cachedFemaleVoice) return cachedFemaleVoice;
+  const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+  // Bekannte weiblich klingende deutsche Stimmennamen verschiedener Browser/Systeme
+  const femaleNameHints = ['female', 'anna', 'petra', 'marlene', 'vicki', 'helena', 'sandy', 'katja', 'martina', 'google deutsch'];
+  const germanVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('de'));
+  let pick = germanVoices.find(v => femaleNameHints.some(hint => v.name.toLowerCase().includes(hint)));
+  if(!pick) pick = germanVoices[0]; // irgendeine deutsche Stimme ist besser als keine
+  cachedFemaleVoice = pick || null;
+  return cachedFemaleVoice;
+}
+
+// Manche Browser laden die Stimmenliste asynchron nach — beim ersten Aufruf evtl. leer
+if(window.speechSynthesis){
+  window.speechSynthesis.onvoiceschanged = () => { cachedFemaleVoice = null; };
+}
+
+function speakAsValu(text){
+  if(!window.speechSynthesis || !text) return;
+  try{
+    window.speechSynthesis.cancel(); // vorherige Ansage abbrechen, falls noch am Laufen
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = pickFemaleGermanVoice();
+    if(voice) utter.voice = voice;
+    utter.lang = 'de-DE';
+    utter.pitch = 1.1; // etwas heller, damit es klar als eigene "Stimme" erkennbar ist
+    utter.rate = 1.0;
+    window.speechSynthesis.speak(utter);
+  } catch(e){ /* Sprachausgabe optional, kein Show-Stopper falls nicht unterstützt */ }
+}
+
 socket.on('live_impulse', (data) => {
   const banner = document.getElementById('impulse-banner');
   const textEl = document.getElementById('impulse-text');
   if (!banner || !textEl || !data || !data.text) return;
 
+  document.querySelector('#impulse-banner .impulse-label').textContent = '💡 Impuls';
   textEl.textContent = data.text;
   banner.classList.add('active');
+  speakAsValu(data.text);
 
   clearTimeout(impulseHideTimeout);
   impulseHideTimeout = setTimeout(() => {
     banner.classList.remove('active');
   }, 25000); // nach 25s wieder ausblenden, damit es nicht dauerhaft Platz wegnimmt
+});
+
+// Valu wurde direkt angesprochen ("Valu, ...") und antwortet aktiv — nutzt dasselbe
+// Banner wie die passiven Impulse, aber klar als direkte Antwort gekennzeichnet.
+socket.on('valu_answer', (data) => {
+  const banner = document.getElementById('impulse-banner');
+  const textEl = document.getElementById('impulse-text');
+  if (!banner || !textEl || !data || !data.text) return;
+
+  document.querySelector('#impulse-banner .impulse-label').textContent = '🎙️ Valu antwortet';
+  textEl.textContent = data.text;
+  banner.classList.add('active');
+  speakAsValu(data.text);
+
+  clearTimeout(impulseHideTimeout);
+  impulseHideTimeout = setTimeout(() => {
+    banner.classList.remove('active');
+  }, 25000);
 });
 
 document.getElementById('impulse-dismiss-btn').addEventListener('click', () => {

@@ -74,10 +74,29 @@
   <p class="sub" style="margin-bottom:30px;">Nach dem Setzen: geh in die App (<a href="/" target="_blank">FlowValu öffnen</a>) → Profil oder 🎬-Icon, um die simulierte Ansicht live zu sehen.</p>
 
   <hr class="section-divider">
+  <h1>🧠 Valus Wissensbasis</h1>
+  <p class="sub">Zeigt, wie viel Valu bisher automatisch aus hochgeladenen Mentor-Reels gelernt hat (Kernaussagen aus Video-Transkripten, die in Impulse/Antworten einfließen können).</p>
+  <div id="knowledge-stats" style="font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--muted); margin-bottom:30px;">Lädt …</div>
+
+  <hr class="section-divider">
   <h1>Eigene Themen-Chips</h1>
   <p class="sub">Von Nutzern erstellte Themen, die anderen als Vorschlag angezeigt werden. Unangemessene oder Spam-Themen hier entfernen.</p>
   <div id="chips-content">Lädt …</div>
 </div>
+
+<script>
+async function loadKnowledgeStats(){
+  const el = document.getElementById('knowledge-stats');
+  try{
+    const res = await fetch('/api/admin/valu-knowledge-stats');
+    const data = await res.json();
+    el.textContent = data.stats.totalEntries + ' Video(s) ausgewertet · ' + data.stats.totalSnippets + ' Erkenntnisse gesammelt';
+  } catch(e){
+    el.textContent = 'Konnte nicht geladen werden.';
+  }
+}
+loadKnowledgeStats();
+</script>
 
 <script>
 async function loadMentorPreviewStatus(){

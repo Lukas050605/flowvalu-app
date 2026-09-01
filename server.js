@@ -10,6 +10,8 @@ const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
 const { classifyTopic, computeAssociationScore } = require('./topic-matcher');
 const { generateImpulse } = require('./live-impulse');
+const { isAddressedToValu, generateValuAnswer } = require('./valu-ai');
+const { extractKnowledgeFromTranscript } = require('./valu-knowledge');
 
 // Globales Sicherheitsnetz: ein einzelner unerwarteter Fehler (z.B. beim Lesen einer
 // JSON-Datei mitten in einem parallelen Schreibvorgang) soll NICHT mehr den ganzen
@@ -372,11 +374,30 @@ app.post('/api/reels/upload', express.raw({ type: () => true, limit: '80mb' }), 
     fs.writeFileSync(path.join(REELS_DIR, token + '.' + ext), req.body);
     store.addReel({ token, uploaderEmail: req.session.user.email, title: cleanTitle, mimeType: mimeType || 'video/webm' });
     res.json({ ok: true, token });
+
+    // Valu "lernt" aus dem Video: läuft bewusst NACH der Antwort an den Nutzer und
+    // im Hintergrund (nicht awaited), damit der Upload selbst nicht auf Transkription
+    // + Wissens-Extraktion warten muss — das kann eine Weile dauern.
+    learnFromReel(req.body, mimeType, cleanTitle, token, req.session.user.email)
+      .catch(err => console.error('Valu konnte nichts aus dem Reel lernen:', err.message));
   } catch (err) {
     console.error('Reel-Upload fehlgeschlagen:', err.message);
     res.status(500).json({ error: 'Video konnte nicht gespeichert werden.' });
   }
 });
+
+// Transkribiert ein hochgeladenes Mentor-Video, extrahiert Kernaussagen daraus und
+// speichert sie in Valus Wissensbasis — der eigentliche "automatisches Lernen"-Schritt.
+async function learnFromReel(videoBuffer, mimeType, title, reelToken, uploaderEmail) {
+  const transcript = await transcribeAudioFallback(videoBuffer, mimeType);
+  if (!transcript) return; // z.B. kein OPENAI_API_KEY gesetzt, oder nichts Verständliches im Video
+
+  const snippets = await extractKnowledgeFromTranscript(transcript, title);
+  if (!snippets.length) return; // nichts Verwertbares gefunden -> nichts speichern
+
+  const tags = await classifyTopic(title || transcript.slice(0, 200));
+  store.addKnowledgeEntry({ reelToken, uploaderEmail, tags, snippets });
+}
 
 // Video-Wiedergabe (streambar per <video src="...">)
 app.get('/api/reels/:token/video', (req, res) => {
@@ -543,6 +564,10 @@ app.post('/api/admin/mentor-preview', requireAdmin, (req, res) => {
   res.json({ ok: true, mentorStatus: getEffectiveMentorStatus(req.session.user.email) });
 });
 
+app.get('/api/admin/valu-knowledge-stats', requireAdmin, (req, res) => {
+  res.json({ stats: store.getKnowledgeStats() });
+});
+
 app.get('/api/admin/chips', requireAdmin, (req, res) => {
   res.json({ chips: store.getAllCustomChipsWithCounts() });
 });
@@ -616,6 +641,45 @@ const IMPULSE_CHECK_INTERVAL_MS = 5 * 1000;
 let roomActivity = {};       // roomId -> Timestamp der letzten Sprachaktivität
 let roomImpulseState = {};   // roomId -> { count, lastImpulseAt }
 let roomImpulseTimers = {};  // roomId -> Interval-Handle
+
+// -------- Valu antwortet aktiv, wenn sie direkt angesprochen wird --------
+const VALU_ANSWER_COOLDOWN_MS = 15 * 1000; // mind. 15s zwischen zwei aktiven Antworten
+let roomLastValuAnswerAt = {}; // roomId -> Timestamp
+
+async function handleValuAddressed(roomId, question) {
+  const now = Date.now();
+  if (roomLastValuAnswerAt[roomId] && now - roomLastValuAnswerAt[roomId] < VALU_ANSWER_COOLDOWN_MS) return;
+  roomLastValuAnswerAt[roomId] = now;
+
+  const members = rooms[roomId];
+  if (!members) return;
+
+  try {
+    const transcript = transcripts[roomId] || [];
+    const transcriptText = transcript.slice(-14).map(s => s.speakerLabel + ': ' + s.text).join('\n');
+    const participantEmails = members
+      .map(id => { const s = io.sockets.sockets.get(id); return s ? s.data.email : null; })
+      .filter(Boolean);
+    const participantNames = participantEmails.map(e => store.getPublicProfile(e).displayName);
+    const hangups = members.map(id => {
+      const s = io.sockets.sockets.get(id);
+      return s && s.data.lastProfile ? s.data.lastProfile.hangup : '';
+    });
+
+    // Wissens-Schnipsel aus Mentor-Reels, die zum aktuellen Thema passen (siehe unten,
+    // Teil 3: automatische Wissenssammlung aus Mentor-Videos)
+    let knowledgeSnippets = [];
+    try {
+      const aiTags = members.length ? (io.sockets.sockets.get(members[0]) || {}).data?.lastProfile?.aiTags : null;
+      knowledgeSnippets = store.getKnowledgeSnippets(aiTags, 3);
+    } catch (err) { /* Wissensbasis ist optional, kein Show-Stopper */ }
+
+    const answer = await generateValuAnswer({ transcriptText, question, hangups, participantNames, knowledgeSnippets });
+    io.to(roomId).emit('valu_answer', { text: answer });
+  } catch (err) {
+    console.error('Valu-Antwort im Call fehlgeschlagen:', err.message);
+  }
+}
 
 function startImpulseWatcher(roomId) {
   const members = rooms[roomId] || [];
@@ -1118,6 +1182,12 @@ io.on('connection', (socket) => {
       store.resolveOpenImpulse(roomId, true);
     } catch (err) {
       console.error('Impuls-Erfolg konnte nicht vermerkt werden:', err.message);
+    }
+
+    // Valu direkt ansprechen ("Valu, ...") löst eine aktive Antwort aus, statt nur
+    // passiv bei Stille zu reagieren.
+    if (isAddressedToValu(text)) {
+      handleValuAddressed(roomId, text).catch(err => console.error('Valu-Ansprache fehlgeschlagen:', err.message));
     }
   });
 

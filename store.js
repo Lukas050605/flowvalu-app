@@ -10,6 +10,7 @@ const RATINGS_FILE = path.join(__dirname, 'data', 'ratings.json');
 const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
 const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
 const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
+const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -35,6 +36,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(CUSTOM_CHIPS_FILE)) fs.writeFileSync(CUSTOM_CHIPS_FILE, '{}');
   if (!fs.existsSync(REELS_FILE)) fs.writeFileSync(REELS_FILE, '[]');
   if (!fs.existsSync(PINBOARD_FILE)) fs.writeFileSync(PINBOARD_FILE, '[]');
+  if (!fs.existsSync(KNOWLEDGE_FILE)) fs.writeFileSync(KNOWLEDGE_FILE, '[]');
 }
 
 function readUsers() {
@@ -201,7 +203,8 @@ module.exports = {
   MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
   addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel,
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
-  deletePinboardPost, setPinboardPostResolved
+  deletePinboardPost, setPinboardPostResolved,
+  addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -526,4 +529,63 @@ function setMentorDebugTier(email, tier) {
   }
   writeUsers(users);
   return true;
+}
+
+/* ---------------- Valu-Wissensbasis: gesammelte Erkenntnisse aus Mentor-Reels ---------------- */
+// Das ist die Grundlage fürs "automatische Lernen aus Mentor-Videos" — kein Modell-
+// Training, sondern eine wachsende, durchsuchbare Sammlung echter Inhalte, die in
+// künftige Impulse/Antworten einfließen kann (siehe valu-ai.js, live-impulse.js).
+
+function readKnowledge() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(KNOWLEDGE_FILE, 'utf-8'));
+}
+
+function writeKnowledge(entries) {
+  fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(entries, null, 2));
+}
+
+// Speichert die aus einem Mentor-Reel extrahierten Kernaussagen, verknüpft mit den
+// Themen-Kategorien des Reels (für spätere themenbezogene Suche).
+function addKnowledgeEntry({ reelToken, uploaderEmail, tags, snippets }) {
+  if (!snippets || !snippets.length) return; // nichts Verwertbares -> nichts speichern
+  const entries = readKnowledge();
+  entries.push({
+    reelToken, uploaderEmail,
+    tags: Array.isArray(tags) ? tags : [],
+    snippets,
+    createdAt: Date.now()
+  });
+  writeKnowledge(entries.slice(-2000)); // Deckel, damit die Datei nicht unbegrenzt wächst
+}
+
+// Sucht passende Wissens-Schnipsel zu gegebenen Themen-Tags. Ohne Tags (oder ohne
+// Treffer) werden stattdessen ein paar der neuesten Einträge zurückgegeben — besser
+// eine unpassende Inspiration als gar keine.
+function getKnowledgeSnippets(tags, limit = 3) {
+  const entries = readKnowledge();
+  if (!entries.length) return [];
+
+  let relevant = entries;
+  if (Array.isArray(tags) && tags.length) {
+    const filtered = entries.filter(e => e.tags.some(t => tags.includes(t)));
+    if (filtered.length) relevant = filtered;
+  }
+
+  const allSnippets = relevant.flatMap(e => e.snippets);
+  // zufällig mischen, damit nicht immer dieselben Schnipsel auftauchen
+  for (let i = allSnippets.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allSnippets[i], allSnippets[j]] = [allSnippets[j], allSnippets[i]];
+  }
+  return allSnippets.slice(0, limit);
+}
+
+// Für den Admin-Bereich: grober Überblick, wie viel Wissen schon gesammelt wurde.
+function getKnowledgeStats() {
+  const entries = readKnowledge();
+  return {
+    totalEntries: entries.length,
+    totalSnippets: entries.reduce((sum, e) => sum + e.snippets.length, 0)
+  };
 }
