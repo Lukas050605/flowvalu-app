@@ -258,6 +258,8 @@ app.get('/api/profile', (req, res) => {
     matchPreference: user.matchPreference || 'gemischt',
     mentorMode: !!user.mentorMode,
     rating: store.getUserRatingSummary(req.session.user.email),
+    flow: store.getFlowBreakdown(req.session.user.email),
+    mentorLevel: store.getMentorLevel(req.session.user.email),
     canUploadReels: mentorStatus.canUploadNow,
     mentorStatus,
     reelsThreshold: {
@@ -338,13 +340,22 @@ app.get('/api/call-pdf/:token', (req, res) => {
 // eingeloggten Nutzer, nicht nur für Mentoren selbst.
 app.get('/api/reels', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  res.json({ reels: store.getReelsFeed() });
+  res.json({ reels: store.getReelsFeed(50, req.session.user.email) });
 });
 
 // Nur die EIGENEN Reels — fürs Raster im eigenen Profil (wie bei Instagram).
 app.get('/api/reels/mine', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json({ reels: store.getUserReels(req.session.user.email) });
+});
+
+// Like togglen (an/aus) — wie bei Instagram: nochmal klicken entliked wieder.
+app.post('/api/reels/:token/like', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const reel = store.findReelByToken(req.params.token);
+  if (!reel) return res.status(404).json({ error: 'Reel nicht gefunden.' });
+  const result = store.toggleReelLike(req.params.token, req.session.user.email);
+  res.json({ ok: true, ...result });
 });
 
 // Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch

@@ -11,6 +11,7 @@ const CUSTOM_CHIPS_FILE = path.join(__dirname, 'data', 'custom-chips.json');
 const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
 const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
+const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -23,6 +24,33 @@ const MENTOR_TIER1_MIN_MONTHLY_RATINGS = 10;
 const MENTOR_TIER1_UPLOAD_LIMIT = 5;
 const MENTOR_TIER2_MIN_MONTHLY_RATINGS = 200;
 const MENTOR_TIER2_UPLOAD_LIMIT = 100;
+
+/* ---------------- Flow-System (ersetzt "XP" für normale Nutzer) ---------------- */
+// Verbindliche Regel aus der Produkt-Spec: KEINE erfundenen Zahlen. Flow wird
+// ausschließlich aus echten, bereits vorhandenen Aktivitäten berechnet:
+// abgeschlossene Calls, abgegebene Bewertungen, Pinnwand-Beteiligung.
+// Die genauen Werte sind bewusst als Konstanten ausgelagert — laut Spec ist die
+// exakte Formel eine offene Produktentscheidung, die sich später leicht anpassen lässt.
+const FLOW_PER_COMPLETED_CALL = 5;
+const FLOW_PER_RATING_GIVEN = 2;
+const FLOW_PER_PINBOARD_ACTIVITY = 1;
+const FLOW_BONUS_EVERY_N_CALLS = 10; // "seltener Aktivitäts-Impuls" alle 10 Calls
+const FLOW_BONUS_AMOUNT = 20;
+
+/* ---------------- Mentor-Level-System (5 Stufen) ---------------- */
+// Basiert auf ECHTEN, bereits getrackten Signalen: Gesamt-Bewertungen (alle Zeit),
+// Bewertungsschnitt und Reel-Likes. Follower und Kursabschlüsse aus der Spec sind
+// als Signale vorgesehen, aber technisch noch nicht gebaut (keine Follow-Funktion,
+// keine Kurse) — sie fließen bewusst NICHT ein, bis es diese Features wirklich gibt,
+// statt mit erfundenen Platzhalter-Werten zu rechnen.
+const MENTOR_LEVELS = [
+  { level: 1, key: 'newcomer', label: 'Newcomer', emoji: '🥉', minRatings: 0, minAvg: 0, minLikes: 0 },
+  { level: 2, key: 'rising', label: 'Rising Mentor', emoji: '🥈', minRatings: 10, minAvg: 4.0, minLikes: 0 },
+  { level: 3, key: 'top', label: 'Top Mentor', emoji: '🥇', minRatings: 50, minAvg: 4.2, minLikes: 20 },
+  { level: 4, key: 'elite', label: 'Elite Mentor', emoji: '💎', minRatings: 150, minAvg: 4.5, minLikes: 100 },
+  { level: 5, key: 'master', label: 'Flowvalu Master', emoji: '👑', minRatings: 400, minAvg: 4.7, minLikes: 300 }
+];
+
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -37,6 +65,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(REELS_FILE)) fs.writeFileSync(REELS_FILE, '[]');
   if (!fs.existsSync(PINBOARD_FILE)) fs.writeFileSync(PINBOARD_FILE, '[]');
   if (!fs.existsSync(KNOWLEDGE_FILE)) fs.writeFileSync(KNOWLEDGE_FILE, '[]');
+  if (!fs.existsSync(REEL_LIKES_FILE)) fs.writeFileSync(REEL_LIKES_FILE, '[]');
 }
 
 function readUsers() {
@@ -202,9 +231,11 @@ module.exports = {
   MENTOR_REEL_MIN_RATING, MENTOR_TIER1_MIN_MONTHLY_RATINGS, MENTOR_TIER1_UPLOAD_LIMIT,
   MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
   addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel, getMentorProfiles,
+  toggleReelLike, getReelLikeCount, isReelLikedBy,
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved,
-  addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats
+  addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
+  getFlowBreakdown, getMentorLevel, MENTOR_LEVELS
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -397,12 +428,17 @@ function findReelByToken(token) {
   return readReels().find(r => r.token === token);
 }
 
-// Öffentlicher Feed: neueste zuerst, mit Anzeige-Infos der Uploader angereichert.
-function getReelsFeed(limit = 50) {
+// Öffentlicher Feed: neueste zuerst, mit Anzeige-Infos der Uploader UND Likes angereichert.
+function getReelsFeed(limit = 50, viewerEmail = null) {
   return readReels()
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, limit)
-    .map(r => ({ ...r, uploaderDisplay: getPublicProfile(r.uploaderEmail) }));
+    .map(r => ({
+      ...r,
+      uploaderDisplay: getPublicProfile(r.uploaderEmail),
+      likeCount: getReelLikeCount(r.token),
+      likedByMe: viewerEmail ? isReelLikedBy(r.token, viewerEmail) : false
+    }));
 }
 
 function getUserReels(email) {
@@ -608,5 +644,117 @@ function getKnowledgeStats() {
   return {
     totalEntries: entries.length,
     totalSnippets: entries.reduce((sum, e) => sum + e.snippets.length, 0)
+  };
+}
+
+/* ---------------- Flow-Punkte berechnen ---------------- */
+
+function getCompletedCallCount(email) {
+  return readMatches().filter(m => m.hadCall && (m.userAEmail === email || m.userBEmail === email)).length;
+}
+
+function getRatingsGivenCount(email) {
+  return readRatings().filter(r => r.raterEmail === email).length;
+}
+
+function getPinboardActivityCount(email) {
+  const posts = readPinboardPosts();
+  const ownPosts = posts.filter(p => p.authorEmail === email).length;
+  const ownReplies = posts.reduce((sum, p) => sum + p.replies.filter(r => r.authorEmail === email).length, 0);
+  return ownPosts + ownReplies;
+}
+
+// Vollständige, nachvollziehbare Aufschlüsselung — keine einzelne "Magie-Zahl".
+// So kann man im Profil auch anzeigen, WOFÜR man wie viel Flow bekommen hat.
+function getFlowBreakdown(email) {
+  const completedCalls = getCompletedCallCount(email);
+  const ratingsGiven = getRatingsGivenCount(email);
+  const pinboardActivity = getPinboardActivityCount(email);
+
+  const fromCalls = completedCalls * FLOW_PER_COMPLETED_CALL;
+  const fromRatingsGiven = ratingsGiven * FLOW_PER_RATING_GIVEN;
+  const fromPinboard = pinboardActivity * FLOW_PER_PINBOARD_ACTIVITY;
+  const bonusCount = Math.floor(completedCalls / FLOW_BONUS_EVERY_N_CALLS);
+  const fromBonuses = bonusCount * FLOW_BONUS_AMOUNT;
+
+  return {
+    total: fromCalls + fromRatingsGiven + fromPinboard + fromBonuses,
+    completedCalls, ratingsGiven, pinboardActivity, bonusCount,
+    breakdown: { fromCalls, fromRatingsGiven, fromPinboard, fromBonuses }
+  };
+}
+
+/* ---------------- Reel-Likes (Basis fürs Mentor-Level-System) ---------------- */
+
+function readReelLikes() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(REEL_LIKES_FILE, 'utf-8'));
+}
+
+function writeReelLikes(likes) {
+  fs.writeFileSync(REEL_LIKES_FILE, JSON.stringify(likes, null, 2));
+}
+
+function getReelLikeCount(reelToken) {
+  return readReelLikes().filter(l => l.reelToken === reelToken).length;
+}
+
+function isReelLikedBy(reelToken, email) {
+  return readReelLikes().some(l => l.reelToken === reelToken && l.email === email);
+}
+
+// Schaltet den Like-Status um (liken/entliken) und gibt den neuen Stand zurück.
+function toggleReelLike(reelToken, email) {
+  const likes = readReelLikes();
+  const existingIndex = likes.findIndex(l => l.reelToken === reelToken && l.email === email);
+  if (existingIndex >= 0) {
+    likes.splice(existingIndex, 1);
+    writeReelLikes(likes);
+    return { liked: false, count: likes.filter(l => l.reelToken === reelToken).length };
+  }
+  likes.push({ reelToken, email, createdAt: Date.now() });
+  writeReelLikes(likes);
+  return { liked: true, count: likes.filter(l => l.reelToken === reelToken).length };
+}
+
+/* ---------------- Mentor-Level (5 Stufen) berechnen ---------------- */
+
+// Gesamt-Bewertungen ÜBER DIE GESAMTE ZEIT (nicht nur diesen Monat — die Level sind
+// eine langfristige Qualifikation, im Gegensatz zum monatlichen Reels-Kontingent).
+function getAllTimeRatingStats(email) {
+  const received = readRatings().filter(r => r.ratedEmail === email);
+  if (!received.length) return { count: 0, avg: 0 };
+  const sum = received.reduce((s, r) => s + r.beliebtheit + r.kreativitaet, 0);
+  return { count: received.length, avg: Math.round((sum / (received.length * 2)) * 10) / 10 };
+}
+
+function getMentorLevel(email) {
+  const { count, avg } = getAllTimeRatingStats(email);
+  const likeCount = readReels()
+    .filter(r => r.uploaderEmail === email)
+    .reduce((sum, r) => sum + getReelLikeCount(r.token), 0);
+
+  // Von der höchsten Stufe abwärts prüfen, die erste erfüllte gewinnt.
+  let current = MENTOR_LEVELS[0];
+  for (let i = MENTOR_LEVELS.length - 1; i >= 0; i--) {
+    const lvl = MENTOR_LEVELS[i];
+    if (count >= lvl.minRatings && avg >= lvl.minAvg && likeCount >= lvl.minLikes) {
+      current = lvl;
+      break;
+    }
+  }
+  const next = MENTOR_LEVELS.find(l => l.level === current.level + 1) || null;
+
+  return {
+    ...current,
+    stats: { ratingsCount: count, avgRating: avg, likeCount },
+    nextLevel: next ? {
+      ...next,
+      missing: {
+        ratings: Math.max(0, next.minRatings - count),
+        avgNeeded: next.minAvg,
+        likes: Math.max(0, next.minLikes - likeCount)
+      }
+    } : null // bereits auf höchster Stufe
   };
 }
