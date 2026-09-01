@@ -349,6 +349,17 @@ app.get('/api/reels/mine', (req, res) => {
   res.json({ reels: store.getUserReels(req.session.user.email) });
 });
 
+// Öffentliches Mini-Profil eines Mentors (Avatar, Bio, Rating, Level) + seine Reels —
+// wird angezeigt, wenn man in der Reels-Ansicht auf Avatar/Namen klickt.
+app.get('/api/mentors/:email/profile', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const email = req.params.email.toLowerCase();
+  const display = store.getPublicProfile(email);
+  const level = store.getMentorLevel(email);
+  const reels = store.getUserReels(email);
+  res.json({ email, display, level, reels });
+});
+
 // Like togglen (an/aus) — wie bei Instagram: nochmal klicken entliked wieder.
 app.post('/api/reels/:token/like', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
@@ -356,6 +367,31 @@ app.post('/api/reels/:token/like', (req, res) => {
   if (!reel) return res.status(404).json({ error: 'Reel nicht gefunden.' });
   const result = store.toggleReelLike(req.params.token, req.session.user.email);
   res.json({ ok: true, ...result });
+});
+
+// Kommentare zu einem Reel abrufen.
+app.get('/api/reels/:token/comments', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ comments: store.getReelComments(req.params.token) });
+});
+
+// Kommentar zu einem Reel hinzufügen.
+app.post('/api/reels/:token/comments', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const reel = store.findReelByToken(req.params.token);
+  if (!reel) return res.status(404).json({ error: 'Reel nicht gefunden.' });
+  const { text } = req.body || {};
+  const comment = store.addReelComment(req.params.token, req.session.user.email, text);
+  if (!comment) return res.status(400).json({ error: 'Kommentar darf nicht leer sein.' });
+  res.json({ ok: true, comment: { ...comment, authorDisplay: store.getPublicProfile(req.session.user.email) } });
+});
+
+// Kommentar löschen — nur der Autor selbst (oder ein Admin).
+app.post('/api/reels/comments/:commentId/delete', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const success = store.deleteReelComment(req.params.commentId, req.session.user.email, isAdminEmail(req.session.user.email));
+  if (!success) return res.status(403).json({ error: 'Kein Zugriff oder Kommentar nicht gefunden.' });
+  res.json({ ok: true });
 });
 
 // Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch

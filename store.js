@@ -12,6 +12,7 @@ const REELS_FILE = path.join(__dirname, 'data', 'reels.json');
 const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
 const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
+const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -66,6 +67,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(PINBOARD_FILE)) fs.writeFileSync(PINBOARD_FILE, '[]');
   if (!fs.existsSync(KNOWLEDGE_FILE)) fs.writeFileSync(KNOWLEDGE_FILE, '[]');
   if (!fs.existsSync(REEL_LIKES_FILE)) fs.writeFileSync(REEL_LIKES_FILE, '[]');
+  if (!fs.existsSync(REEL_COMMENTS_FILE)) fs.writeFileSync(REEL_COMMENTS_FILE, '[]');
 }
 
 function readUsers() {
@@ -232,6 +234,7 @@ module.exports = {
   MENTOR_TIER2_MIN_MONTHLY_RATINGS, MENTOR_TIER2_UPLOAD_LIMIT,
   addReel, findReelByToken, getReelsFeed, getUserReels, deleteReel, getMentorProfiles,
   toggleReelLike, getReelLikeCount, isReelLikedBy,
+  addReelComment, getReelComments, deleteReelComment,
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved,
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
@@ -428,7 +431,7 @@ function findReelByToken(token) {
   return readReels().find(r => r.token === token);
 }
 
-// Öffentlicher Feed: neueste zuerst, mit Anzeige-Infos der Uploader UND Likes angereichert.
+// Öffentlicher Feed: neueste zuerst, mit Anzeige-Infos der Uploader UND Likes/Kommentare angereichert.
 function getReelsFeed(limit = 50, viewerEmail = null) {
   return readReels()
     .sort((a, b) => b.createdAt - a.createdAt)
@@ -437,8 +440,51 @@ function getReelsFeed(limit = 50, viewerEmail = null) {
       ...r,
       uploaderDisplay: getPublicProfile(r.uploaderEmail),
       likeCount: getReelLikeCount(r.token),
-      likedByMe: viewerEmail ? isReelLikedBy(r.token, viewerEmail) : false
+      likedByMe: viewerEmail ? isReelLikedBy(r.token, viewerEmail) : false,
+      commentCount: getReelComments(r.token).length
     }));
+}
+
+/* ---------------- Reel-Kommentare ---------------- */
+
+function readReelComments() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(REEL_COMMENTS_FILE, 'utf-8'));
+}
+
+function writeReelComments(comments) {
+  fs.writeFileSync(REEL_COMMENTS_FILE, JSON.stringify(comments, null, 2));
+}
+
+function getReelComments(reelToken) {
+  return readReelComments()
+    .filter(c => c.reelToken === reelToken)
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .map(c => ({ ...c, authorDisplay: getPublicProfile(c.authorEmail) }));
+}
+
+function addReelComment(reelToken, authorEmail, text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return null;
+  const comments = readReelComments();
+  const comment = {
+    id: require('crypto').randomUUID(),
+    reelToken, authorEmail,
+    text: trimmed.slice(0, 300),
+    createdAt: Date.now()
+  };
+  comments.push(comment);
+  writeReelComments(comments.slice(-5000));
+  return comment;
+}
+
+function deleteReelComment(commentId, requesterEmail, isAdmin = false) {
+  const comments = readReelComments();
+  const comment = comments.find(c => c.id === commentId);
+  if (!comment) return false;
+  if (comment.authorEmail !== requesterEmail && !isAdmin) return false;
+  writeReelComments(comments.filter(c => c.id !== commentId));
+  return true;
 }
 
 function getUserReels(email) {
