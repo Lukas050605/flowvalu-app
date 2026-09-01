@@ -74,6 +74,28 @@
   <p class="sub" style="margin-bottom:30px;">Nach dem Setzen: geh in die App (<a href="/" target="_blank">FlowValu öffnen</a>) → Profil oder 🎬-Icon, um die simulierte Ansicht live zu sehen.</p>
 
   <hr class="section-divider">
+  <h1>🏆 Mentor-Level: Vorschau (Baustein 1)</h1>
+  <p class="sub">Simuliert auf DEINEM Account testweise eines der 5 Mentor-Level, um zu sehen, wie Badge und Anzeige aussehen — ohne echte Bewertungen/Likes sammeln zu müssen.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+    <button class="btn-sm level-preview-btn" data-level="1" style="background:var(--surface-2);">🥉 Newcomer</button>
+    <button class="btn-sm level-preview-btn" data-level="2" style="background:#4c8dff33; border:1px solid #4c8dff;">🥈 Rising Mentor</button>
+    <button class="btn-sm level-preview-btn" data-level="3" style="background:#f5a52433; border:1px solid #f5a524;">🥇 Top Mentor</button>
+    <button class="btn-sm level-preview-btn" data-level="4" style="background:#7c6ff033; border:1px solid #7c6ff0;">💎 Elite Mentor</button>
+    <button class="btn-sm level-preview-btn" data-level="5" style="background:#f97a2c33; border:1px solid #f97a2c;">👑 Flowvalu Master</button>
+    <button class="btn-sm" id="level-preview-reset-btn" style="background:var(--danger); border:none; color:#fff;">Zurücksetzen</button>
+  </div>
+  <div id="level-preview-status" style="font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--muted); margin-bottom:30px;">Lädt Status …</div>
+
+  <hr class="section-divider">
+  <h1>🎬 Reels-Vorschau: Test-Video erzeugen (Baustein 2)</h1>
+  <p class="sub">Erzeugt ein ECHTES, kurzes Test-Video (per ffmpeg) mit Beispiel-Likes und -Kommentaren auf deinem Account — damit du Likes, Kommentar-Panel und Mentor-Mini-Profil ansehen kannst, ohne selbst ein Video aufzunehmen.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+    <button class="btn-sm" id="reels-preview-generate-btn" style="background:var(--accent-2); border:none; color:#fff;">Test-Reel erzeugen</button>
+    <button class="btn-sm" id="reels-preview-cleanup-btn" style="background:var(--danger); border:none; color:#fff;">Test-Reels aufräumen</button>
+  </div>
+  <div id="reels-preview-status" style="font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--muted); margin-bottom:30px;"></div>
+
+  <hr class="section-divider">
   <h1>🧠 Valus Wissensbasis</h1>
   <p class="sub">Zeigt, wie viel Valu bisher automatisch aus hochgeladenen Mentor-Reels gelernt hat (Kernaussagen aus Video-Transkripten, die in Impulse/Antworten einfließen können).</p>
   <div id="knowledge-stats" style="font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--muted); margin-bottom:30px;">Lädt …</div>
@@ -85,6 +107,65 @@
 </div>
 
 <script>
+async function loadLevelPreviewStatus(){
+  const el = document.getElementById('level-preview-status');
+  try{
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    const lvl = data.mentorLevel;
+    el.textContent = (lvl.isSimulated ? '🧪 VORSCHAU AKTIV — ' : 'Echte Daten — ') +
+      lvl.emoji + ' ' + lvl.label + ' (Bewertungen: ' + lvl.stats.ratingsCount + ', Ø ' + lvl.stats.avgRating + ', Likes: ' + lvl.stats.likeCount + ')';
+  } catch(e){
+    el.textContent = 'Status konnte nicht geladen werden.';
+  }
+}
+
+document.querySelectorAll('.level-preview-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    await fetch('/api/admin/mentor-level-preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level: Number(btn.dataset.level) })
+    });
+    loadLevelPreviewStatus();
+  });
+});
+
+document.getElementById('level-preview-reset-btn').addEventListener('click', async () => {
+  await fetch('/api/admin/mentor-level-preview', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level: null })
+  });
+  loadLevelPreviewStatus();
+});
+
+loadLevelPreviewStatus();
+
+document.getElementById('reels-preview-generate-btn').addEventListener('click', async () => {
+  const el = document.getElementById('reels-preview-status');
+  const btn = document.getElementById('reels-preview-generate-btn');
+  btn.disabled = true;
+  btn.textContent = 'Wird erzeugt … (paar Sekunden)';
+  el.textContent = '';
+  try{
+    const res = await fetch('/api/admin/reels-preview/generate', { method: 'POST' });
+    const data = await res.json();
+    if(!res.ok){ el.textContent = '❌ ' + (data.error || 'Fehler.'); return; }
+    el.textContent = '✅ Test-Reel erzeugt! Geh in die App → 🎬-Icon, um es anzusehen.';
+  } catch(e){
+    el.textContent = '❌ Verbindung fehlgeschlagen.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test-Reel erzeugen';
+  }
+});
+
+document.getElementById('reels-preview-cleanup-btn').addEventListener('click', async () => {
+  const el = document.getElementById('reels-preview-status');
+  const res = await fetch('/api/admin/reels-preview/cleanup', { method: 'POST' });
+  const data = await res.json();
+  el.textContent = '🧹 ' + data.removed + ' Test-Reel(s) entfernt.';
+});
+
 async function loadKnowledgeStats(){
   const el = document.getElementById('knowledge-stats');
   try{

@@ -75,6 +75,24 @@ function getEffectiveMentorStatus(email) {
   return store.getMentorStatus(email);
 }
 
+// Analoge Vorschau-Funktion fürs 5-Stufen-Level-System — liefert entweder die
+// echte, aus Bewertungen/Likes berechnete Stufe, oder (nur für Admins mit gesetzter
+// Vorschau) eine simulierte Stufe mit realistischen Beispiel-Statistiken.
+function getEffectiveMentorLevel(email) {
+  const user = store.findUserByEmail(email);
+  if (isAdminEmail(email) && user && user.mentorDebugLevel !== undefined && user.mentorDebugLevel !== null) {
+    const lvl = store.MENTOR_LEVELS.find(l => l.level === user.mentorDebugLevel) || store.MENTOR_LEVELS[0];
+    const next = store.MENTOR_LEVELS.find(l => l.level === lvl.level + 1) || null;
+    return {
+      ...lvl,
+      isSimulated: true,
+      stats: { ratingsCount: lvl.minRatings, avgRating: lvl.minAvg || 4.0, likeCount: lvl.minLikes },
+      nextLevel: next ? { ...next, missing: { ratings: 0, avgNeeded: next.minAvg, likes: 0 } } : null
+    };
+  }
+  return store.getMentorLevel(email);
+}
+
 function requireAdmin(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Nicht eingeloggt.' });
@@ -259,7 +277,7 @@ app.get('/api/profile', (req, res) => {
     mentorMode: !!user.mentorMode,
     rating: store.getUserRatingSummary(req.session.user.email),
     flow: store.getFlowBreakdown(req.session.user.email),
-    mentorLevel: store.getMentorLevel(req.session.user.email),
+    mentorLevel: getEffectiveMentorLevel(req.session.user.email),
     canUploadReels: mentorStatus.canUploadNow,
     mentorStatus,
     reelsThreshold: {
@@ -355,7 +373,7 @@ app.get('/api/mentors/:email/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const email = req.params.email.toLowerCase();
   const display = store.getPublicProfile(email);
-  const level = store.getMentorLevel(email);
+  const level = getEffectiveMentorLevel(email);
   const reels = store.getUserReels(email);
   res.json({ email, display, level, reels });
 });
@@ -609,6 +627,65 @@ app.post('/api/admin/mentor-preview', requireAdmin, (req, res) => {
   }
   store.setMentorDebugTier(req.session.user.email, tier);
   res.json({ ok: true, mentorStatus: getEffectiveMentorStatus(req.session.user.email) });
+});
+
+// Admin-Vorschau fürs 5-Stufen-Level-System (Newcomer bis Flowvalu Master).
+// Gleiche Logik: NUR der eigene Account, level: 1-5 oder null (= echte Daten).
+app.post('/api/admin/mentor-level-preview', requireAdmin, (req, res) => {
+  const { level } = req.body || {};
+  if (level !== null && ![1, 2, 3, 4, 5].includes(level)) {
+    return res.status(400).json({ error: 'Ungültiges Level (1-5 oder null erwartet).' });
+  }
+  store.setMentorDebugLevel(req.session.user.email, level);
+  res.json({ ok: true, mentorLevel: getEffectiveMentorLevel(req.session.user.email) });
+});
+
+// Erzeugt ein ECHTES, kleines Test-Video (per ffmpeg, Farbverlauf-Muster) mit ein
+// paar Beispiel-Likes/Kommentaren auf dem EIGENEN Admin-Account — damit man die
+// Reels-Oberfläche (Video, Likes, Kommentare, Mentor-Mini-Profil) ansehen kann,
+// ohne selbst ein Video aufnehmen und hochladen zu müssen. Rein fürs Testen.
+app.post('/api/admin/reels-preview/generate', requireAdmin, async (req, res) => {
+  try {
+    const token = crypto.randomUUID();
+    ensureReelsDir();
+    const filePath = path.join(REELS_DIR, token + '.webm');
+
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      // 3 Sekunden buntes Testmuster — ein echtes, abspielbares Video, keine Fake-Datei.
+      const ffmpeg = spawn('ffmpeg', [
+        '-f', 'lavfi', '-i', 'testsrc=duration=3:size=480x854:rate=24',
+        '-c:v', 'libvpx', '-b:v', '400k', '-y', filePath
+      ]);
+      ffmpeg.on('close', code => code === 0 ? resolve() : reject(new Error('ffmpeg exit code ' + code)));
+      ffmpeg.on('error', reject);
+    });
+
+    store.addReel({ token, uploaderEmail: req.session.user.email, title: '🧪 Vorschau-Testvideo', mimeType: 'video/webm' });
+
+    // Ein paar Beispiel-Kommentare vom Admin selbst, klar als Test gekennzeichnet.
+    store.addReelComment(token, req.session.user.email, '🧪 Testkommentar 1 — sieht so aus, wenn jemand kommentiert.');
+    store.addReelComment(token, req.session.user.email, '🧪 Testkommentar 2 — für die Vorschau der Kommentar-Liste.');
+    store.toggleReelLike(token, req.session.user.email);
+
+    res.json({ ok: true, token });
+  } catch (err) {
+    console.error('Test-Reel konnte nicht erzeugt werden:', err.message);
+    res.status(500).json({ error: 'Test-Video konnte nicht erzeugt werden (ffmpeg auf Render verfügbar?).' });
+  }
+});
+
+// Räumt alle Vorschau-Test-Reels des eigenen Admin-Accounts wieder auf.
+app.post('/api/admin/reels-preview/cleanup', requireAdmin, (req, res) => {
+  const own = store.getUserReels(req.session.user.email).filter(r => r.title === '🧪 Vorschau-Testvideo');
+  own.forEach(r => {
+    store.deleteReel(r.token, req.session.user.email);
+    try {
+      const filePath = path.join(REELS_DIR, r.token + '.webm');
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) { /* egal, Datei war evtl. schon weg */ }
+  });
+  res.json({ ok: true, removed: own.length });
 });
 
 app.get('/api/admin/valu-knowledge-stats', requireAdmin, (req, res) => {

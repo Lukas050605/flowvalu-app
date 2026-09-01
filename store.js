@@ -238,7 +238,7 @@ module.exports = {
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved,
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
-  getFlowBreakdown, getMentorLevel, MENTOR_LEVELS
+  getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -629,6 +629,21 @@ function setMentorDebugTier(email, tier) {
     delete user.mentorDebugTier;
   } else {
     user.mentorDebugTier = tier;
+  }
+  writeUsers(users);
+  return true;
+}
+
+// Analoge Vorschau-Funktion fürs 5-Stufen-Level-System (Newcomer bis Flowvalu Master).
+// Gleiche Sicherheitsregel: NUR der eigene Account, wird in server.js auf Admins beschränkt.
+function setMentorDebugLevel(email, level) {
+  const users = readUsers();
+  const user = users.find(u => u.email === email);
+  if (!user) return false;
+  if (level === null || level === undefined) {
+    delete user.mentorDebugLevel;
+  } else {
+    user.mentorDebugLevel = level;
   }
   writeUsers(users);
   return true;
