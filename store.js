@@ -74,6 +74,8 @@ function getPublicProfile(email) {
   return {
     displayName: (user && user.displayName) || email.split('@')[0],
     avatarDataUrl: (user && user.avatarDataUrl) || null,
+    bio: (user && user.bio) || '',
+    workingOnChips: (user && user.workingOnChips) || [],
     rating
   };
 }

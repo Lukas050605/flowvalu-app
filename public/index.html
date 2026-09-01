@@ -409,6 +409,40 @@
     <p class="field-error" id="verify-error" style="text-align:center; margin-top:12px;"></p>
   </section>
 
+  <!-- ONBOARDING: einmalig nach der ersten Anmeldung -->
+  <section class="screen" id="screen-onboarding">
+    <p class="eyebrow">Willkommen bei FlowValu</p>
+    <h2>Lass uns dein Profil einrichten</h2>
+    <p class="lead" style="margin-bottom:20px;">Nur kurz — dann kann's losgehen. Alles hier kannst du später jederzeit ändern.</p>
+
+    <div class="avatar-picker">
+      <div class="avatar-preview" id="onboarding-avatar-preview">?</div>
+      <div>
+        <input type="file" id="onboarding-avatar-input" accept="image/*" style="display:none;">
+        <button class="file-btn" id="onboarding-avatar-pick-btn">Profilbild wählen</button>
+      </div>
+    </div>
+
+    <label class="field-label">Anzeigename</label>
+    <input type="text" id="onboarding-display-name-input" placeholder="Wie sollen dich andere sehen?" maxlength="40" style="margin-bottom:20px;">
+
+    <label class="field-label">Kurze Bio (optional)</label>
+    <textarea id="onboarding-bio-input" placeholder="Wer bist du, was machst du?" maxlength="200" style="margin-bottom:20px; min-height:70px;"></textarea>
+
+    <label class="field-label">Woran arbeitest du gerade? (bis zu 5)</label>
+    <div class="chips" id="onboarding-work-chips">
+      <button class="chip" id="onboarding-work-chip-add-btn" type="button">+ Hinzufügen</button>
+    </div>
+    <div id="onboarding-work-chip-input-row" style="display:none; gap:8px; margin:10px 0 24px;">
+      <input type="text" id="onboarding-work-chip-input" placeholder="z. B. Café-Konzept" maxlength="30" style="flex:1;">
+      <button class="btn" id="onboarding-work-chip-add-confirm-btn" type="button" style="width:auto; padding:0 16px; margin:0;">✓</button>
+    </div>
+
+    <div class="field-error" id="onboarding-error"></div>
+    <button class="btn btn-primary" id="onboarding-finish-btn">Los geht's →</button>
+    <button class="btn btn-ghost" id="onboarding-skip-btn">Später ausfüllen</button>
+  </section>
+
   <!-- PROFILE -->
   <section class="screen" id="screen-profile">
     <div class="top-links">
@@ -463,6 +497,19 @@
     </div>
     <label class="field-label">Anzeigename</label>
     <input type="text" id="display-name-input" placeholder="z. B. Lea" maxlength="40" style="margin-bottom:20px;">
+
+    <label class="field-label">Bio (optional)</label>
+    <textarea id="bio-input" placeholder="Wer bist du, was machst du?" maxlength="200" style="margin-bottom:20px; min-height:70px;"></textarea>
+
+    <label class="field-label">Woran arbeitest du gerade? (bis zu 5)</label>
+    <div class="chips" id="profile-work-chips">
+      <button class="chip" id="profile-work-chip-add-btn" type="button">+ Hinzufügen</button>
+    </div>
+    <div id="profile-work-chip-input-row" style="display:none; gap:8px; margin:10px 0 20px;">
+      <input type="text" id="profile-work-chip-input" placeholder="z. B. Café-Konzept" maxlength="30" style="flex:1;">
+      <button class="btn" id="profile-work-chip-add-confirm-btn" type="button" style="width:auto; padding:0 16px; margin:0;">✓</button>
+    </div>
+
 
     <label class="field-label">Dein Geschlecht</label>
     <select id="gender-select" style="margin-bottom:20px; width:100%; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;">
@@ -629,6 +676,8 @@
           <span class="mentor-pill" id="partner-mentor-pill">🎓 Mentor</span>
         </div>
         <div class="partner-tag" id="partner-tag">gerade gematcht</div>
+        <div id="partner-bio" style="font-size:12px; color:var(--muted); margin-top:3px; display:none;"></div>
+        <div id="partner-work-chips" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
       </div>
     </div>
     <div class="chat-log" id="chat-log"></div>
@@ -825,9 +874,25 @@ async function refreshPointsBadge() {
   } catch (e) { /* egal, Badge bleibt einfach leer */ }
 }
 
-function onAuthSuccess(email){
+async function onAuthSuccess(email){
   myEmail = email || myEmail;
   socket.connect();
+
+  try{
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    if(!data.onboardingComplete){
+      document.getElementById('onboarding-display-name-input').value = data.displayName || '';
+      document.getElementById('onboarding-bio-input').value = data.bio || '';
+      onboardingAvatarDataUrl = data.avatarDataUrl || null;
+      onboardingWorkChips.setItems(data.workingOnChips || []);
+      renderOnboardingAvatarPreview();
+      document.getElementById('onboarding-error').textContent = '';
+      show('screen-onboarding');
+      return;
+    }
+  } catch(e){ /* im Zweifel einfach normal weiter zum Home-Bildschirm */ }
+
   show('screen-profile');
   refreshPointsBadge();
   loadPopularChips();
@@ -872,6 +937,8 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   const data = await res.json();
   document.getElementById('display-name-input').value = data.displayName || '';
   currentAvatarDataUrl = data.avatarDataUrl || null;
+  document.getElementById('bio-input').value = data.bio || '';
+  profileWorkChips.setItems(data.workingOnChips || []);
   document.getElementById('live-impulses-toggle').checked = data.liveImpulsesEnabled !== false;
   document.getElementById('gender-select').value = data.gender || '';
   document.getElementById('match-preference-select').value = data.matchPreference || 'gemischt';
@@ -934,6 +1001,7 @@ function renderAvatarPreview(){
 
 document.getElementById('save-profile-btn').addEventListener('click', async () => {
   const displayName = document.getElementById('display-name-input').value.trim();
+  const bio = document.getElementById('bio-input').value.trim();
   const liveImpulsesEnabled = document.getElementById('live-impulses-toggle').checked;
   const gender = document.getElementById('gender-select').value;
   const matchPreference = document.getElementById('match-preference-select').value;
@@ -950,7 +1018,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, liveImpulsesEnabled, gender, matchPreference, mentorMode })
+      body: JSON.stringify({ displayName, avatarDataUrl: currentAvatarDataUrl, bio, workingOnChips: profileWorkChips.getItems(), liveImpulsesEnabled, gender, matchPreference, mentorMode })
     });
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
@@ -1437,6 +1505,131 @@ function escapeChipText(str){
   return div.innerHTML;
 }
 
+// Generische Mehrfach-Tag-Liste ("Woran arbeitest du gerade?") — anders als die
+// Themen-Chips beim Matchen (dort nur EINE Auswahl), können hier bis zu 5 Tags
+// gleichzeitig gesammelt werden, jedes mit eigenem "×" zum Entfernen.
+function makeWorkChipManager(prefix, maxChips){
+  let items = [];
+  const container = document.getElementById(prefix + '-work-chips');
+  const addBtn = document.getElementById(prefix + '-work-chip-add-btn');
+  const inputRow = document.getElementById(prefix + '-work-chip-input-row');
+  const input = document.getElementById(prefix + '-work-chip-input');
+  const confirmBtn = document.getElementById(prefix + '-work-chip-add-confirm-btn');
+
+  function render(){
+    container.querySelectorAll('.chip[data-chip]').forEach(el => el.remove());
+    items.forEach(text => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip selected';
+      chip.dataset.chip = text;
+      chip.innerHTML = escapeChipText(text) + ' <span class="chip-remove" data-remove-text="' + escapeChipText(text) + '">×</span>';
+      addBtn.insertAdjacentElement('beforebegin', chip);
+    });
+    addBtn.style.display = items.length >= maxChips ? 'none' : 'inline-block';
+  }
+
+  container.addEventListener('click', (e) => {
+    const removeEl = e.target.closest('.chip-remove');
+    if(!removeEl) return;
+    items = items.filter(c => c !== removeEl.dataset.removeText);
+    render();
+  });
+
+  addBtn.addEventListener('click', () => {
+    inputRow.style.display = 'flex';
+    input.focus();
+  });
+
+  function addFromInput(){
+    const text = input.value.trim();
+    if(!text || items.includes(text) || items.length >= maxChips) return;
+    items.push(text);
+    input.value = '';
+    inputRow.style.display = 'none';
+    render();
+  }
+  confirmBtn.addEventListener('click', addFromInput);
+  input.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); addFromInput(); } });
+
+  return {
+    setItems(list){ items = Array.isArray(list) ? [...list] : []; render(); },
+    getItems(){ return items; }
+  };
+}
+
+const onboardingWorkChips = makeWorkChipManager('onboarding', 5);
+const profileWorkChips = makeWorkChipManager('profile', 5);
+
+/* ---------- Onboarding: eigener Avatar-Upload, unabhängig vom Profil-Bearbeiten-Screen ---------- */
+let onboardingAvatarDataUrl = null;
+
+function renderOnboardingAvatarPreview(){
+  const el = document.getElementById('onboarding-avatar-preview');
+  if(onboardingAvatarDataUrl){
+    el.innerHTML = '<img src="' + onboardingAvatarDataUrl + '">';
+  } else {
+    el.textContent = (document.getElementById('onboarding-display-name-input').value || '?')[0].toUpperCase();
+  }
+}
+
+document.getElementById('onboarding-avatar-pick-btn').addEventListener('click', () => {
+  document.getElementById('onboarding-avatar-input').click();
+});
+
+document.getElementById('onboarding-avatar-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = (ev) => { img.src = ev.target.result; };
+  img.onload = () => {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.max(size / img.width, size / img.height);
+    const w = img.width * scale, h = img.height * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    onboardingAvatarDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+    renderOnboardingAvatarPreview();
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('onboarding-display-name-input').addEventListener('input', () => {
+  if(!onboardingAvatarDataUrl) renderOnboardingAvatarPreview();
+});
+
+async function finishOnboarding(skip){
+  const errEl = document.getElementById('onboarding-error');
+  errEl.textContent = '';
+  const body = { onboardingComplete: true };
+  if(!skip){
+    body.displayName = document.getElementById('onboarding-display-name-input').value.trim();
+    body.avatarDataUrl = onboardingAvatarDataUrl;
+    body.bio = document.getElementById('onboarding-bio-input').value.trim();
+    body.workingOnChips = onboardingWorkChips.getItems();
+  }
+  try{
+    const res = await fetch('/api/profile', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
+    show('screen-profile');
+    refreshPointsBadge();
+    loadPopularChips();
+    refreshOwnMentorBadge();
+  } catch(e){
+    errEl.textContent = 'Verbindung fehlgeschlagen.';
+  }
+}
+
+document.getElementById('onboarding-finish-btn').addEventListener('click', () => finishOnboarding(false));
+document.getElementById('onboarding-skip-btn').addEventListener('click', () => finishOnboarding(true));
+
 // Fügt ein neues Thema als Chip hinzu (oder wählt es, falls es schon existiert —
 // z.B. weil es bereits als beliebter Vorschlag angezeigt wird) und markiert es aktiv.
 function createAndSelectChip(text){
@@ -1534,6 +1727,23 @@ socket.on('matched', (data) => {
   // farbige Pille neben dem Namen), statt nur einmalig als Chat-Nachricht zu erscheinen.
   document.getElementById('partner-mentor-avatar-badge').classList.toggle('active', !!p.mentorMode);
   document.getElementById('partner-mentor-pill').classList.toggle('active', !!p.mentorMode);
+
+  // Bio + "Woran arbeitet die Person gerade?"-Chips aus dem Profil anzeigen, falls vorhanden
+  const bioEl = document.getElementById('partner-bio');
+  if(display.bio){
+    bioEl.textContent = display.bio;
+    bioEl.style.display = 'block';
+  } else {
+    bioEl.style.display = 'none';
+  }
+  const workChipsEl = document.getElementById('partner-work-chips');
+  workChipsEl.innerHTML = '';
+  (display.workingOnChips || []).forEach(text => {
+    const tag = document.createElement('span');
+    tag.style.cssText = 'font-family:"JetBrains Mono", monospace; font-size:10px; background:var(--surface-2); border:1px solid var(--border-strong); padding:2px 8px; border-radius:999px; color:var(--muted);';
+    tag.textContent = text;
+    workChipsEl.appendChild(tag);
+  });
 
   document.getElementById('chat-log').innerHTML = '';
   if (p.mentorMode) {

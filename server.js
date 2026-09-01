@@ -248,6 +248,9 @@ app.get('/api/profile', (req, res) => {
   res.json({
     displayName: user.displayName || '',
     avatarDataUrl: user.avatarDataUrl || null,
+    bio: user.bio || '',
+    workingOnChips: user.workingOnChips || [],
+    onboardingComplete: !!user.onboardingComplete,
     liveImpulsesEnabled: user.liveImpulsesEnabled !== false, // Standard: an
     gender: user.gender || '',
     matchPreference: user.matchPreference || 'gemischt',
@@ -265,13 +268,19 @@ app.get('/api/profile', (req, res) => {
 
 app.post('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const { displayName, avatarDataUrl, liveImpulsesEnabled, gender, matchPreference, mentorMode } = req.body || {};
+  const { displayName, avatarDataUrl, liveImpulsesEnabled, gender, matchPreference, mentorMode, bio, workingOnChips, onboardingComplete } = req.body || {};
 
   if (displayName !== undefined && String(displayName).length > 40) {
     return res.status(400).json({ error: 'Anzeigename darf höchstens 40 Zeichen haben.' });
   }
   if (avatarDataUrl && (typeof avatarDataUrl !== 'string' || !avatarDataUrl.startsWith('data:image/') || avatarDataUrl.length > 400000)) {
     return res.status(400).json({ error: 'Ungültiges Bild oder Bild zu groß.' });
+  }
+  if (bio !== undefined && String(bio).length > 200) {
+    return res.status(400).json({ error: 'Bio darf höchstens 200 Zeichen haben.' });
+  }
+  if (workingOnChips !== undefined && (!Array.isArray(workingOnChips) || workingOnChips.length > 5 || workingOnChips.some(c => typeof c !== 'string' || c.length > 30))) {
+    return res.status(400).json({ error: 'Maximal 5 Themen, je höchstens 30 Zeichen.' });
   }
   const VALID_GENDERS = ['', 'weiblich', 'männlich', 'divers'];
   if (gender !== undefined && !VALID_GENDERS.includes(gender)) {
@@ -295,6 +304,9 @@ app.post('/api/profile', (req, res) => {
   if (gender !== undefined) user.gender = gender || null;
   if (matchPreference !== undefined) user.matchPreference = matchPreference;
   if (mentorMode !== undefined) user.mentorMode = !!mentorMode;
+  if (bio !== undefined) user.bio = String(bio).trim();
+  if (workingOnChips !== undefined) user.workingOnChips = workingOnChips.map(c => c.trim()).filter(Boolean);
+  if (onboardingComplete !== undefined) user.onboardingComplete = !!onboardingComplete;
 
   store.writeUsers(users);
   res.json({ ok: true });
