@@ -228,14 +228,30 @@
   .top-links span:hover{ color:var(--ink); }
 
   /* ---- profile edit ---- */
-  .avatar-picker{ display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+  .avatar-picker{ display:flex; align-items:center; gap:16px; margin-bottom:20px; position:relative; }
   .avatar-preview{
     width:64px; height:64px; border-radius:50%; object-fit:cover;
     background:linear-gradient(135deg, var(--accent), var(--accent-2));
     display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; font-size:22px;
-    border:1px solid var(--border-strong);
+    border:1px solid var(--border-strong); position:relative;
   }
   .avatar-preview img{ width:100%; height:100%; border-radius:50%; object-fit:cover; }
+
+  .avatar-plus-btn{
+    position:absolute; left:46px; bottom:-2px; width:22px; height:22px; border-radius:50%;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:2px solid var(--surface);
+    color:#fff; font-size:14px; font-weight:700; display:none; align-items:center; justify-content:center;
+    cursor:pointer; line-height:1;
+  }
+  .avatar-plus-btn.active{ display:flex; }
+
+  .my-reels-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin:14px 0 24px; }
+  .my-reels-grid .my-reel-tile{ position:relative; aspect-ratio:9/16; background:#000; border-radius:6px; overflow:hidden; }
+  .my-reels-grid .my-reel-tile video{ width:100%; height:100%; object-fit:cover; }
+  .my-reels-grid .my-reel-tile .my-reel-delete{
+    position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%;
+    background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:11px; cursor:pointer;
+  }
   .file-btn{
     font-family:'JetBrains Mono', monospace; font-size:12px; border:1px solid var(--border-strong);
     border-radius:9px; padding:8px 14px; cursor:pointer; color:var(--ink); background:var(--surface-2);
@@ -490,10 +506,16 @@
     <h2>So siehst du für andere aus</h2>
     <div class="avatar-picker">
       <div class="avatar-preview" id="avatar-preview">?</div>
+      <button class="avatar-plus-btn" id="my-reels-plus-btn" title="Reel hochladen">+</button>
       <div>
         <input type="file" id="avatar-input" accept="image/*" style="display:none;">
         <button class="file-btn" id="avatar-pick-btn">Bild wählen</button>
       </div>
+    </div>
+
+    <div id="my-reels-section" style="display:none;">
+      <label class="field-label">Deine Reels</label>
+      <div class="my-reels-grid" id="my-reels-grid"></div>
     </div>
     <label class="field-label">Anzeigename</label>
     <input type="text" id="display-name-input" placeholder="z. B. Lea" maxlength="40" style="margin-bottom:20px;">
@@ -961,7 +983,45 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
 
   renderAvatarPreview();
   document.getElementById('profile-error').textContent = '';
+
+  // Instagram-artiges "+" am Avatar: nur sichtbar, wenn gerade Upload-Kontingent übrig ist
+  document.getElementById('my-reels-plus-btn').classList.toggle('active', !!status.canUploadNow);
+  document.getElementById('my-reels-section').style.display = status.tier > 0 ? 'block' : 'none';
+  if (status.tier > 0) loadMyReelsGrid();
+
   show('screen-profile-edit');
+});
+
+/* ---------- Eigene Reels im Profil (Instagram-artiges Raster) ---------- */
+async function loadMyReelsGrid(){
+  const grid = document.getElementById('my-reels-grid');
+  grid.innerHTML = '';
+  try{
+    const res = await fetch('/api/reels/mine');
+    const data = await res.json();
+    (data.reels || []).forEach(reel => {
+      const tile = document.createElement('div');
+      tile.className = 'my-reel-tile';
+      tile.innerHTML =
+        '<video src="/api/reels/' + reel.token + '/video" muted playsinline></video>' +
+        '<button class="my-reel-delete" data-token="' + reel.token + '">×</button>';
+      grid.appendChild(tile);
+    });
+    grid.querySelectorAll('.my-reel-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if(!confirm('Dieses Reel wirklich löschen?')) return;
+        await fetch('/api/reels/' + btn.dataset.token + '/delete', { method: 'POST' });
+        loadMyReelsGrid();
+      });
+    });
+  } catch(e){ /* egal, Raster bleibt einfach leer */ }
+}
+
+// Klick aufs "+" öffnet denselben Upload-Dialog wie in der Reels-Ansicht, direkt vom Profil aus
+document.getElementById('my-reels-plus-btn').addEventListener('click', () => {
+  document.getElementById('reels-overlay').classList.add('active');
+  document.getElementById('reel-upload-panel').classList.add('active');
 });
 
 document.getElementById('back-from-profile-btn').addEventListener('click', () => show('screen-profile'));
@@ -1221,6 +1281,7 @@ document.getElementById('reel-upload-btn').addEventListener('click', async () =>
       document.getElementById('reel-selected-name').textContent = '';
       document.getElementById('reel-upload-panel').classList.remove('active');
       loadReelsFeed();
+      loadMyReelsGrid();
     }
   } catch(e){
     errEl.textContent = 'Verbindung fehlgeschlagen.';

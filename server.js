@@ -339,6 +339,12 @@ app.get('/api/reels', (req, res) => {
   res.json({ reels: store.getReelsFeed() });
 });
 
+// Nur die EIGENEN Reels — fürs Raster im eigenen Profil (wie bei Instagram).
+app.get('/api/reels/mine', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ reels: store.getUserReels(req.session.user.email) });
+});
+
 // Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch
 // nicht aufgebraucht hat, darf hochladen — wird HIER SERVERSEITIG geprüft, nie nur
 // im Frontend versteckt.
