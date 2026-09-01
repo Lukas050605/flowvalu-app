@@ -77,4 +77,65 @@ Antworte als Valu — freundlich, direkt, wie eine echte, kompetente Gesprächst
   }
 }
 
-module.exports = { isAddressedToValu, generateValuAnswer, WAKE_WORDS };
+/**
+ * Generiert Valus Antwort in einem EIGENSTÄNDIGEN Chat (nicht im Call) — man kann
+ * sie jederzeit über das eigene Icon fragen, unabhängig davon, ob man gerade
+ * gematcht ist. Nutzt den bisherigen Chat-Verlauf mit Valu statt eines Call-
+ * Transkripts, und kann optional die eigene aktuelle Blockade + Mentor-Wissen
+ * mit einbeziehen.
+ */
+async function generateValuChatAnswer({ conversationHistory, question, userHangup, displayName, knowledgeSnippets }) {
+  const fallback = 'Entschuldige, da bin ich mir gerade nicht sicher — magst du das nochmal anders formulieren?';
+  if (!ANTHROPIC_API_KEY) return fallback;
+
+  try {
+    const historyBlock = (conversationHistory || []).length
+      ? conversationHistory.slice(-10).map(m => (m.role === 'user' ? (displayName || 'Nutzer') : 'Valu') + ': ' + m.text).join('\n')
+      : '(noch kein bisheriges Gespräch)';
+
+    const knowledgeBlock = (knowledgeSnippets || []).length
+      ? `\nDinge, die Mentoren in ihren Reels dazu schon geteilt haben (nutze sie, wenn sie wirklich passen — nicht erzwingen):\n${knowledgeSnippets.map(k => '- ' + k).join('\n')}\n`
+      : '';
+
+    const prompt = `Du bist "Valu", die KI-Assistentin von FlowValu — einer App, die Menschen mit Denkblockaden zum gemeinsamen Brainstorming verbindet. ${displayName || 'Jemand'} schreibt dir gerade direkt im Chat (nicht in einem Call mit einer anderen Person).
+
+${userHangup ? 'Woran die Person gerade hängt: "' + userHangup + '"' : ''}
+${knowledgeBlock}
+Bisheriger Chat-Verlauf mit dir:
+"""
+${historyBlock}
+"""
+
+Neue Nachricht: "${question}"
+
+Antworte als Valu — freundlich, direkt, wie eine echte, kompetente Gesprächspartnerin, NICHT wie ein Chatbot mit Floskeln. Max. 4 Sätze. Wenn du etwas nicht weißt, sag das ehrlich, statt es zu erfinden. Antworte AUSSCHLIESSLICH mit dem, was du sagen würdest — keine Anführungszeichen, keine Meta-Kommentare.`;
+
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 250,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Valu-Chat: Anthropic API Fehler', res.status, await res.text());
+      return fallback;
+    }
+    const data = await res.json();
+    const raw = data.content && data.content[0] && data.content[0].text;
+    const cleaned = raw && raw.trim().replace(/^["']|["']$/g, '');
+    return cleaned || fallback;
+  } catch (err) {
+    console.error('Valu-Chat fehlgeschlagen:', err.message);
+    return fallback;
+  }
+}
+
+module.exports = { isAddressedToValu, generateValuAnswer, generateValuChatAnswer, WAKE_WORDS };

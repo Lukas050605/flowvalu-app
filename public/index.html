@@ -134,6 +134,34 @@
     cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center;
   }
 
+  #valu-chat-icon-btn{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:41; width:56px; height:56px;
+    border-radius:50%; background:linear-gradient(135deg, #f5a524, #f97316); border:none; font-size:24px;
+    cursor:pointer; box-shadow:0 6px 20px rgba(245,165,36,0.5); display:flex; align-items:center; justify-content:center;
+    animation:valu-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes valu-pulse{
+    0%, 100%{ box-shadow:0 6px 20px rgba(245,165,36,0.5); }
+    50%{ box-shadow:0 6px 28px rgba(245,165,36,0.85); }
+  }
+
+  .valu-chat-overlay{
+    position:fixed; inset:0; background:var(--bg); z-index:80; display:none; flex-direction:column;
+  }
+  .valu-chat-overlay.active{ display:flex; }
+  .valu-chat-topbar{
+    display:flex; justify-content:space-between; align-items:center; padding:18px 20px;
+    border-bottom:1px solid var(--border-strong);
+  }
+  .valu-chat-topbar h2{ margin:0; font-size:17px; display:flex; align-items:center; gap:8px; }
+  .valu-chat-body{ flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
+  .valu-msg{ max-width:80%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.4; }
+  .valu-msg.from-user{ align-self:flex-end; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; }
+  .valu-msg.from-valu{ align-self:flex-start; background:var(--surface-2); border:1px solid var(--border-strong); }
+  .valu-chat-input-row{ display:flex; gap:8px; padding:14px 20px; border-top:1px solid var(--border-strong); }
+  .valu-chat-input-row input{ flex:1; }
+  .valu-typing{ align-self:flex-start; font-size:12px; color:var(--muted); font-style:italic; }
+
   .pinboard-overlay{
     position:fixed; inset:0; background:var(--bg); z-index:70; display:none; flex-direction:column;
   }
@@ -469,6 +497,7 @@
     </div>
     <button id="reels-icon-btn" title="Mentor-Reels ansehen">🎬</button>
     <button id="pinboard-icon-btn" title="Pinnwand: offene Fragen ansehen">📌</button>
+    <button id="valu-chat-icon-btn" title="Frag Valu jederzeit">💬</button>
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <span class="own-mentor-badge" id="own-mentor-badge">🎓 Mentor-Modus aktiv</span>
@@ -589,13 +618,7 @@
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
-        <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:999px; padding:2px;">
-          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
-          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎓 Mentoren</button>
-        </div>
-      </div>
+      <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="reels-upload-fab" id="reels-open-upload-btn" style="display:none;">+ Hochladen</button>
         <button class="reels-close-btn" id="reels-close-btn">✕</button>
@@ -604,19 +627,6 @@
 
     <div class="reels-scroll" id="reels-scroll"></div>
     <div class="empty-history" id="empty-reels" style="display:none; color:#fff; text-align:center; padding-top:120px;">Noch keine Reels vorhanden.</div>
-
-    <!-- MENTOREN-ÜBERSICHT: Profile statt anonymer Video-Kacheln -->
-    <div id="mentors-list-view" style="display:none; flex:1; overflow-y:auto; padding:70px 16px 24px;">
-      <div id="mentors-list"></div>
-      <div class="empty-history" id="empty-mentors" style="display:none; color:#fff; text-align:center; padding-top:60px;">Noch keine Mentoren mit Reels vorhanden.</div>
-    </div>
-
-    <!-- EIN BESTIMMTER MENTOR: Profil-Header + seine Reels darunter -->
-    <div id="mentor-detail-view" style="display:none; flex:1; overflow-y:auto; padding:70px 16px 24px;">
-      <button id="mentor-detail-back-btn" style="background:rgba(255,255,255,0.1); border:none; color:#fff; font-family:'Inter', sans-serif; font-size:12.5px; padding:7px 14px; border-radius:999px; cursor:pointer; margin-bottom:16px;">← Alle Mentoren</button>
-      <div id="mentor-detail-header"></div>
-      <div id="mentor-detail-reels" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-top:16px;"></div>
-    </div>
 
     <div class="reel-upload-panel" id="reel-upload-panel">
       <button class="reels-close-btn" id="reel-upload-close-btn" style="position:absolute; top:16px; right:18px;">✕</button>
@@ -665,6 +675,21 @@
       <textarea id="pinboard-reply-text" placeholder="Deine Antwort …" maxlength="500" style="min-height:70px; margin-top:10px;"></textarea>
       <div class="field-error" id="pinboard-reply-error"></div>
       <button class="btn btn-primary" id="pinboard-send-reply-btn">Antworten</button>
+    </div>
+  </div>
+
+  <!-- VALU-CHAT: jederzeit erreichbar, unabhängig vom Call -->
+  <div class="valu-chat-overlay" id="valu-chat-overlay">
+    <div class="valu-chat-topbar">
+      <h2>💬 Frag Valu</h2>
+      <button class="reels-close-btn" id="valu-chat-close-btn" style="background:var(--surface-2); color:var(--ink);">✕</button>
+    </div>
+    <div class="valu-chat-body" id="valu-chat-body">
+      <div class="valu-msg from-valu">Hey! Ich bin Valu — frag mich alles, auch wenn du gerade in keinem Call bist. 🎓</div>
+    </div>
+    <div class="valu-chat-input-row">
+      <input type="text" id="valu-chat-input" placeholder="Frag Valu etwas …" maxlength="1000">
+      <button class="btn btn-primary" id="valu-chat-send-btn" style="width:auto; padding:0 20px; margin:0;">Senden</button>
     </div>
   </div>
 
@@ -1163,7 +1188,6 @@ let reelsObserver = null;
 
 document.getElementById('reels-icon-btn').addEventListener('click', async () => {
   document.getElementById('reels-overlay').classList.add('active');
-  showReelsTab('videos');
   await loadReelsUploadStatus();
   await loadReelsFeed();
 });
@@ -1187,108 +1211,6 @@ async function loadReelsUploadStatus(){
     btn.style.display = 'none';
   }
 }
-
-/* ---------- Tabs: Video-Feed vs. Mentoren-Übersicht ---------- */
-function showReelsTab(tab){
-  document.getElementById('reels-scroll').style.display = tab === 'videos' ? 'block' : 'none';
-  document.getElementById('mentors-list-view').style.display = tab === 'mentors' ? 'flex' : 'none';
-  document.getElementById('mentor-detail-view').style.display = 'none';
-
-  const videosBtn = document.getElementById('reels-tab-videos-btn');
-  const mentorsBtn = document.getElementById('reels-tab-mentors-btn');
-  videosBtn.style.background = tab === 'videos' ? '#fff' : 'transparent';
-  videosBtn.style.color = tab === 'videos' ? '#000' : '#fff';
-  mentorsBtn.style.background = tab === 'mentors' ? '#fff' : 'transparent';
-  mentorsBtn.style.color = tab === 'mentors' ? '#000' : '#fff';
-
-  if(tab === 'videos'){
-    document.querySelectorAll('#reels-scroll video').forEach(v => v.pause());
-  }
-  if(tab === 'mentors') loadMentorsList();
-}
-
-document.getElementById('reels-tab-videos-btn').addEventListener('click', () => showReelsTab('videos'));
-document.getElementById('reels-tab-mentors-btn').addEventListener('click', () => showReelsTab('mentors'));
-
-async function loadMentorsList(){
-  const list = document.getElementById('mentors-list');
-  const empty = document.getElementById('empty-mentors');
-  list.innerHTML = '';
-  try{
-    const res = await fetch('/api/mentors');
-    const data = await res.json();
-    if(!data.mentors || !data.mentors.length){
-      empty.style.display = 'block';
-      return;
-    }
-    empty.style.display = 'none';
-    data.mentors.forEach(mentor => {
-      const card = document.createElement('div');
-      card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; margin-bottom:10px; cursor:pointer;';
-      const avatarHtml = mentor.avatarDataUrl
-        ? '<img src="' + mentor.avatarDataUrl + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
-        : '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + escapeHtml(mentor.displayName[0].toUpperCase()) + '</div>';
-      const ratingText = mentor.rating.count
-        ? '⭐ ' + mentor.rating.avgBeliebtheit + ' · 💡 ' + mentor.rating.avgKreativitaet
-        : 'Noch keine Bewertungen';
-      card.innerHTML =
-        avatarHtml +
-        '<div style="flex:1; color:#fff;">' +
-          '<div style="font-weight:700; font-size:14px;">' + escapeHtml(mentor.displayName) + '</div>' +
-          (mentor.bio ? '<div style="font-size:12px; color:rgba(255,255,255,0.7); margin-top:2px;">' + escapeHtml(mentor.bio) + '</div>' : '') +
-          '<div style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:3px;">' + ratingText + ' · 🎬 ' + mentor.reelCount + ' Video(s)</div>' +
-        '</div>';
-      card.addEventListener('click', () => openMentorDetail(mentor));
-      list.appendChild(card);
-    });
-  } catch(e){
-    empty.style.display = 'block';
-  }
-}
-
-async function openMentorDetail(mentor){
-  document.getElementById('mentors-list-view').style.display = 'none';
-  document.getElementById('mentor-detail-view').style.display = 'block';
-
-  const header = document.getElementById('mentor-detail-header');
-  const avatarHtml = mentor.avatarDataUrl
-    ? '<img src="' + mentor.avatarDataUrl + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">'
-    : '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:22px;">' + escapeHtml(mentor.displayName[0].toUpperCase()) + '</div>';
-  const ratingText = mentor.rating.count
-    ? '⭐ ' + mentor.rating.avgBeliebtheit + ' Beliebtheit · 💡 ' + mentor.rating.avgKreativitaet + ' Kreativität (' + mentor.rating.count + ' Bewertungen)'
-    : 'Noch keine Bewertungen';
-  header.innerHTML =
-    '<div style="display:flex; align-items:center; gap:14px; color:#fff;">' +
-      avatarHtml +
-      '<div>' +
-        '<div style="font-weight:700; font-size:18px;">' + escapeHtml(mentor.displayName) + '</div>' +
-        (mentor.bio ? '<div style="font-size:13px; color:rgba(255,255,255,0.75); margin-top:3px;">' + escapeHtml(mentor.bio) + '</div>' : '') +
-        '<div style="font-size:12px; color:rgba(255,255,255,0.55); margin-top:4px;">' + ratingText + '</div>' +
-      '</div>' +
-    '</div>';
-
-  const grid = document.getElementById('mentor-detail-reels');
-  grid.innerHTML = '';
-  try{
-    const res = await fetch('/api/reels/by/' + encodeURIComponent(mentor.email));
-    const data = await res.json();
-    (data.reels || []).forEach(reel => {
-      const tile = document.createElement('div');
-      tile.style.cssText = 'position:relative; aspect-ratio:9/16; background:#000; border-radius:6px; overflow:hidden; cursor:pointer;';
-      tile.innerHTML = '<video src="/api/reels/' + reel.token + '/video" muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>';
-      tile.addEventListener('click', () => {
-        const v = tile.querySelector('video');
-        if(v.paused){ v.controls = true; v.play(); } else { v.pause(); }
-      });
-      grid.appendChild(tile);
-    });
-  } catch(e){ /* egal, Raster bleibt einfach leer */ }
-}
-
-document.getElementById('mentor-detail-back-btn').addEventListener('click', () => {
-  document.getElementById('mentor-detail-view').style.display = 'none';
-  document.getElementById('mentors-list-view').style.display = 'flex';
-});
 
 // Nur das Video, das gerade wirklich im Bild ist, spielt automatisch ab — genau wie
 // beim Durchscrollen von Instagram Reels. Alle anderen werden pausiert.
@@ -2386,6 +2308,62 @@ function speakAsValu(text){
     window.speechSynthesis.speak(utter);
   } catch(e){ /* Sprachausgabe optional, kein Show-Stopper falls nicht unterstützt */ }
 }
+
+/* ---------- Eigenständiger Chat mit Valu: jederzeit erreichbar, auch ohne Call ---------- */
+let valuChatHistory = [];
+
+document.getElementById('valu-chat-icon-btn').addEventListener('click', () => {
+  document.getElementById('valu-chat-overlay').classList.add('active');
+  document.getElementById('valu-chat-input').focus();
+});
+
+document.getElementById('valu-chat-close-btn').addEventListener('click', () => {
+  document.getElementById('valu-chat-overlay').classList.remove('active');
+});
+
+function addValuChatBubble(role, text){
+  const body = document.getElementById('valu-chat-body');
+  const bubble = document.createElement('div');
+  bubble.className = 'valu-msg ' + (role === 'user' ? 'from-user' : 'from-valu');
+  bubble.textContent = text;
+  body.appendChild(bubble);
+  body.scrollTop = body.scrollHeight;
+}
+
+function sendValuChatMessage(){
+  const input = document.getElementById('valu-chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+
+  addValuChatBubble('user', text);
+  valuChatHistory.push({ role: 'user', text });
+  input.value = '';
+
+  const body = document.getElementById('valu-chat-body');
+  const typing = document.createElement('div');
+  typing.className = 'valu-typing';
+  typing.id = 'valu-typing-indicator';
+  typing.textContent = 'Valu denkt nach …';
+  body.appendChild(typing);
+  body.scrollTop = body.scrollHeight;
+
+  socket.emit('valu_chat_message', { text, conversationHistory: valuChatHistory.slice(-10) });
+}
+
+document.getElementById('valu-chat-send-btn').addEventListener('click', sendValuChatMessage);
+document.getElementById('valu-chat-input').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); sendValuChatMessage(); }
+});
+
+socket.on('valu_chat_reply', (data) => {
+  const typing = document.getElementById('valu-typing-indicator');
+  if(typing) typing.remove();
+  if(!data || !data.text) return;
+
+  addValuChatBubble('valu', data.text);
+  valuChatHistory.push({ role: 'valu', text: data.text });
+  speakAsValu(data.text);
+});
 
 socket.on('live_impulse', (data) => {
   const banner = document.getElementById('impulse-banner');

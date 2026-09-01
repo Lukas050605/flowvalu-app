@@ -10,7 +10,7 @@ const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
 const { classifyTopic, computeAssociationScore } = require('./topic-matcher');
 const { generateImpulse } = require('./live-impulse');
-const { isAddressedToValu, generateValuAnswer } = require('./valu-ai');
+const { isAddressedToValu, generateValuAnswer, generateValuChatAnswer } = require('./valu-ai');
 const { extractKnowledgeFromTranscript } = require('./valu-knowledge');
 
 // Globales Sicherheitsnetz: ein einzelner unerwarteter Fehler (z.B. beim Lesen einer
@@ -345,20 +345,6 @@ app.get('/api/reels', (req, res) => {
 app.get('/api/reels/mine', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json({ reels: store.getUserReels(req.session.user.email) });
-});
-
-// Übersicht aller Mentoren, die mindestens ein Reel hochgeladen haben.
-app.get('/api/mentors', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  res.json({ mentors: store.getMentorProfiles() });
-});
-
-// Reels EINES bestimmten Mentors (für die Detailansicht, wenn man in der
-// Mentoren-Übersicht auf jemanden klickt).
-app.get('/api/reels/by/:email', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const reels = store.getUserReels(req.params.email.toLowerCase());
-  res.json({ reels: reels.map(r => ({ ...r, uploaderDisplay: store.getPublicProfile(r.uploaderEmail) })) });
 });
 
 // Video-Upload: nur wer die Bewertungs-Schwelle UND das monatliche Kontingent noch
@@ -1051,6 +1037,39 @@ io.on('connection', (socket) => {
   // io.sockets.sockets.size zählt nur Sockets, die die Auth-Middleware (io.use oben)
   // schon durchlaufen haben — also wirklich eingeloggte, aktive Verbindungen.
   io.emit('active_users_count', { count: io.sockets.sockets.size });
+
+  // Eigenständiger Chat mit Valu — funktioniert JEDERZEIT, unabhängig davon, ob man
+  // gerade gematcht/im Call ist. Einfache Rate-Begrenzung pro Verbindung, damit
+  // niemand die KI mit Anfragen fluten kann.
+  socket.on('valu_chat_message', async ({ text, conversationHistory }) => {
+    if (!text || !String(text).trim()) return;
+
+    const now = Date.now();
+    if (socket.data.lastValuChatAt && now - socket.data.lastValuChatAt < 2000) return; // max. 1 Nachricht / 2s
+    socket.data.lastValuChatAt = now;
+
+    try {
+      const dbUser = store.findUserByEmail(socket.data.email);
+      const displayName = store.getPublicProfile(socket.data.email).displayName;
+      const userHangup = socket.data.lastProfile ? socket.data.lastProfile.hangup : '';
+
+      let knowledgeSnippets = [];
+      try {
+        const aiTags = socket.data.lastProfile ? socket.data.lastProfile.aiTags : null;
+        knowledgeSnippets = store.getKnowledgeSnippets(aiTags, 3);
+      } catch (err) { /* Wissensbasis ist optional */ }
+
+      const answer = await generateValuChatAnswer({
+        conversationHistory: Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [],
+        question: String(text).trim().slice(0, 1000),
+        userHangup, displayName, knowledgeSnippets
+      });
+      socket.emit('valu_chat_reply', { text: answer });
+    } catch (err) {
+      console.error('Valu-Chat fehlgeschlagen:', err.message);
+      socket.emit('valu_chat_reply', { text: 'Entschuldige, gerade klappt das nicht — versuch es gleich nochmal.' });
+    }
+  });
 
   socket.on('join_queue', (profile) => {
     processJoinQueue(socket, profile);
