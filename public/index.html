@@ -911,6 +911,27 @@
   </div>
 </div>
 
+<!-- POST-CALL: für normale Calls OHNE aktiven Mentor-Modus (Thema 29) —
+     Feedback statt Sterne-Bewertung, plus sinnvolle nächste Schritte -->
+<div class="rating-overlay" id="post-call-overlay">
+  <div class="rating-box">
+    <h3>Wie hat dir der Call mit <span id="post-call-partner-name">deinem Partner</span> geholfen?</h3>
+    <p class="sub">Kein Mentor-Call — hier zählt einfach dein ehrliches Feedback.</p>
+
+    <div style="display:flex; gap:10px; margin:16px 0; flex-wrap:wrap;">
+      <button class="btn-sm post-call-feedback-btn" data-value="sehr" style="background:var(--surface-2); flex:1; padding:12px;">😄 Sehr geholfen</button>
+      <button class="btn-sm post-call-feedback-btn" data-value="okay" style="background:var(--surface-2); flex:1; padding:12px;">🙂 Ging so</button>
+      <button class="btn-sm post-call-feedback-btn" data-value="nicht" style="background:var(--surface-2); flex:1; padding:12px;">😕 Nicht wirklich</button>
+    </div>
+
+    <p class="sub" style="margin-top:18px;">Wie geht's weiter?</p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button class="btn" id="post-call-reconnect-btn" style="background:var(--surface-2);">🔁 Nochmal mit <span id="post-call-partner-name-2">dieser Person</span> sprechen</button>
+      <button class="btn" id="post-call-new-topic-btn">🔍 Neues Thema, neue Person finden</button>
+    </div>
+  </div>
+</div>
+
 <!-- INVITE TOAST -->
 <div class="invite-toast" id="invite-toast">
   <p style="margin:0; font-size:14px;"><strong id="invite-from-name">Jemand</strong> möchte sich nochmal mit dir verbinden.</p>
@@ -1936,6 +1957,7 @@ socket.on('invite_declined', () => {
 let selectedChips = [];
 let matchMode = 'zufall';
 let currentRoom = null;
+let currentPartnerWasMentor = false;
 
 function show(id){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2196,6 +2218,7 @@ socket.on('matched', (data) => {
   currentRoom = data.roomId;
   const p = data.partnerProfile || {};
   const display = data.partnerDisplay || {};
+  currentPartnerWasMentor = !!p.mentorMode; // für den Nach-Call-Ablauf: Sterne nur bei echtem Mentor
   const avatarInner = document.getElementById('partner-avatar-inner');
   if(display.avatarDataUrl){
     avatarInner.innerHTML = '<img src="' + display.avatarDataUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
@@ -2846,7 +2869,53 @@ socket.on('call_summary_ready', (data) => {
   a.click();
   a.remove();
 
-  openRatingOverlay(data.roomId);
+  // Sterne-Bewertung nur, wenn der Partner in DIESEM Call wirklich im aktiven
+  // Mentor-Modus war (Thema 29) — sonst der einfachere Feedback-Bildschirm.
+  if(currentPartnerWasMentor){
+    openRatingOverlay(data.roomId);
+  } else {
+    openPostCallOverlay(data.roomId);
+  }
+});
+
+/* ---------- Post-Call-Feedback für normale (Nicht-Mentor-)Calls ---------- */
+function openPostCallOverlay(roomId){
+  const partnerName = document.getElementById('partner-hangup').textContent.split(' — ')[0] || 'deinem Partner';
+  document.getElementById('post-call-partner-name').textContent = partnerName;
+  document.getElementById('post-call-partner-name-2').textContent = partnerName;
+  document.getElementById('post-call-overlay').classList.add('active');
+
+  document.querySelectorAll('.post-call-feedback-btn').forEach(btn => {
+    btn.onclick = () => {
+      socket.emit('submit_call_feedback', { roomId, helpfulness: btn.dataset.value });
+      document.querySelectorAll('.post-call-feedback-btn').forEach(b => b.style.opacity = '0.4');
+      btn.style.opacity = '1';
+      btn.style.outline = '2px solid var(--accent-2)';
+    };
+  });
+
+  document.getElementById('post-call-reconnect-btn').onclick = () => {
+    socket.emit('invite_partner_by_room', { roomId });
+    document.getElementById('post-call-overlay').classList.remove('active');
+    show('screen-profile');
+  };
+
+  document.getElementById('post-call-new-topic-btn').onclick = () => {
+    document.getElementById('post-call-overlay').classList.remove('active');
+    show('screen-profile');
+    document.getElementById('hangup').focus();
+  };
+}
+
+// Fallback: falls die PDF-Zusammenfassung fehlschlägt (z.B. fehlender API-Key auf
+// dem Server), soll der Nach-Call-Bildschirm trotzdem erscheinen — "Nach jedem
+// Call" (Thema 29) soll IMMER greifen, unabhängig von der Zusammenfassung.
+socket.on('call_ended_no_summary', (data) => {
+  if(currentPartnerWasMentor){
+    openRatingOverlay(data.roomId);
+  } else {
+    openPostCallOverlay(data.roomId);
+  }
 });
 
 /* ---------- Bewertung (Beliebtheit + Kreativität) ---------- */

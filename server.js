@@ -1042,6 +1042,12 @@ function logMatch(emailA, emailB, profileA, profileB, roomId) {
     userBEmail: emailB,
     userATopic: profileA.hangup || '',
     userBTopic: profileB.hangup || '',
+    // Mentor-Modus-Status GENAU zum Zeitpunkt dieses Calls — wichtig für die Regel
+    // "Mentor-Bewertung nur, wenn die Person wirklich im aktiven Mentor-Modus war"
+    // (Thema 29). Bewusst hier festgehalten statt später live nachzuschauen, weil
+    // sich der Mentor-Modus einer Person ja jederzeit wieder ändern kann.
+    userAWasMentor: !!profileA.mentorMode,
+    userBWasMentor: !!profileB.mentorMode,
     hadCall: false,
     startedAt: new Date().toISOString()
   };
@@ -1456,6 +1462,14 @@ io.on('connection', (socket) => {
       });
     } catch (err) {
       console.error('Fehler beim Erstellen der Call-Zusammenfassung:', err.message);
+      // WICHTIG: "Nach jedem Call" (Thema 29) soll IMMER greifen — auch wenn die
+      // PDF-Erstellung fehlschlägt (z.B. fehlender API-Key), darf der Bewertungs-/
+      // Feedback-Bildschirm nicht einfach ausfallen.
+      const members2 = rooms[roomId] || [];
+      members2.forEach(id => {
+        const s = io.sockets.sockets.get(id);
+        if (s) s.emit('call_ended_no_summary', { roomId });
+      });
     } finally {
       delete transcripts[roomId];
       summaryInProgress.delete(roomId);
@@ -1481,11 +1495,26 @@ io.on('connection', (socket) => {
     }
     const ratedEmail = match.userAEmail === raterEmail ? match.userBEmail : match.userAEmail;
 
+    // Mentor-Bewertung nur, wenn die bewertete Person WÄHREND DIESES CALLS wirklich
+    // im aktiven Mentor-Modus war (Thema 29 der Spec) — normale Denker-Calls
+    // zwischen zwei "normalen" Nutzern bekommen keine Mentor-Bewertung.
+    const ratedPersonWasMentor = match.userAEmail === ratedEmail ? match.userAWasMentor : match.userBWasMentor;
+    if (!ratedPersonWasMentor) {
+      socket.emit('rate_result', { ok: false, error: 'Diese Person war in diesem Call nicht im Mentor-Modus — keine Mentor-Bewertung möglich.' });
+      return;
+    }
+
     const success = store.addRating({ roomId, raterEmail, ratedEmail, beliebtheit, kreativitaet });
     socket.emit('rate_result', {
       ok: success,
       error: success ? null : 'Ungültige Bewertung oder du hast diesen Call schon bewertet.'
     });
+  });
+
+  // Einfaches Feedback für normale Calls ohne aktiven Mentor-Modus (Thema 29).
+  socket.on('submit_call_feedback', ({ roomId, helpfulness }) => {
+    if (!roomId || !socket.data.email) return;
+    store.addCallFeedback(roomId, socket.data.email, helpfulness);
   });
 
   socket.on('report_user', ({ roomId, reason }) => {
@@ -1545,6 +1574,30 @@ io.on('connection', (socket) => {
 
     waiting = waiting.filter(w => w.socketId !== targetSocketId); // aus Warteschlange holen, falls dort
     socket.data.pendingInviteTo = email;
+    targetSocket.emit('invite_received', {
+      fromEmail: socket.data.email,
+      fromDisplay: store.getPublicProfile(socket.data.email)
+    });
+  });
+
+  // Wie invite_partner, aber der Client kennt (aus Datenschutzgründen) die E-Mail
+  // des gerade beendeten Call-Partners nicht — wird hier serverseitig über den
+  // Match-Eintrag aufgelöst. Für den "Nochmal mit dieser Person sprechen"-Button
+  // direkt nach dem Call (Thema 29).
+  socket.on('invite_partner_by_room', ({ roomId }) => {
+    if (!roomId) return;
+    const match = store.readMatches().find(m =>
+      m.roomId === roomId && (m.userAEmail === socket.data.email || m.userBEmail === socket.data.email)
+    );
+    if (!match) { socket.emit('invite_failed', { reason: 'offline' }); return; }
+    const partnerEmail = match.userAEmail === socket.data.email ? match.userBEmail : match.userAEmail;
+    const targetSocketId = userSockets[partnerEmail];
+    const targetSocket = targetSocketId && io.sockets.sockets.get(targetSocketId);
+    if (!targetSocket) { socket.emit('invite_failed', { reason: 'offline' }); return; }
+    if (targetSocket.data.roomId) { socket.emit('invite_failed', { reason: 'busy' }); return; }
+
+    waiting = waiting.filter(w => w.socketId !== targetSocketId);
+    socket.data.pendingInviteTo = partnerEmail;
     targetSocket.emit('invite_received', {
       fromEmail: socket.data.email,
       fromDisplay: store.getPublicProfile(socket.data.email)
