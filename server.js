@@ -275,6 +275,7 @@ app.get('/api/homepage', (req, res) => {
     isNewUser,
     flow,
     mentorLevel: getEffectiveMentorLevel(email),
+    userLevel: store.getUserLevel(email),
     streakDays: store.getStreakDays(email),
     nextStep: store.getNextStepRecommendation(email),
     trending: {
@@ -311,6 +312,7 @@ app.get('/api/profile', (req, res) => {
     rating: store.getUserRatingSummary(req.session.user.email),
     flow: store.getFlowBreakdown(req.session.user.email),
     mentorLevel: getEffectiveMentorLevel(req.session.user.email),
+    userLevel: store.getUserLevel(req.session.user.email),
     canUploadReels: mentorStatus.canUploadNow,
     mentorStatus,
     reelsThreshold: {

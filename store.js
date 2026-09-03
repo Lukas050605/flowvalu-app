@@ -52,6 +52,17 @@ const MENTOR_LEVELS = [
   { level: 5, key: 'master', label: 'Flowvalu Master', emoji: '👑', minRatings: 400, minAvg: 4.7, minLikes: 300 }
 ];
 
+// 5-Stufen-Level für NORMALE Nutzer (Spec-Vorgabe: heißt FLOW, nicht XP!).
+// Basiert ausschließlich auf dem echten Flow-Gesamtwert (siehe getFlowBreakdown) —
+// keine erfundenen Zahlen, Schwellen vorläufig/anpassbar wie in der Spec vorgesehen.
+const USER_LEVELS = [
+  { level: 1, key: 'explorer', label: 'Explorer', emoji: '🧭', minFlow: 0 },
+  { level: 2, key: 'learner', label: 'Learner', emoji: '📚', minFlow: 50 },
+  { level: 3, key: 'doer', label: 'Doer', emoji: '⚡', minFlow: 200 },
+  { level: 4, key: 'builder', label: 'Builder', emoji: '🛠️', minFlow: 500 },
+  { level: 5, key: 'pro', label: 'Flowvalu Pro', emoji: '🌊', minFlow: 1200 }
+];
+
 
 function ensureDataFiles() {
   const dir = path.join(__dirname, 'data');
@@ -239,7 +250,8 @@ module.exports = {
   deletePinboardPost, setPinboardPostResolved,
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
   getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
-  getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation
+  getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
+  getUserLevel, USER_LEVELS
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -874,5 +886,24 @@ function getNextStepRecommendation(email) {
   }
   return { text: 'Bereit für den nächsten Call? Wähle ein Thema und leg los.', action: 'match' };
 }
+
+/* ---------------- Nutzer-Level (5 Stufen, für normale Nutzer) ---------------- */
+
+function getUserLevel(email) {
+  const flow = getFlowBreakdown(email).total;
+
+  let current = USER_LEVELS[0];
+  for (let i = USER_LEVELS.length - 1; i >= 0; i--) {
+    if (flow >= USER_LEVELS[i].minFlow) { current = USER_LEVELS[i]; break; }
+  }
+  const next = USER_LEVELS.find(l => l.level === current.level + 1) || null;
+
+  return {
+    ...current,
+    flow,
+    nextLevel: next ? { ...next, missingFlow: Math.max(0, next.minFlow - flow) } : null
+  };
+}
+
 
 
