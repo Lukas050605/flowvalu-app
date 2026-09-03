@@ -266,6 +266,15 @@ app.get('/api/popular-chips', (req, res) => {
 // bestehende Nutzer, siehe THEMA 47 der Spec). Ausschließlich echte Plattform-Daten.
 // "Dein Flowvalu"-Dashboard fürs eigene Profil (Thema 16) — alle echten Kennzahlen
 // an einer Stelle gebündelt.
+// Geschätzte durchschnittliche Wartezeit (Thema 7) — immer nur eine Schätzung,
+// nie eine Garantie. Gibt hasEnoughData:false zurück, wenn noch zu wenig
+// historische Daten vorliegen, statt eine erfundene Zahl zu zeigen.
+app.get('/api/wait-time-estimate', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const seconds = store.getEstimatedWaitSeconds();
+  res.json({ hasEnoughData: seconds !== null, estimateSeconds: seconds });
+});
+
 app.get('/api/mentor-dashboard', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json(store.getMentorDashboardStats(req.session.user.email));
@@ -1297,6 +1306,14 @@ io.on('connection', (socket) => {
       const roomId = crypto.randomUUID();
       rooms[roomId] = [partner.socketId, socket.id];
 
+      // Echte Wartezeit protokollieren (nur für die Person, die schon gewartet hat —
+      // die gerade beitretende Person selbst hat ja quasi 0 Sekunden gewartet, das
+      // wäre kein aussagekräftiger Datenpunkt für die Schätzung).
+      if (partner.joinedAt) {
+        try { store.logWaitTime(Date.now() - partner.joinedAt); }
+        catch (err) { console.error('Wartezeit konnte nicht protokolliert werden:', err.message); }
+      }
+
       socket.join(roomId);
       const partnerSocket = io.sockets.sockets.get(partner.socketId);
       if (partnerSocket) partnerSocket.join(roomId);
@@ -1317,7 +1334,7 @@ io.on('connection', (socket) => {
         });
       }
     } else {
-      waiting.push({ socketId: socket.id, profile, email: socket.data.email });
+      waiting.push({ socketId: socket.id, profile, email: socket.data.email, joinedAt: Date.now() });
       socket.emit('waiting', { position: waiting.length });
     }
   }

@@ -824,6 +824,7 @@
       <div class="queue-ring"></div>
       <p style="font-weight:600; margin:10px 0 4px;">Suche jemanden für dich …</p>
       <p class="status-line" id="queue-status">Verbinde …</p>
+      <p class="status-line" id="wait-estimate-line" style="font-size:12px; color:var(--muted); margin-top:4px;"></p>
     </div>
     <button class="btn btn-ghost" id="cancel-queue-btn">Abbrechen</button>
   </section>
@@ -2220,7 +2221,20 @@ document.getElementById('start-btn').addEventListener('click', () => {
   show('screen-queue');
   document.getElementById('queue-status').textContent = 'Suche Partner …';
   socket.emit('join_queue', { hangup, topic, mode: matchMode });
+  loadWaitTimeEstimate();
 });
+
+async function loadWaitTimeEstimate(){
+  const line = document.getElementById('wait-estimate-line');
+  line.textContent = '';
+  try{
+    const res = await fetch('/api/wait-time-estimate');
+    const data = await res.json();
+    if(!data.hasEnoughData) return; // lieber nichts zeigen als eine erfundene Zahl
+    const minutes = Math.max(1, Math.round(data.estimateSeconds / 60));
+    line.textContent = '⏱️ Durchschnittliche Wartezeit: ca. ' + minutes + ' Minute' + (minutes === 1 ? '' : 'n') + ' (Schätzung, keine Garantie)';
+  } catch(e){ /* egal, dann zeigen wir einfach keine Schätzung */ }
+}
 
 document.getElementById('cancel-queue-btn').addEventListener('click', () => {
   socket.emit('leave_queue');

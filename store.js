@@ -13,6 +13,7 @@ const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
 const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
 const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
+const WAIT_TIMES_FILE = path.join(__dirname, 'data', 'wait-times.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -79,6 +80,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(KNOWLEDGE_FILE)) fs.writeFileSync(KNOWLEDGE_FILE, '[]');
   if (!fs.existsSync(REEL_LIKES_FILE)) fs.writeFileSync(REEL_LIKES_FILE, '[]');
   if (!fs.existsSync(REEL_COMMENTS_FILE)) fs.writeFileSync(REEL_COMMENTS_FILE, '[]');
+  if (!fs.existsSync(WAIT_TIMES_FILE)) fs.writeFileSync(WAIT_TIMES_FILE, '[]');
 }
 
 function readUsers() {
@@ -251,7 +253,8 @@ module.exports = {
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
   getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
   getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
-  getUserLevel, USER_LEVELS, getMentorDashboardStats
+  getUserLevel, USER_LEVELS, getMentorDashboardStats,
+  logWaitTime, getEstimatedWaitSeconds
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -942,6 +945,36 @@ function getMentorDashboardStats(email) {
     returningPartners
   };
 }
+
+/* ---------------- Durchschnittliche Wartezeit (Thema 7) ---------------- */
+// Echte, historisch gemessene Wartezeiten — NIE eine Garantie, immer nur eine
+// Schätzung basierend auf den letzten tatsächlichen Matches.
+
+function readWaitTimes() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(WAIT_TIMES_FILE, 'utf-8'));
+}
+
+function logWaitTime(waitedMs) {
+  if (typeof waitedMs !== 'number' || waitedMs < 0) return;
+  const entries = readWaitTimes();
+  entries.push({ waitedMs, loggedAt: Date.now() });
+  // Nur die letzten 500 Einträge behalten — alte Werte sollen die aktuelle
+  // Schätzung nicht verfälschen, wenn sich die Nutzerzahl mal stark ändert.
+  fs.writeFileSync(WAIT_TIMES_FILE, JSON.stringify(entries.slice(-500), null, 2));
+}
+
+// Gibt eine Schätzung in Sekunden zurück, basierend auf den letzten (max. 50)
+// echten Wartezeiten der letzten 24 Stunden. Liefert null, wenn noch zu wenige
+// Daten vorliegen — dann lieber ehrlich nichts anzeigen als eine erfundene Zahl.
+function getEstimatedWaitSeconds() {
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const recent = readWaitTimes().filter(e => e.loggedAt >= oneDayAgo).slice(-50);
+  if (recent.length < 3) return null; // zu wenig Datenbasis für eine seriöse Schätzung
+  const avgMs = recent.reduce((sum, e) => sum + e.waitedMs, 0) / recent.length;
+  return Math.round(avgMs / 1000);
+}
+
 
 
 
