@@ -238,7 +238,8 @@ module.exports = {
   addPinboardPost, getPinboardPosts, getPinboardPost, addPinboardReply,
   deletePinboardPost, setPinboardPostResolved,
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
-  getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel
+  getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
+  getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -819,3 +820,59 @@ function getMentorLevel(email) {
     } : null // bereits auf höchster Stufe
   };
 }
+
+/* ---------------- Neue dynamische Startseite: nur echte Daten, keine erfundenen Zahlen ---------------- */
+
+// Anzahl aufeinanderfolgender Tage (bis heute oder gestern zurückgerechnet), an denen
+// diese Person mindestens einen abgeschlossenen Call hatte. Rein aus echten Match-
+// Zeitstempeln berechnet.
+function getStreakDays(email) {
+  const dates = readMatches()
+    .filter(m => m.hadCall && (m.userAEmail === email || m.userBEmail === email) && m.startedAt)
+    .map(m => m.startedAt.slice(0, 10)); // "YYYY-MM-DD"
+  const uniqueDates = [...new Set(dates)].sort().reverse(); // neueste zuerst
+  if (!uniqueDates.length) return 0;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) return 0; // Streak schon gerissen
+
+  let streak = 1;
+  let cursor = new Date(uniqueDates[0]);
+  for (let i = 1; i < uniqueDates.length; i++) {
+    cursor.setDate(cursor.getDate() - 1);
+    const expected = cursor.toISOString().slice(0, 10);
+    if (uniqueDates[i] === expected) { streak++; } else { break; }
+  }
+  return streak;
+}
+
+// Plattformweit: wie viele abgeschlossene Calls gab es HEUTE (echter Kalendertag)?
+// Für den "Community & Trending"-Bereich — reale Zahl, kein Fake.
+function getTodayCompletedCallStats() {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todaysMatches = readMatches().filter(m => m.hadCall && m.startedAt && m.startedAt.slice(0, 10) === todayStr);
+  const uniquePeople = new Set();
+  todaysMatches.forEach(m => { uniquePeople.add(m.userAEmail); uniquePeople.add(m.userBEmail); });
+  return { completedCallsToday: todaysMatches.length, peopleToday: uniquePeople.size };
+}
+
+// Einfache, ehrliche "Dein nächster Schritt"-Empfehlung — basiert auf echtem Status,
+// keine KI-Fantasie. Reihenfolge = Priorität, erste zutreffende Regel gewinnt.
+function getNextStepRecommendation(email) {
+  const completedCalls = getCompletedCallCount(email);
+  const level = getMentorLevel(email);
+
+  if (completedCalls === 0) {
+    return { text: 'Starte deinen ersten Call — wähle oben ein Thema, das dich gerade beschäftigt.', action: 'match' };
+  }
+  if (level.nextLevel && level.nextLevel.missing.ratings > 0 && level.nextLevel.missing.ratings <= 5) {
+    return { text: `Nur noch ${level.nextLevel.missing.ratings} Bewertungen bis ${level.nextLevel.emoji} ${level.nextLevel.label}!`, action: 'profile' };
+  }
+  if (getReelsFeed(1).length > 0) {
+    return { text: 'Schau dir an, was Mentoren gerade in ihren Reels teilen.', action: 'reels' };
+  }
+  return { text: 'Bereit für den nächsten Call? Wähle ein Thema und leg los.', action: 'match' };
+}
+
+

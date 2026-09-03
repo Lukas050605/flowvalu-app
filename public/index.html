@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FlowValu — Frischer Kopf, wenn dir die Ideen ausgehen</title>
+
+<!-- PWA: macht FlowValu auf Handy und Windows installierbar, mit eigenem Icon -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0b0a12">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlowValu">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -98,6 +108,42 @@
     border-radius:999px; margin-left:8px;
   }
   .own-mentor-badge.active{ display:inline-flex; }
+
+  /* ---- Neue dynamische Startseite ---- */
+  .home-section{ margin-bottom:24px; }
+  .home-section h3{ font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+  .progress-card{
+    background:linear-gradient(135deg, rgba(124,111,240,0.12), rgba(76,141,255,0.12));
+    border:1px solid var(--border-strong); border-radius:14px; padding:18px;
+  }
+  .progress-card .progress-stats{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px; }
+  .progress-card .progress-stat{ font-size:13px; }
+  .progress-card .progress-stat .num{ font-weight:700; font-size:16px; color:var(--accent-2); }
+  .progress-bar-track{ height:8px; background:var(--surface-2); border-radius:999px; overflow:hidden; margin:8px 0 6px; }
+  .progress-bar-fill{ height:100%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius:999px; }
+  .next-step-banner{
+    background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px;
+    padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px;
+  }
+  .home-scroll-row{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
+  .home-reel-card{
+    flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:10px; overflow:hidden; position:relative;
+    background:#000; cursor:pointer;
+  }
+  .home-reel-card video{ width:100%; height:100%; object-fit:cover; }
+  .home-reel-card .home-reel-likes{
+    position:absolute; bottom:6px; left:6px; color:#fff; font-size:10.5px; font-family:'JetBrains Mono', monospace;
+    background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:999px;
+  }
+  .home-mentor-card{
+    flex:0 0 auto; width:120px; text-align:center; background:var(--surface-2); border:1px solid var(--border-strong);
+    border-radius:12px; padding:12px 8px; cursor:pointer;
+  }
+  .home-mentor-card .avatar{ width:44px; height:44px; margin:0 auto 6px; font-size:16px; }
+  .home-mentor-card .mentor-name{ font-size:12px; font-weight:600; }
+  .home-mentor-card .mentor-level{ font-size:10.5px; color:var(--accent-2); margin-top:2px; }
+  .trending-box{ background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; font-size:12.5px; color:var(--muted); }
+  .trending-box .trending-highlight{ color:var(--ink); font-weight:600; }
 
   .chat-log{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:14px; }
   .bubble{ font-size:13.5px; line-height:1.5; padding:9px 12px; border-radius:9px; max-width:82%; }
@@ -533,7 +579,16 @@
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <span class="own-mentor-badge" id="own-mentor-badge">🎓 Mentor-Modus aktiv</span>
-    <h1>Woran <span class="grad">hängst</span> du gerade?</h1>
+    <div id="pwa-install-banner" style="display:none; background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:12px 14px; margin-bottom:16px; align-items:center; justify-content:space-between; gap:10px;">
+      <span style="font-size:13px;">📲 FlowValu als App installieren?</span>
+      <button class="btn-sm" id="pwa-install-btn" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit;">Installieren</button>
+    </div>
+
+    <!-- Dynamische Startseiten-Bereiche: für bestehende Nutzer (Feed/Fortschritt/Mentoren),
+         für neue Nutzer bewusst leer/versteckt (siehe THEMA 47 der Spec) -->
+    <div id="homepage-existing-sections" style="display:none;"></div>
+
+    <h1 id="home-heading">Woran <span class="grad">hängst</span> du gerade?</h1>
     <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
     <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
 
@@ -886,6 +941,38 @@
 <script>
 const socket = io({ autoConnect: false });
 
+/* ---------- PWA: Installierbar machen (Handy + Windows) ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {
+      // Falls die Registrierung fehlschlägt (z.B. älterer Browser), einfach ignorieren —
+      // die App funktioniert auch ohne, nur ohne native Installierbarkeit.
+    });
+  });
+}
+
+let deferredInstallPrompt = null;
+
+// Chrome/Edge (Android + Windows) feuern dieses Event, wenn die Seite installierbar ist.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('pwa-install-banner').style.display = 'flex';
+});
+
+document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById('pwa-install-banner').style.display = 'none';
+});
+
+// Nach erfolgreicher Installation das Banner nicht mehr zeigen
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-install-banner').style.display = 'none';
+});
+
 /* ---------- Auth ---------- */
 let authMode = 'login';
 
@@ -995,6 +1082,118 @@ async function onAuthSuccess(email){
   refreshPointsBadge();
   loadPopularChips();
   refreshOwnMentorBadge();
+  loadDynamicHomepage();
+}
+
+/* ---------- Neue dynamische Startseite ---------- */
+async function loadDynamicHomepage(){
+  const container = document.getElementById('homepage-existing-sections');
+  const heading = document.getElementById('home-heading');
+  try{
+    const res = await fetch('/api/homepage');
+    const data = await res.json();
+
+    if(data.isNewUser){
+      // Neue Nutzer: bewusst fokussiert, kein Feed — direkt zu Thema/Matching (Spec THEMA 47)
+      container.style.display = 'none';
+      heading.innerHTML = 'Woran <span class="grad">hängst</span> du gerade?';
+      return;
+    }
+
+    heading.innerHTML = 'Willkommen zurück — <span class="grad">weiter geht\'s</span>';
+    container.style.display = 'block';
+    container.innerHTML = buildHomepageSections(data);
+    wireHomepageInteractions(data);
+  } catch(e){
+    container.style.display = 'none';
+  }
+}
+
+function buildHomepageSections(data){
+  const lvl = data.mentorLevel;
+  const nextLvl = lvl.nextLevel;
+  const progressPct = nextLvl
+    ? Math.min(100, Math.round((lvl.stats.ratingsCount / Math.max(1, nextLvl.minRatings)) * 100))
+    : 100;
+
+  let html = '';
+
+  // Dein Flowvalu: echter Fortschritt (Flow, Streak, Level)
+  html += '<div class="home-section"><h3>🌊 Dein Flowvalu</h3><div class="progress-card">' +
+    '<div class="progress-stats">' +
+      '<div class="progress-stat">🔥 <span class="num">' + data.streakDays + '</span> Tag(e) aktiv</div>' +
+      '<div class="progress-stat">🌊 <span class="num">' + data.flow.total + '</span> Flow</div>' +
+      '<div class="progress-stat">' + lvl.emoji + ' <span class="num">' + escapeHtml(lvl.label) + '</span></div>' +
+    '</div>' +
+    (nextLvl ? (
+      '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + progressPct + '%;"></div></div>' +
+      '<div style="font-size:11.5px; color:var(--muted);">Noch ' + nextLvl.missing.ratings + ' Bewertungen bis ' + nextLvl.emoji + ' ' + escapeHtml(nextLvl.label) + '</div>'
+    ) : '<div style="font-size:11.5px; color:var(--accent-2);">Höchste Stufe erreicht! 🎉</div>') +
+    '<div style="font-size:11.5px; color:var(--muted); margin-top:8px;">' + data.flow.completedCalls + ' Calls · ' + data.flow.ratingsGiven + ' Bewertungen abgegeben · ' + data.flow.pinboardActivity + ' Pinnwand-Beiträge</div>' +
+  '</div></div>';
+
+  // Dein nächster Schritt: echte, regelbasierte Empfehlung
+  html += '<div class="home-section"><h3>🧭 Dein nächster Schritt</h3><div class="next-step-banner">' +
+    '<span>' + escapeHtml(data.nextStep.text) + '</span>' +
+    '<button class="btn-sm" id="next-step-action-btn" data-action="' + data.nextStep.action + '" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit; white-space:nowrap;">Los geht\'s</button>' +
+  '</div></div>';
+
+  // Für dich: echte Reels aus dem Feed
+  if(data.reelsPreview && data.reelsPreview.length){
+    html += '<div class="home-section"><h3>🎬 Für dich ausgewählt</h3><div class="home-scroll-row" id="home-reels-row">' +
+      data.reelsPreview.map(r =>
+        '<div class="home-reel-card" data-token="' + r.token + '">' +
+          '<video src="/api/reels/' + r.token + '/video" muted playsinline></video>' +
+          '<div class="home-reel-likes">❤️ ' + r.likeCount + '</div>' +
+        '</div>'
+      ).join('') +
+    '</div></div>';
+  }
+
+  // Top Mentoren: echte Level/Bewertungen
+  if(data.topMentors && data.topMentors.length){
+    html += '<div class="home-section"><h3>🏆 Top Mentoren</h3><div class="home-scroll-row" id="home-mentors-row">' +
+      data.topMentors.map(m => {
+        const avatarHtml = m.avatarDataUrl
+          ? '<img class="avatar" src="' + m.avatarDataUrl + '" style="border-radius:50%; object-fit:cover;">'
+          : '<div class="avatar" style="border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">' + escapeHtml(m.displayName[0].toUpperCase()) + '</div>';
+        return '<div class="home-mentor-card" data-email="' + escapeHtml(m.email) + '">' + avatarHtml +
+          '<div class="mentor-name">' + escapeHtml(m.displayName) + '</div>' +
+          '<div class="mentor-level">🎬 ' + m.reelCount + ' Video(s)</div>' +
+        '</div>';
+      }).join('') +
+    '</div></div>';
+  }
+
+  // Community & Trending: nur echte Plattform-Zahlen
+  const trending = data.trending;
+  html += '<div class="home-section"><h3>🌍 Community</h3><div class="trending-box">' +
+    (trending.peopleToday > 0
+      ? '<span class="trending-highlight">' + trending.peopleToday + ' Menschen</span> hatten heute schon einen Call auf FlowValu.'
+      : 'Sei heute die erste Person mit einem Call!') +
+    (trending.popularTopics.length
+      ? '<div style="margin-top:8px;">Gerade beliebt: <span class="trending-highlight">' + trending.popularTopics.slice(0, 4).map(escapeHtml).join(', ') + '</span></div>'
+      : '') +
+  '</div></div>';
+
+  return html;
+}
+
+function wireHomepageInteractions(data){
+  document.getElementById('next-step-action-btn')?.addEventListener('click', (e) => {
+    const action = e.currentTarget.dataset.action;
+    if(action === 'reels') document.getElementById('reels-icon-btn').click();
+    else if(action === 'profile') document.getElementById('edit-profile-link').click();
+    else document.getElementById('hangup').focus();
+  });
+
+  document.querySelectorAll('#home-reels-row .home-reel-card').forEach(card => {
+    card.addEventListener('click', () => document.getElementById('reels-icon-btn').click());
+  });
+
+  document.querySelectorAll('#home-mentors-row .home-mentor-card').forEach(card => {
+    card.addEventListener('click', () => openMentorMiniProfile(card.dataset.email));
+  });
 }
 
 async function refreshOwnMentorBadge(){
@@ -1899,6 +2098,7 @@ async function finishOnboarding(skip){
     refreshPointsBadge();
     loadPopularChips();
     refreshOwnMentorBadge();
+    loadDynamicHomepage();
   } catch(e){
     errEl.textContent = 'Verbindung fehlgeschlagen.';
   }

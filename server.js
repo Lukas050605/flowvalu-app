@@ -261,6 +261,39 @@ app.get('/api/popular-chips', (req, res) => {
   res.json({ chips: store.getPopularCustomChips(6) });
 });
 
+// Bündelt alle Daten für die neue dynamische Startseite in einem Aufruf — je nach
+// Aktivität der Person unterscheidet sich automatisch der Inhalt (neue vs.
+// bestehende Nutzer, siehe THEMA 47 der Spec). Ausschließlich echte Plattform-Daten.
+app.get('/api/homepage', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const email = req.session.user.email;
+
+  const flow = store.getFlowBreakdown(email);
+  const isNewUser = flow.completedCalls === 0;
+
+  const payload = {
+    isNewUser,
+    flow,
+    mentorLevel: getEffectiveMentorLevel(email),
+    streakDays: store.getStreakDays(email),
+    nextStep: store.getNextStepRecommendation(email),
+    trending: {
+      ...store.getTodayCompletedCallStats(),
+      popularTopics: store.getPopularCustomChips(6)
+    }
+  };
+
+  // Feed/Mentoren-Bereiche nur laden, wenn's überhaupt was zu zeigen gibt UND die
+  // Person kein blutiger Neuling mehr ist (Spec: neue Nutzer bekommen einen
+  // fokussierteren Einstieg, weniger Feed-lastig).
+  if (!isNewUser) {
+    payload.reelsPreview = store.getReelsFeed(6, email);
+    payload.topMentors = store.getMentorProfiles().slice(0, 5);
+  }
+
+  res.json(payload);
+});
+
 app.get('/api/profile', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const user = store.findUserByEmail(req.session.user.email);
