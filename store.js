@@ -14,6 +14,7 @@ const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
 const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
 const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
 const WAIT_TIMES_FILE = path.join(__dirname, 'data', 'wait-times.json');
+const FOLLOWS_FILE = path.join(__dirname, 'data', 'follows.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -81,6 +82,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(REEL_LIKES_FILE)) fs.writeFileSync(REEL_LIKES_FILE, '[]');
   if (!fs.existsSync(REEL_COMMENTS_FILE)) fs.writeFileSync(REEL_COMMENTS_FILE, '[]');
   if (!fs.existsSync(WAIT_TIMES_FILE)) fs.writeFileSync(WAIT_TIMES_FILE, '[]');
+  if (!fs.existsSync(FOLLOWS_FILE)) fs.writeFileSync(FOLLOWS_FILE, '[]');
 }
 
 function readUsers() {
@@ -254,7 +256,8 @@ module.exports = {
   getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
   getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
-  logWaitTime, getEstimatedWaitSeconds
+  logWaitTime, getEstimatedWaitSeconds,
+  isFollowing, getFollowerCount, toggleFollow, getFollowedMentors
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -974,6 +977,50 @@ function getEstimatedWaitSeconds() {
   const avgMs = recent.reduce((sum, e) => sum + e.waitedMs, 0) / recent.length;
   return Math.round(avgMs / 1000);
 }
+
+/* ---------------- Mentoren folgen (Thema 33) ---------------- */
+
+function readFollows() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(FOLLOWS_FILE, 'utf-8'));
+}
+
+function writeFollows(follows) {
+  fs.writeFileSync(FOLLOWS_FILE, JSON.stringify(follows, null, 2));
+}
+
+function isFollowing(followerEmail, mentorEmail) {
+  return readFollows().some(f => f.followerEmail === followerEmail && f.mentorEmail === mentorEmail);
+}
+
+function getFollowerCount(mentorEmail) {
+  return readFollows().filter(f => f.mentorEmail === mentorEmail).length;
+}
+
+// Schaltet Folgen/Entfolgen um, gibt den neuen Stand zurück. Man kann sich nicht
+// selbst folgen — ergibt inhaltlich keinen Sinn.
+function toggleFollow(followerEmail, mentorEmail) {
+  if (followerEmail === mentorEmail) return { followed: false, count: getFollowerCount(mentorEmail) };
+  const follows = readFollows();
+  const idx = follows.findIndex(f => f.followerEmail === followerEmail && f.mentorEmail === mentorEmail);
+  if (idx >= 0) {
+    follows.splice(idx, 1);
+    writeFollows(follows);
+    return { followed: false, count: follows.filter(f => f.mentorEmail === mentorEmail).length };
+  }
+  follows.push({ followerEmail, mentorEmail, createdAt: Date.now() });
+  writeFollows(follows);
+  return { followed: true, count: follows.filter(f => f.mentorEmail === mentorEmail).length };
+}
+
+// Alle Mentoren, denen diese Person folgt, mit Anzeige-Infos angereichert —
+// für den "Deine Mentoren"-Bereich (Thema 43) auf der Startseite.
+function getFollowedMentors(followerEmail) {
+  return readFollows()
+    .filter(f => f.followerEmail === followerEmail)
+    .map(f => ({ email: f.mentorEmail, display: getPublicProfile(f.mentorEmail) }));
+}
+
 
 
 

@@ -308,6 +308,14 @@ app.get('/api/homepage', (req, res) => {
     payload.topMentors = store.getMentorProfiles().slice(0, 5);
   }
 
+  // "Deine Mentoren" (Thema 43) — echter Online-Status über userSockets, keine
+  // erfundene Verfügbarkeit. Wird IMMER geladen (auch für neue Nutzer), da man ja
+  // schon vor dem ersten eigenen Call jemandem folgen können soll.
+  payload.followedMentors = store.getFollowedMentors(email).map(m => ({
+    ...m,
+    isOnline: !!userSockets[m.email]
+  }));
+
   res.json(payload);
 });
 
@@ -426,7 +434,17 @@ app.get('/api/mentors/:email/profile', (req, res) => {
   const display = store.getPublicProfile(email);
   const level = getEffectiveMentorLevel(email);
   const reels = store.getUserReels(email);
-  res.json({ email, display, level, reels });
+  const isFollowing = store.isFollowing(req.session.user.email, email);
+  const followerCount = store.getFollowerCount(email);
+  res.json({ email, display, level, reels, isFollowing, followerCount });
+});
+
+// Folgen/Entfolgen umschalten (Thema 33).
+app.post('/api/mentors/:email/follow', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const email = req.params.email.toLowerCase();
+  const result = store.toggleFollow(req.session.user.email, email);
+  res.json({ ok: true, ...result });
 });
 
 // Like togglen (an/aus) — wie bei Instagram: nochmal klicken entliked wieder.

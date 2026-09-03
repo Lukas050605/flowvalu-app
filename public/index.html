@@ -1165,6 +1165,22 @@ function buildHomepageSections(data){
     '</div></div>';
   }
 
+  // Deine Mentoren: echter Online-Status, kein Fake (Thema 43)
+  if(data.followedMentors && data.followedMentors.length){
+    html += '<div class="home-section"><h3>🤝 Deine Mentoren</h3><div class="home-scroll-row" id="home-followed-row">' +
+      data.followedMentors.map(m => {
+        const d = m.display;
+        const avatarHtml = d.avatarDataUrl
+          ? '<img class="avatar" src="' + d.avatarDataUrl + '" style="border-radius:50%; object-fit:cover;">'
+          : '<div class="avatar" style="border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">' + escapeHtml(d.displayName[0].toUpperCase()) + '</div>';
+        return '<div class="home-mentor-card" data-email="' + escapeHtml(m.email) + '">' + avatarHtml +
+          '<div class="mentor-name">' + (m.isOnline ? '🟢 ' : '⚫ ') + escapeHtml(d.displayName) + '</div>' +
+          '<div class="mentor-level">' + (m.isOnline ? 'Gerade verfügbar' : 'Gerade nicht da') + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div></div>';
+  }
+
   // Top Mentoren: echte Level/Bewertungen
   if(data.topMentors && data.topMentors.length){
     html += '<div class="home-section"><h3>🏆 Top Mentoren</h3><div class="home-scroll-row" id="home-mentors-row">' +
@@ -1207,6 +1223,10 @@ function wireHomepageInteractions(data){
   });
 
   document.querySelectorAll('#home-mentors-row .home-mentor-card').forEach(card => {
+    card.addEventListener('click', () => openMentorMiniProfile(card.dataset.email));
+  });
+
+  document.querySelectorAll('#home-followed-row .home-mentor-card').forEach(card => {
     card.addEventListener('click', () => openMentorMiniProfile(card.dataset.email));
   });
 }
@@ -1680,6 +1700,8 @@ async function openMentorMiniProfile(email){
       ? '⭐ ' + d.rating.avgBeliebtheit + ' · 💡 ' + d.rating.avgKreativitaet + ' (' + d.rating.count + ' Bewertungen)'
       : 'Noch keine Bewertungen';
 
+    const isOwnProfile = email === myEmail;
+
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:95; display:flex; align-items:center; justify-content:center; padding:20px;';
     modal.innerHTML =
@@ -1692,12 +1714,31 @@ async function openMentorMiniProfile(email){
           '</div>' +
         '</div>' +
         (d.bio ? '<p style="font-size:13.5px; color:var(--muted); margin-bottom:10px;">' + escapeHtml(d.bio) + '</p>' : '') +
-        '<p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">' + ratingText + ' · 🎬 ' + data.reels.length + ' Video(s)</p>' +
+        '<p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">' + ratingText + ' · 🎬 ' + data.reels.length + ' Video(s) · <span id="mentor-mini-follower-count">' + data.followerCount + '</span> Follower</p>' +
+        (isOwnProfile ? '' :
+          '<button class="btn" id="mentor-mini-follow-btn" data-following="' + data.isFollowing + '" style="margin-bottom:10px; ' +
+            (data.isFollowing ? 'background:var(--surface-2); color:var(--muted);' : '') + '">' +
+            (data.isFollowing ? '✓ Gefolgt' : '+ Folgen') +
+          '</button>'
+        ) +
         '<button class="btn btn-ghost" id="mentor-mini-close-btn">Schließen</button>' +
       '</div>';
     modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
     modal.querySelector('#mentor-mini-close-btn').addEventListener('click', () => modal.remove());
+
+    const followBtn = modal.querySelector('#mentor-mini-follow-btn');
+    if(followBtn){
+      followBtn.addEventListener('click', async () => {
+        const res2 = await fetch('/api/mentors/' + encodeURIComponent(email) + '/follow', { method: 'POST' });
+        const result = await res2.json();
+        followBtn.dataset.following = result.followed;
+        followBtn.textContent = result.followed ? '✓ Gefolgt' : '+ Folgen';
+        followBtn.style.background = result.followed ? 'var(--surface-2)' : '';
+        followBtn.style.color = result.followed ? 'var(--muted)' : '';
+        modal.querySelector('#mentor-mini-follower-count').textContent = result.count;
+      });
+    }
   } catch(e){ /* egal, dann öffnet sich halt nichts */ }
 }
 
