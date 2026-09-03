@@ -570,6 +570,7 @@
     <div class="top-links">
       <span id="edit-profile-link">👤 Profil</span>
       <span id="history-link">🕓 Verlauf</span>
+      <span id="dashboard-link">📊 Dein Flowvalu</span>
       <span id="points-badge" title="Beliebtheit + Kreativität aus Bewertungen anderer">⭐ …</span>
       <span id="logout-link">Ausloggen</span>
     </div>
@@ -700,6 +701,14 @@
     <div class="history-list" id="history-list"></div>
     <div class="empty-history" id="empty-history" style="display:none;">Noch keine Matches — leg direkt los!</div>
     <button class="btn btn-ghost" id="back-from-history-btn">Zurück</button>
+  </section>
+
+  <!-- DASHBOARD: "Dein Flowvalu" — alle echten Kennzahlen an einer Stelle -->
+  <section class="screen" id="screen-dashboard">
+    <p class="eyebrow">Dein Flowvalu</p>
+    <h2 id="dashboard-heading">Deine Statistik</h2>
+    <div id="dashboard-content" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0;"></div>
+    <button class="btn btn-ghost" id="back-from-dashboard-btn">Zurück</button>
   </section>
 
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
@@ -907,27 +916,6 @@
     <div class="rating-actions">
       <button class="btn" id="rating-skip-btn" style="background:var(--surface-2); color:var(--muted);">Überspringen</button>
       <button class="btn" id="rating-submit-btn">Bewertung abschicken</button>
-    </div>
-  </div>
-</div>
-
-<!-- POST-CALL: für normale Calls OHNE aktiven Mentor-Modus (Thema 29) —
-     Feedback statt Sterne-Bewertung, plus sinnvolle nächste Schritte -->
-<div class="rating-overlay" id="post-call-overlay">
-  <div class="rating-box">
-    <h3>Wie hat dir der Call mit <span id="post-call-partner-name">deinem Partner</span> geholfen?</h3>
-    <p class="sub">Kein Mentor-Call — hier zählt einfach dein ehrliches Feedback.</p>
-
-    <div style="display:flex; gap:10px; margin:16px 0; flex-wrap:wrap;">
-      <button class="btn-sm post-call-feedback-btn" data-value="sehr" style="background:var(--surface-2); flex:1; padding:12px;">😄 Sehr geholfen</button>
-      <button class="btn-sm post-call-feedback-btn" data-value="okay" style="background:var(--surface-2); flex:1; padding:12px;">🙂 Ging so</button>
-      <button class="btn-sm post-call-feedback-btn" data-value="nicht" style="background:var(--surface-2); flex:1; padding:12px;">😕 Nicht wirklich</button>
-    </div>
-
-    <p class="sub" style="margin-top:18px;">Wie geht's weiter?</p>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <button class="btn" id="post-call-reconnect-btn" style="background:var(--surface-2);">🔁 Nochmal mit <span id="post-call-partner-name-2">dieser Person</span> sprechen</button>
-      <button class="btn" id="post-call-new-topic-btn">🔍 Neues Thema, neue Person finden</button>
     </div>
   </div>
 </div>
@@ -1438,6 +1426,41 @@ document.getElementById('history-link').addEventListener('click', async () => {
 });
 
 document.getElementById('back-from-history-btn').addEventListener('click', () => show('screen-profile'));
+
+/* ---------- Dashboard: "Dein Flowvalu" ---------- */
+document.getElementById('dashboard-link').addEventListener('click', async () => {
+  show('screen-dashboard');
+  const container = document.getElementById('dashboard-content');
+  container.innerHTML = 'Lädt …';
+  try{
+    const res = await fetch('/api/mentor-dashboard');
+    const d = await res.json();
+
+    document.getElementById('dashboard-heading').textContent = d.level.emoji + ' ' + d.level.label;
+
+    const tile = (label, value) =>
+      '<div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px;">' +
+        '<div style="font-size:20px; font-weight:700; color:var(--accent-2);">' + value + '</div>' +
+        '<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">' + label + '</div>' +
+      '</div>';
+
+    container.innerHTML =
+      tile('⭐ Ø Beliebtheit', d.rating.avgBeliebtheit ?? '—') +
+      tile('💡 Ø Kreativität', d.rating.avgKreativitaet ?? '—') +
+      tile('📞 Abgeschlossene Calls', d.completedCalls) +
+      tile('🔥 Tage aktiv (Serie)', d.streakDays) +
+      tile('🎬 Reels hochgeladen', d.reelCount) +
+      tile('❤️ Likes auf Reels', d.totalReelLikes) +
+      tile('💬 Kommentare auf Reels', d.totalReelComments) +
+      tile('🔁 Stammkunden', d.returningPartners) +
+      tile('🌊 Flow gesamt', d.flow) +
+      tile('📝 Bewertungen erhalten', d.rating.count);
+  } catch(e){
+    container.innerHTML = 'Konnte nicht geladen werden.';
+  }
+});
+
+document.getElementById('back-from-dashboard-btn').addEventListener('click', () => show('screen-profile'));
 
 /* ---------- Mentor-Reels: Vollbild-Scroll wie bei Instagram Reels ---------- */
 let selectedReelFile = null;
@@ -1957,7 +1980,6 @@ socket.on('invite_declined', () => {
 let selectedChips = [];
 let matchMode = 'zufall';
 let currentRoom = null;
-let currentPartnerWasMentor = false;
 
 function show(id){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2218,7 +2240,6 @@ socket.on('matched', (data) => {
   currentRoom = data.roomId;
   const p = data.partnerProfile || {};
   const display = data.partnerDisplay || {};
-  currentPartnerWasMentor = !!p.mentorMode; // für den Nach-Call-Ablauf: Sterne nur bei echtem Mentor
   const avatarInner = document.getElementById('partner-avatar-inner');
   if(display.avatarDataUrl){
     avatarInner.innerHTML = '<img src="' + display.avatarDataUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
@@ -2869,53 +2890,7 @@ socket.on('call_summary_ready', (data) => {
   a.click();
   a.remove();
 
-  // Sterne-Bewertung nur, wenn der Partner in DIESEM Call wirklich im aktiven
-  // Mentor-Modus war (Thema 29) — sonst der einfachere Feedback-Bildschirm.
-  if(currentPartnerWasMentor){
-    openRatingOverlay(data.roomId);
-  } else {
-    openPostCallOverlay(data.roomId);
-  }
-});
-
-/* ---------- Post-Call-Feedback für normale (Nicht-Mentor-)Calls ---------- */
-function openPostCallOverlay(roomId){
-  const partnerName = document.getElementById('partner-hangup').textContent.split(' — ')[0] || 'deinem Partner';
-  document.getElementById('post-call-partner-name').textContent = partnerName;
-  document.getElementById('post-call-partner-name-2').textContent = partnerName;
-  document.getElementById('post-call-overlay').classList.add('active');
-
-  document.querySelectorAll('.post-call-feedback-btn').forEach(btn => {
-    btn.onclick = () => {
-      socket.emit('submit_call_feedback', { roomId, helpfulness: btn.dataset.value });
-      document.querySelectorAll('.post-call-feedback-btn').forEach(b => b.style.opacity = '0.4');
-      btn.style.opacity = '1';
-      btn.style.outline = '2px solid var(--accent-2)';
-    };
-  });
-
-  document.getElementById('post-call-reconnect-btn').onclick = () => {
-    socket.emit('invite_partner_by_room', { roomId });
-    document.getElementById('post-call-overlay').classList.remove('active');
-    show('screen-profile');
-  };
-
-  document.getElementById('post-call-new-topic-btn').onclick = () => {
-    document.getElementById('post-call-overlay').classList.remove('active');
-    show('screen-profile');
-    document.getElementById('hangup').focus();
-  };
-}
-
-// Fallback: falls die PDF-Zusammenfassung fehlschlägt (z.B. fehlender API-Key auf
-// dem Server), soll der Nach-Call-Bildschirm trotzdem erscheinen — "Nach jedem
-// Call" (Thema 29) soll IMMER greifen, unabhängig von der Zusammenfassung.
-socket.on('call_ended_no_summary', (data) => {
-  if(currentPartnerWasMentor){
-    openRatingOverlay(data.roomId);
-  } else {
-    openPostCallOverlay(data.roomId);
-  }
+  openRatingOverlay(data.roomId);
 });
 
 /* ---------- Bewertung (Beliebtheit + Kreativität) ---------- */

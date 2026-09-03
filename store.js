@@ -13,7 +13,6 @@ const PINBOARD_FILE = path.join(__dirname, 'data', 'pinboard.json');
 const KNOWLEDGE_FILE = path.join(__dirname, 'data', 'valu-knowledge.json');
 const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
 const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
-const CALL_FEEDBACK_FILE = path.join(__dirname, 'data', 'call-feedback.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -80,7 +79,6 @@ function ensureDataFiles() {
   if (!fs.existsSync(KNOWLEDGE_FILE)) fs.writeFileSync(KNOWLEDGE_FILE, '[]');
   if (!fs.existsSync(REEL_LIKES_FILE)) fs.writeFileSync(REEL_LIKES_FILE, '[]');
   if (!fs.existsSync(REEL_COMMENTS_FILE)) fs.writeFileSync(REEL_COMMENTS_FILE, '[]');
-  if (!fs.existsSync(CALL_FEEDBACK_FILE)) fs.writeFileSync(CALL_FEEDBACK_FILE, '[]');
 }
 
 function readUsers() {
@@ -253,7 +251,7 @@ module.exports = {
   addKnowledgeEntry, getKnowledgeSnippets, getKnowledgeStats,
   getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
   getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
-  getUserLevel, USER_LEVELS, addCallFeedback
+  getUserLevel, USER_LEVELS, getMentorDashboardStats
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -907,19 +905,42 @@ function getUserLevel(email) {
   };
 }
 
-/* ---------------- Einfaches Call-Feedback (normale Calls ohne Mentor) ---------------- */
-// Thema 29: "Wie hat dir der Call geholfen?" — kein Sterne-Rating, nur eine
-// ehrliche Einschätzung. Wird u.a. fürs "Wie hilfreich war FlowValu"-Tracking
-// gesammelt, ohne einzelne Personen wie eine Mentor-Bewertung zu bepunkten.
-function addCallFeedback(roomId, raterEmail, helpfulness) {
-  const VALID = ['sehr', 'okay', 'nicht'];
-  if (!VALID.includes(helpfulness)) return false;
-  const fs2 = require('fs');
-  ensureDataFiles();
-  const entries = JSON.parse(fs2.readFileSync(CALL_FEEDBACK_FILE, 'utf-8'));
-  entries.push({ roomId, raterEmail, helpfulness, createdAt: Date.now() });
-  fs2.writeFileSync(CALL_FEEDBACK_FILE, JSON.stringify(entries.slice(-5000), null, 2));
-  return true;
+/* ---------------- "Dein Flowvalu" Mentor-Dashboard (Thema 16) ---------------- */
+// Bündelt alle bereits vorhandenen, ECHTEN Kennzahlen an einer Stelle. Bewusst OHNE
+// Einnahmen/Umsatz — das Monetarisierungs-System existiert noch nicht, da werden
+// keine erfundenen Euro-Beträge angezeigt.
+function getMentorDashboardStats(email) {
+  const rating = getUserRatingSummary(email);
+  const level = getMentorLevel(email);
+  const flow = getFlowBreakdown(email);
+  const streak = getStreakDays(email);
+
+  const ownReels = readReels().filter(r => r.uploaderEmail === email);
+  const totalReelLikes = ownReels.reduce((sum, r) => sum + getReelLikeCount(r.token), 0);
+  const totalReelComments = ownReels.reduce((sum, r) => sum + getReelComments(r.token).length, 0);
+
+  // Stammkunden: wie viele UNTERSCHIEDLICHE Personen haben schon MEHR ALS EINMAL
+  // mit dieser Person telefoniert? (Thema 18 als kleiner Baustein mit eingebaut,
+  // weil die Dashboard-Statistik dafür eh schon die Match-Historie durchgeht.)
+  const myMatches = readMatches().filter(m => m.hadCall && (m.userAEmail === email || m.userBEmail === email));
+  const partnerCounts = {};
+  myMatches.forEach(m => {
+    const partner = m.userAEmail === email ? m.userBEmail : m.userAEmail;
+    partnerCounts[partner] = (partnerCounts[partner] || 0) + 1;
+  });
+  const returningPartners = Object.values(partnerCounts).filter(c => c > 1).length;
+
+  return {
+    rating,
+    level,
+    flow: flow.total,
+    streakDays: streak,
+    completedCalls: flow.completedCalls,
+    reelCount: ownReels.length,
+    totalReelLikes,
+    totalReelComments,
+    returningPartners
+  };
 }
 
 
