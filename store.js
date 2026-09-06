@@ -15,6 +15,7 @@ const REEL_LIKES_FILE = path.join(__dirname, 'data', 'reel-likes.json');
 const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
 const WAIT_TIMES_FILE = path.join(__dirname, 'data', 'wait-times.json');
 const FOLLOWS_FILE = path.join(__dirname, 'data', 'follows.json');
+const FLOW_REDEMPTIONS_FILE = path.join(__dirname, 'data', 'flow-redemptions.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -39,6 +40,18 @@ const FLOW_PER_RATING_GIVEN = 2;
 const FLOW_PER_PINBOARD_ACTIVITY = 1;
 const FLOW_BONUS_EVERY_N_CALLS = 10; // "seltener Aktivitäts-Impuls" alle 10 Calls
 const FLOW_BONUS_AMOUNT = 20;
+
+// Reward-Katalog fürs Einlösen von Flow (Thema 30/31) — technisch flexibel
+// vorbereitet, da laut Spec noch offen ist, was Mentoren später alles einlösen
+// können sollen.
+const FLOW_REWARDS = [
+  {
+    key: 'priority_match',
+    label: '⚡ Prioritäts-Matching',
+    cost: 20,
+    description: 'Wirst bevorzugt gematcht, statt hinten in der Warteschlange zu landen.'
+  }
+];
 
 /* ---------------- Mentor-Level-System (5 Stufen) ---------------- */
 // Basiert auf ECHTEN, bereits getrackten Signalen: Gesamt-Bewertungen (alle Zeit),
@@ -83,6 +96,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(REEL_COMMENTS_FILE)) fs.writeFileSync(REEL_COMMENTS_FILE, '[]');
   if (!fs.existsSync(WAIT_TIMES_FILE)) fs.writeFileSync(WAIT_TIMES_FILE, '[]');
   if (!fs.existsSync(FOLLOWS_FILE)) fs.writeFileSync(FOLLOWS_FILE, '[]');
+  if (!fs.existsSync(FLOW_REDEMPTIONS_FILE)) fs.writeFileSync(FLOW_REDEMPTIONS_FILE, '[]');
 }
 
 function readUsers() {
@@ -258,7 +272,8 @@ module.exports = {
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
   logWaitTime, getEstimatedWaitSeconds,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
-  searchMentors, getAllMentorTopics
+  searchMentors, getAllMentorTopics,
+  FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -785,6 +800,48 @@ function getFlowBreakdown(email) {
     completedCalls, ratingsGiven, pinboardActivity, bonusCount,
     breakdown: { fromCalls, fromRatingsGiven, fromPinboard, fromBonuses }
   };
+}
+
+/* ---------------- Flow als Plattform-Währung (Thema 30/31) ---------------- */
+// WICHTIG laut Spec: Flow ist KEINE direkte Geldwährung, und wofür man später
+// alles einlösen kann ist "noch offen" — deshalb bewusst als Katalog gebaut
+// (earn -> balance -> redeem), damit sich später leicht weitere Rewards ergänzen
+// lassen, ohne die Grundmechanik nochmal anfassen zu müssen.
+
+function readFlowRedemptions() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(FLOW_REDEMPTIONS_FILE, 'utf-8'));
+}
+
+function writeFlowRedemptions(entries) {
+  fs.writeFileSync(FLOW_REDEMPTIONS_FILE, JSON.stringify(entries, null, 2));
+}
+
+function getFlowSpentTotal(email) {
+  return readFlowRedemptions().filter(r => r.email === email).reduce((sum, r) => sum + r.cost, 0);
+}
+
+// Das AUSGEBBARE Guthaben — sinkt, wenn man was einlöst. Das Nutzer-LEVEL bleibt
+// davon bewusst unberührt (basiert weiterhin auf getFlowBreakdown = insgesamt
+// jemals verdientes Flow), damit Ausgeben das eigene Level nicht wieder runterzieht.
+function getFlowSpendableBalance(email) {
+  return getFlowBreakdown(email).total - getFlowSpentTotal(email);
+}
+
+// Löst einen Reward aus dem Katalog ein, falls genug Guthaben vorhanden ist.
+function redeemFlowReward(email, rewardKey) {
+  const reward = FLOW_REWARDS.find(r => r.key === rewardKey);
+  if (!reward) return { success: false, error: 'Unbekannter Reward.' };
+
+  const balance = getFlowSpendableBalance(email);
+  if (balance < reward.cost) {
+    return { success: false, error: `Nicht genug Flow (du hast ${balance}, brauchst ${reward.cost}).` };
+  }
+
+  const entries = readFlowRedemptions();
+  entries.push({ email, rewardKey, cost: reward.cost, createdAt: Date.now() });
+  writeFlowRedemptions(entries);
+  return { success: true, newBalance: getFlowSpendableBalance(email) };
 }
 
 /* ---------------- Reel-Likes (Basis fürs Mentor-Level-System) ---------------- */

@@ -269,6 +269,24 @@ app.get('/api/popular-chips', (req, res) => {
 // Geschätzte durchschnittliche Wartezeit (Thema 7) — immer nur eine Schätzung,
 // nie eine Garantie. Gibt hasEnoughData:false zurück, wenn noch zu wenig
 // historische Daten vorliegen, statt eine erfundene Zahl zu zeigen.
+// Flow-Reward-Katalog + eigenes Guthaben (Thema 30/31).
+app.get('/api/flow-rewards', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({
+    rewards: store.FLOW_REWARDS,
+    balance: store.getFlowSpendableBalance(req.session.user.email)
+  });
+});
+
+// Reward einlösen — Prüfung passiert komplett serverseitig, niemals nur im Frontend.
+app.post('/api/flow-rewards/redeem', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { rewardKey } = req.body || {};
+  const result = store.redeemFlowReward(req.session.user.email, rewardKey);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.json({ ok: true, newBalance: result.newBalance });
+});
+
 app.get('/api/wait-time-estimate', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const seconds = store.getEstimatedWaitSeconds();
@@ -1362,8 +1380,23 @@ io.on('connection', (socket) => {
         });
       }
     } else {
-      waiting.push({ socketId: socket.id, profile, email: socket.data.email, joinedAt: Date.now() });
-      socket.emit('waiting', { position: waiting.length });
+      // Prioritäts-Matching (Thema 30): mit Flow bezahlt, landet man VORNE in der
+      // Warteschlange statt hinten — Prüfung + Abbuchung passiert HIER serverseitig,
+      // nie nur im Frontend versteckt.
+      let usedPriority = false;
+      if (profile.usePriorityMatch) {
+        const result = store.redeemFlowReward(socket.data.email, 'priority_match');
+        if (result.success) {
+          usedPriority = true;
+          socket.emit('priority_match_result', { ok: true, newBalance: result.newBalance });
+        } else {
+          socket.emit('priority_match_result', { ok: false, error: result.error });
+        }
+      }
+
+      const entry = { socketId: socket.id, profile, email: socket.data.email, joinedAt: Date.now() };
+      if (usedPriority) { waiting.unshift(entry); } else { waiting.push(entry); }
+      socket.emit('waiting', { position: usedPriority ? 1 : waiting.length });
     }
   }
 

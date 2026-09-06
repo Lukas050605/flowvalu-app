@@ -631,6 +631,11 @@
       <button data-mode="thema">Nach Thema</button>
     </div>
 
+    <div id="priority-match-row" style="display:none; align-items:center; gap:8px; margin-bottom:14px; font-size:12.5px; color:var(--muted);">
+      <input type="checkbox" id="priority-match-checkbox" style="width:auto;">
+      <label for="priority-match-checkbox" style="margin:0;">⚡ Prioritäts-Matching nutzen (<span id="priority-match-cost">20</span> Flow, du hast <span id="priority-match-balance">0</span>)</label>
+    </div>
+
     <button class="btn" id="start-btn">Los geht's →</button>
     <p class="fineprint" style="margin-top:22px; text-align:center;"><a href="/impressum.html" target="_blank" style="color:var(--muted);">Impressum</a> · <a href="/datenschutz.html" target="_blank" style="color:var(--muted);">Datenschutz</a></p>
   </section>
@@ -1130,6 +1135,7 @@ async function onAuthSuccess(email){
   loadPopularChips();
   refreshOwnMentorBadge();
   loadDynamicHomepage();
+  loadFlowRewardsStatus();
 }
 
 /* ---------- Neue dynamische Startseite ---------- */
@@ -2393,10 +2399,34 @@ document.querySelectorAll('.segmented button').forEach(btn => {
 document.getElementById('start-btn').addEventListener('click', () => {
   const hangup = document.getElementById('hangup').value.trim() || 'Kein Kommentar, einfach nur festgefahren.';
   const topic = selectedChips[0] || null;
+  const usePriorityMatch = document.getElementById('priority-match-checkbox').checked;
   show('screen-queue');
   document.getElementById('queue-status').textContent = 'Suche Partner …';
-  socket.emit('join_queue', { hangup, topic, mode: matchMode });
+  socket.emit('join_queue', { hangup, topic, mode: matchMode, usePriorityMatch });
   loadWaitTimeEstimate();
+});
+
+// Zeigt die Prioritäts-Option nur an, wenn überhaupt genug Guthaben da ist —
+// sonst würde man nur eine Checkbox sehen, die man eh nicht nutzen kann.
+async function loadFlowRewardsStatus(){
+  try{
+    const res = await fetch('/api/flow-rewards');
+    const data = await res.json();
+    const reward = data.rewards.find(r => r.key === 'priority_match');
+    if(!reward) return;
+    document.getElementById('priority-match-cost').textContent = reward.cost;
+    document.getElementById('priority-match-balance').textContent = data.balance;
+    const row = document.getElementById('priority-match-row');
+    row.style.display = data.balance >= reward.cost ? 'flex' : 'none';
+    if(data.balance < reward.cost) document.getElementById('priority-match-checkbox').checked = false;
+  } catch(e){ /* egal, Option bleibt einfach versteckt */ }
+}
+
+socket.on('priority_match_result', (data) => {
+  if(!data.ok){
+    document.getElementById('queue-status').textContent = '⚠️ ' + data.error;
+  }
+  loadFlowRewardsStatus(); // Guthaben-Anzeige aktualisieren, egal ob Erfolg oder nicht
 });
 
 async function loadWaitTimeEstimate(){
