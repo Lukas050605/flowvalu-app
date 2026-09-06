@@ -270,6 +270,42 @@ app.get('/api/popular-chips', (req, res) => {
 // nie eine Garantie. Gibt hasEnoughData:false zurück, wenn noch zu wenig
 // historische Daten vorliegen, statt eine erfundene Zahl zu zeigen.
 // Flow-Reward-Katalog + eigenes Guthaben (Thema 30/31).
+// Nutzer-Ziele & persönlicher Weg (Thema 27) — alles serverseitig geprüft.
+app.get('/api/goal', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ path: store.getGoalPath(req.session.user.email) });
+});
+
+app.post('/api/goal', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { text } = req.body || {};
+  const goal = store.setUserGoal(req.session.user.email, text);
+  if (!goal) return res.status(400).json({ error: 'Ziel darf nicht leer sein.' });
+  res.json({ ok: true, path: store.getGoalPath(req.session.user.email) });
+});
+
+app.post('/api/goal/tasks', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { text } = req.body || {};
+  const success = store.addGoalTask(req.session.user.email, text);
+  if (!success) return res.status(400).json({ error: 'Aufgabe konnte nicht hinzugefügt werden.' });
+  res.json({ ok: true, path: store.getGoalPath(req.session.user.email) });
+});
+
+app.post('/api/goal/tasks/:taskId/toggle', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const success = store.toggleGoalTask(req.session.user.email, req.params.taskId);
+  if (!success) return res.status(404).json({ error: 'Aufgabe nicht gefunden.' });
+  res.json({ ok: true, path: store.getGoalPath(req.session.user.email) });
+});
+
+app.post('/api/goal/achieve', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const success = store.markGoalAchieved(req.session.user.email);
+  if (!success) return res.status(404).json({ error: 'Kein aktives Ziel gefunden.' });
+  res.json({ ok: true });
+});
+
 app.get('/api/flow-rewards', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json({

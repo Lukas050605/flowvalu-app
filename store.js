@@ -16,6 +16,7 @@ const REEL_COMMENTS_FILE = path.join(__dirname, 'data', 'reel-comments.json');
 const WAIT_TIMES_FILE = path.join(__dirname, 'data', 'wait-times.json');
 const FOLLOWS_FILE = path.join(__dirname, 'data', 'follows.json');
 const FLOW_REDEMPTIONS_FILE = path.join(__dirname, 'data', 'flow-redemptions.json');
+const USER_GOALS_FILE = path.join(__dirname, 'data', 'user-goals.json');
 
 // Mentor-Stufen: zählt NUR Bewertungen aus dem AKTUELLEN Kalendermonat (setzt sich also
 // automatisch jeden Monat zurück, ohne dass irgendwas manuell "resettet" werden muss).
@@ -97,6 +98,7 @@ function ensureDataFiles() {
   if (!fs.existsSync(WAIT_TIMES_FILE)) fs.writeFileSync(WAIT_TIMES_FILE, '[]');
   if (!fs.existsSync(FOLLOWS_FILE)) fs.writeFileSync(FOLLOWS_FILE, '[]');
   if (!fs.existsSync(FLOW_REDEMPTIONS_FILE)) fs.writeFileSync(FLOW_REDEMPTIONS_FILE, '[]');
+  if (!fs.existsSync(USER_GOALS_FILE)) fs.writeFileSync(USER_GOALS_FILE, '[]');
 }
 
 function readUsers() {
@@ -273,7 +275,8 @@ module.exports = {
   logWaitTime, getEstimatedWaitSeconds,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
   searchMentors, getAllMentorTopics,
-  FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward
+  FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
+  setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -843,6 +846,104 @@ function redeemFlowReward(email, rewardKey) {
   writeFlowRedemptions(entries);
   return { success: true, newBalance: getFlowSpendableBalance(email) };
 }
+
+/* ---------------- Nutzer-Ziele & persönlicher Weg (Thema 27) ---------------- */
+// Der Fortschritt ist zu jedem Zeitpunkt aus ECHTEN Daten berechnet (Calls seit
+// Zielsetzung, selbst abgehakte Aufgabe, selbst markiertes Erreichen) — nichts
+// wird automatisch als "erledigt" simuliert. "Kurs anschauen" bleibt bewusst
+// gesperrt (🔒), weil es noch keine Kurse auf der Plattform gibt.
+
+function readUserGoals() {
+  ensureDataFiles();
+  return JSON.parse(fs.readFileSync(USER_GOALS_FILE, 'utf-8'));
+}
+
+function writeUserGoals(goals) {
+  fs.writeFileSync(USER_GOALS_FILE, JSON.stringify(goals, null, 2));
+}
+
+// Setzt ein NEUES aktives Ziel — ein vorheriges aktives Ziel wird dabei automatisch
+// beendet (nur ein aktives Ziel gleichzeitig, wie in der Spec als "ein Weg" gedacht).
+function setUserGoal(email, goalText) {
+  const trimmed = String(goalText || '').trim();
+  if (!trimmed) return null;
+  const goals = readUserGoals();
+  goals.forEach(g => { if (g.email === email && g.active) g.active = false; });
+  const goal = {
+    id: require('crypto').randomUUID(),
+    email,
+    text: trimmed.slice(0, 200),
+    active: true,
+    tasks: [], // { id, text, done }
+    achievedAt: null,
+    createdAt: Date.now()
+  };
+  goals.push(goal);
+  writeUserGoals(goals);
+  return goal;
+}
+
+function getActiveGoal(email) {
+  return readUserGoals().find(g => g.email === email && g.active) || null;
+}
+
+function addGoalTask(email, taskText) {
+  const trimmed = String(taskText || '').trim();
+  if (!trimmed) return false;
+  const goals = readUserGoals();
+  const goal = goals.find(g => g.email === email && g.active);
+  if (!goal) return false;
+  goal.tasks.push({ id: require('crypto').randomUUID(), text: trimmed.slice(0, 150), done: false });
+  writeUserGoals(goals);
+  return true;
+}
+
+function toggleGoalTask(email, taskId) {
+  const goals = readUserGoals();
+  const goal = goals.find(g => g.email === email && g.active);
+  if (!goal) return false;
+  const task = goal.tasks.find(t => t.id === taskId);
+  if (!task) return false;
+  task.done = !task.done;
+  writeUserGoals(goals);
+  return true;
+}
+
+function markGoalAchieved(email) {
+  const goals = readUserGoals();
+  const goal = goals.find(g => g.email === email && g.active);
+  if (!goal) return false;
+  goal.achievedAt = Date.now();
+  goal.active = false;
+  writeUserGoals(goals);
+  return true;
+}
+
+// Baut den kompletten "Weg" mit dem WIRKLICHEN Fortschritt jedes Schritts auf.
+function getGoalPath(email) {
+  const goal = getActiveGoal(email);
+  if (!goal) return null;
+
+  // Echte Calls SEIT Zielsetzung zählen — nicht die gesamte Historie, sonst wäre
+  // Schritt 1 sofort "erledigt", auch wenn der Call Monate vor dem Ziel war.
+  const callsSinceGoal = readMatches().filter(m =>
+    m.hadCall && (m.userAEmail === email || m.userBEmail === email) &&
+    new Date(m.startedAt).getTime() >= goal.createdAt
+  ).length;
+
+  const anyTaskDone = goal.tasks.some(t => t.done);
+
+  const steps = [
+    { key: 'mentor_call', label: 'Mentor-Call', done: callsSinceGoal >= 1, locked: false },
+    { key: 'course', label: 'Kurs anschauen', done: false, locked: true }, // noch keine Kurse
+    { key: 'task', label: 'Aufgabe erledigen', done: anyTaskDone, locked: false },
+    { key: 'next_mentor', label: 'Nächsten Mentor sprechen', done: callsSinceGoal >= 2, locked: false },
+    { key: 'goal_reached', label: 'Ziel erreichen', done: !!goal.achievedAt, locked: false }
+  ];
+
+  return { goal, steps, callsSinceGoal };
+}
+
 
 /* ---------------- Reel-Likes (Basis fürs Mentor-Level-System) ---------------- */
 

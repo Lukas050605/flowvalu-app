@@ -589,6 +589,7 @@
       <span id="edit-profile-link">👤 Profil</span>
       <span id="history-link">🕓 Verlauf</span>
       <span id="dashboard-link">📊 Dein Flowvalu</span>
+      <span id="goal-link">🎯 Mein Ziel</span>
       <span id="points-badge" title="Beliebtheit + Kreativität aus Bewertungen anderer">⭐ …</span>
       <span id="logout-link">Ausloggen</span>
     </div>
@@ -732,6 +733,36 @@
     <h2 id="dashboard-heading">Deine Statistik</h2>
     <div id="dashboard-content" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0;"></div>
     <button class="btn btn-ghost" id="back-from-dashboard-btn">Zurück</button>
+  </section>
+
+  <!-- ZIEL & PERSÖNLICHER WEG (Thema 27) -->
+  <section class="screen" id="screen-goal">
+    <p class="eyebrow">Dein Weg</p>
+    <h2>🎯 Mein Ziel</h2>
+
+    <div id="goal-no-active" style="display:none;">
+      <p class="lead">Noch kein Ziel gesetzt. Was möchtest du als Nächstes erreichen?</p>
+      <textarea id="new-goal-input" placeholder="z. B. Ich möchte meinen ersten Nebenjob finden" style="min-height:80px;"></textarea>
+      <button class="btn" id="set-goal-btn" style="margin-top:12px;">Ziel setzen</button>
+    </div>
+
+    <div id="goal-active-view" style="display:none;">
+      <p class="lead" id="goal-text-display" style="font-weight:600;"></p>
+      <div id="goal-steps-list" style="margin:20px 0;"></div>
+
+      <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:10px;">Eigene Aufgaben</div>
+        <div id="goal-tasks-list"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input type="text" id="new-task-input" placeholder="z. B. Lebenslauf aktualisieren" maxlength="150">
+          <button class="btn-sm" id="add-task-btn" style="background:var(--surface); border:1px solid var(--border-strong); white-space:nowrap;">+ Hinzufügen</button>
+        </div>
+      </div>
+
+      <button class="btn" id="achieve-goal-btn" style="background:linear-gradient(135deg, #22c55e, #16a34a);">🏆 Ziel erreicht!</button>
+    </div>
+
+    <button class="btn btn-ghost" id="back-from-goal-btn" style="margin-top:14px;">Zurück</button>
   </section>
 
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
@@ -1525,6 +1556,95 @@ document.getElementById('dashboard-link').addEventListener('click', async () => 
 });
 
 document.getElementById('back-from-dashboard-btn').addEventListener('click', () => show('screen-profile'));
+
+/* ---------- Ziel & persönlicher Weg (Thema 27) ---------- */
+document.getElementById('goal-link').addEventListener('click', async () => {
+  show('screen-goal');
+  await loadGoal();
+});
+
+document.getElementById('back-from-goal-btn').addEventListener('click', () => show('screen-profile'));
+
+async function loadGoal(){
+  const res = await fetch('/api/goal');
+  const data = await res.json();
+  renderGoal(data.path);
+}
+
+function renderGoal(path){
+  const noActive = document.getElementById('goal-no-active');
+  const activeView = document.getElementById('goal-active-view');
+
+  if(!path){
+    noActive.style.display = 'block';
+    activeView.style.display = 'none';
+    return;
+  }
+  noActive.style.display = 'none';
+  activeView.style.display = 'block';
+
+  document.getElementById('goal-text-display').textContent = '"' + path.goal.text + '"';
+
+  const stepsList = document.getElementById('goal-steps-list');
+  stepsList.innerHTML = path.steps.map(step => {
+    const icon = step.locked ? '🔒' : (step.done ? '✅' : '⬜');
+    const opacity = step.locked ? '0.5' : '1';
+    return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0; opacity:' + opacity + ';">' +
+      '<span style="font-size:16px;">' + icon + '</span>' +
+      '<span style="font-size:13.5px;">' + escapeHtml(step.label) + (step.locked ? ' (bald verfügbar)' : '') + '</span>' +
+    '</div>';
+  }).join('');
+
+  const tasksList = document.getElementById('goal-tasks-list');
+  if(!path.goal.tasks.length){
+    tasksList.innerHTML = '<p style="font-size:12px; color:var(--muted);">Noch keine eigenen Aufgaben.</p>';
+  } else {
+    tasksList.innerHTML = path.goal.tasks.map(t =>
+      '<div style="display:flex; align-items:center; gap:8px; padding:5px 0;">' +
+        '<input type="checkbox" class="goal-task-checkbox" data-task-id="' + t.id + '" ' + (t.done ? 'checked' : '') + '>' +
+        '<span style="font-size:13px; ' + (t.done ? 'text-decoration:line-through; color:var(--muted);' : '') + '">' + escapeHtml(t.text) + '</span>' +
+      '</div>'
+    ).join('');
+    document.querySelectorAll('.goal-task-checkbox').forEach(cb => {
+      cb.addEventListener('change', async () => {
+        const res = await fetch('/api/goal/tasks/' + cb.dataset.taskId + '/toggle', { method: 'POST' });
+        const data = await res.json();
+        renderGoal(data.path);
+      });
+    });
+  }
+}
+
+document.getElementById('set-goal-btn').addEventListener('click', async () => {
+  const text = document.getElementById('new-goal-input').value.trim();
+  if(!text) return;
+  const res = await fetch('/api/goal', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const data = await res.json();
+  document.getElementById('new-goal-input').value = '';
+  renderGoal(data.path);
+});
+
+document.getElementById('add-task-btn').addEventListener('click', async () => {
+  const input = document.getElementById('new-task-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const res = await fetch('/api/goal/tasks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const data = await res.json();
+  input.value = '';
+  renderGoal(data.path);
+});
+
+document.getElementById('achieve-goal-btn').addEventListener('click', async () => {
+  if(!confirm('Ziel wirklich als erreicht markieren? Du kannst danach ein neues Ziel setzen.')) return;
+  await fetch('/api/goal/achieve', { method: 'POST' });
+  loadGoal();
+});
 
 /* ---------- Mentor-Reels: Vollbild-Scroll wie bei Instagram Reels ---------- */
 let selectedReelFile = null;
