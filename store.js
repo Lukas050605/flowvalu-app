@@ -257,7 +257,8 @@ module.exports = {
   getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
   logWaitTime, getEstimatedWaitSeconds,
-  isFollowing, getFollowerCount, toggleFollow, getFollowedMentors
+  isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
+  searchMentors, getAllMentorTopics
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -524,11 +525,33 @@ function getMentorProfiles() {
       displayName: display.displayName,
       avatarDataUrl: display.avatarDataUrl,
       bio: display.bio,
+      workingOnChips: display.workingOnChips || [], // echte, selbst angegebene Themen-Tags
       rating: display.rating,
       reelCount: ownReels.length,
       latestReelAt: Math.max(...ownReels.map(r => r.createdAt))
     };
   }).sort((a, b) => b.latestReelAt - a.latestReelAt);
+}
+
+// Sucht/filtert Mentoren nach Themen (Thema 19) — nutzt die "Woran arbeitest du
+// gerade?"-Chips aus dem Profil als echte, selbst angegebene Themen-Tags. Ohne
+// Filter werden einfach alle Mentoren zurückgegeben.
+function searchMentors(topics) {
+  const all = getMentorProfiles();
+  if (!topics || !topics.length) return all;
+  const normalizedTopics = topics.map(t => t.toLowerCase().trim());
+  return all.filter(m =>
+    m.workingOnChips.some(chip => normalizedTopics.includes(chip.toLowerCase().trim()))
+  );
+}
+
+// Alle Themen-Tags, die mindestens ein Mentor tatsächlich angegeben hat — als
+// Vorschlagsliste für die Filter-Chips, damit man nicht ins Leere sucht.
+function getAllMentorTopics() {
+  const all = getMentorProfiles();
+  const set = new Set();
+  all.forEach(m => m.workingOnChips.forEach(chip => set.add(chip)));
+  return [...set];
 }
 
 // Nur der Uploader selbst darf sein eigenes Reel löschen.

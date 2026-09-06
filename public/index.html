@@ -714,7 +714,13 @@
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
-      <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">Mentor-Reels <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">FlowValu <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
+        <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:999px; padding:2px;">
+          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
+          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🔍 Mentoren</button>
+        </div>
+      </div>
       <div style="display:flex; gap:8px; align-items:center;">
         <button class="reels-upload-fab" id="reels-open-upload-btn" style="display:none;">+ Hochladen</button>
         <button class="reels-close-btn" id="reels-close-btn">✕</button>
@@ -723,6 +729,13 @@
 
     <div class="reels-scroll" id="reels-scroll"></div>
     <div class="empty-history" id="empty-reels" style="display:none; color:#fff; text-align:center; padding-top:120px;">Noch keine Reels vorhanden.</div>
+
+    <!-- MENTOREN-SUCHE (Thema 19): Filter nach echten Themen-Tags -->
+    <div id="mentor-search-view" style="display:none; flex:1; overflow-y:auto; padding:70px 16px 24px;">
+      <div id="mentor-search-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;"></div>
+      <div id="mentor-search-results"></div>
+      <div class="empty-history" id="empty-mentor-search" style="display:none; color:#fff; text-align:center; padding-top:40px;">Keine Mentoren zu diesem Thema gefunden.</div>
+    </div>
 
     <div class="reel-upload-panel" id="reel-upload-panel">
       <button class="reels-close-btn" id="reel-upload-close-btn" style="position:absolute; top:16px; right:18px;">✕</button>
@@ -1494,6 +1507,103 @@ document.getElementById('reels-icon-btn').addEventListener('click', async () => 
 });
 
 document.getElementById('reels-close-btn').addEventListener('click', closeReelsOverlay);
+
+document.getElementById('reels-icon-btn').addEventListener('click', async () => {
+  document.getElementById('reels-overlay').classList.add('active');
+  showReelsOrMentorsTab('videos');
+  await loadReelsUploadStatus();
+  await loadReelsFeed();
+});
+
+document.getElementById('reels-close-btn').addEventListener('click', closeReelsOverlay);
+
+/* ---------- Tab-Umschaltung: Reels-Feed vs. Mentoren-Suche (Thema 19) ---------- */
+let selectedMentorSearchTopics = [];
+
+function showReelsOrMentorsTab(tab){
+  document.getElementById('reels-scroll').style.display = tab === 'videos' ? 'block' : 'none';
+  document.getElementById('mentor-search-view').style.display = tab === 'mentors' ? 'block' : 'none';
+
+  const videosBtn = document.getElementById('reels-tab-videos-btn');
+  const mentorsBtn = document.getElementById('reels-tab-mentors-btn');
+  videosBtn.style.background = tab === 'videos' ? '#fff' : 'transparent';
+  videosBtn.style.color = tab === 'videos' ? '#000' : '#fff';
+  mentorsBtn.style.background = tab === 'mentors' ? '#fff' : 'transparent';
+  mentorsBtn.style.color = tab === 'mentors' ? '#000' : '#fff';
+
+  if(tab === 'videos'){
+    document.querySelectorAll('#reels-scroll video').forEach(v => v.pause());
+  }
+  if(tab === 'mentors') loadMentorSearch();
+}
+
+document.getElementById('reels-tab-videos-btn').addEventListener('click', () => showReelsOrMentorsTab('videos'));
+document.getElementById('reels-tab-mentors-btn').addEventListener('click', () => showReelsOrMentorsTab('mentors'));
+
+async function loadMentorSearch(){
+  const chipsContainer = document.getElementById('mentor-search-chips');
+  try{
+    const res = await fetch('/api/mentors?topics=' + selectedMentorSearchTopics.join(','));
+    const data = await res.json();
+
+    // Filter-Chips aus ECHTEN, tatsächlich von Mentoren genutzten Themen aufbauen
+    chipsContainer.innerHTML = data.availableTopics.map(topic => {
+      const active = selectedMentorSearchTopics.includes(topic);
+      return '<button class="chip mentor-search-chip" data-topic="' + escapeHtml(topic) + '" style="' +
+        (active ? 'background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:#fff; border-color:transparent;' : 'background:rgba(255,255,255,0.08); color:#fff; border-color:rgba(255,255,255,0.2);') +
+        '">' + escapeHtml(topic) + '</button>';
+    }).join('');
+
+    chipsContainer.querySelectorAll('.mentor-search-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const topic = chip.dataset.topic;
+        selectedMentorSearchTopics = selectedMentorSearchTopics.includes(topic)
+          ? selectedMentorSearchTopics.filter(t => t !== topic)
+          : [...selectedMentorSearchTopics, topic];
+        loadMentorSearch();
+      });
+    });
+
+    renderMentorSearchResults(data.mentors);
+  } catch(e){ /* egal, dann bleibt die Liste leer */ }
+}
+
+function renderMentorSearchResults(mentors){
+  const results = document.getElementById('mentor-search-results');
+  const empty = document.getElementById('empty-mentor-search');
+  results.innerHTML = '';
+  if(!mentors.length){ empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  mentors.forEach(m => {
+    const card = document.createElement('div');
+    card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; margin-bottom:10px;';
+    const avatarHtml = m.avatarDataUrl
+      ? '<img src="' + m.avatarDataUrl + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
+      : '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + escapeHtml(m.displayName[0].toUpperCase()) + '</div>';
+    const tagsHtml = m.workingOnChips.slice(0, 3).map(t => '<span style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 7px; border-radius:999px; margin-right:4px;">' + escapeHtml(t) + '</span>').join('');
+
+    card.innerHTML =
+      avatarHtml +
+      '<div style="flex:1; color:#fff; cursor:pointer;" class="mentor-search-info">' +
+        '<div style="font-weight:700; font-size:14px;">' + (m.isOnline ? '🟢 ' : '') + escapeHtml(m.displayName) + '</div>' +
+        '<div style="margin-top:4px;">' + tagsHtml + '</div>' +
+      '</div>' +
+      (m.isOnline ? '<button class="btn-sm mentor-live-call-btn" data-email="' + escapeHtml(m.email) + '" style="background:linear-gradient(135deg,var(--accent),var(--accent-2)); border:none; color:#fff; white-space:nowrap;">📞 Live Call</button>' : '');
+
+    card.querySelector('.mentor-search-info').addEventListener('click', () => openMentorMiniProfile(m.email));
+    const liveCallBtn = card.querySelector('.mentor-live-call-btn');
+    if(liveCallBtn){
+      liveCallBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeReelsOverlay();
+        show('screen-profile');
+        document.getElementById('hangup').focus();
+      });
+    }
+    results.appendChild(card);
+  });
+}
 
 function closeReelsOverlay(){
   document.getElementById('reels-overlay').classList.remove('active');
