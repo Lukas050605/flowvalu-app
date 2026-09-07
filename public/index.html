@@ -16,21 +16,22 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #08080a; --surface: #101013; --surface-2: #16161a;
-    --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.16);
-    --ink: #ededf1; --muted: #8b8b95;
-    --accent: #7c6ff0; --accent-2: #4c8dff;
+    --border: rgba(242,240,237,0.09); --border-strong: rgba(242,240,237,0.16);
+    --ink: #f2f0ed; --muted: #8b8b8f;
+    --accent: #e3a768; --accent-2: #c9955a;
   }
   *{ box-sizing:border-box; }
   body{
     margin:0; background:var(--bg); color:var(--ink);
-    font-family:'Inter', sans-serif; -webkit-font-smoothing:antialiased;
+    font-family:'Manrope', sans-serif; font-weight:400; -webkit-font-smoothing:antialiased;
     letter-spacing:-0.01em; min-height:100vh;
     display:flex; align-items:center; justify-content:center; padding:24px;
   }
+  h1, h2, h3{ font-family:'Archivo', sans-serif; letter-spacing:-0.02em; }
   .shell{
     width:100%; max-width:440px; border:1px solid var(--border-strong);
     border-radius:16px; padding:34px 30px; background:var(--surface);
@@ -52,7 +53,7 @@
   label{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); display:block; margin-bottom:8px; }
   textarea{
     width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px;
-    color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; padding:12px; resize:none;
+    color:var(--ink); font-family:'Manrope',sans-serif; font-size:14px; padding:12px; resize:none;
     min-height:70px; margin-bottom:18px;
   }
   textarea:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
@@ -96,7 +97,7 @@
   .mentor-avatar-badge.active{ display:flex; }
 
   .mentor-pill{
-    display:none; align-items:center; gap:4px; font-family:'Inter', sans-serif; font-weight:700; font-size:11px;
+    display:none; align-items:center; gap:4px; font-family:'Manrope', sans-serif; font-weight:700; font-size:11px;
     color:#fff; background:linear-gradient(135deg, #f5a524, #f97316); padding:3px 10px; border-radius:999px;
     margin-left:8px;
   }
@@ -113,7 +114,7 @@
   .home-section{ margin-bottom:24px; }
   .home-section h3{ font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
   .progress-card{
-    background:linear-gradient(135deg, rgba(124,111,240,0.12), rgba(76,141,255,0.12));
+    background:linear-gradient(135deg, rgba(227,167,104,0.14), rgba(201,149,90,0.10));
     border:1px solid var(--border-strong); border-radius:14px; padding:18px;
   }
   .progress-card .progress-stats{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px; }
@@ -161,18 +162,19 @@
   .field-error{ font-family:'JetBrains Mono', monospace; font-size:12px; color:#ff8a80; min-height:16px; margin-bottom:10px; }
   input[type="email"], input[type="password"]{
     width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px;
-    color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; padding:12px; margin-bottom:14px;
+    color:var(--ink); font-family:'Manrope',sans-serif; font-size:14px; padding:12px; margin-bottom:14px;
   }
   input[type="email"]:focus-visible, input[type="password"]:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
   .auth-switch{ text-align:center; font-size:13px; color:var(--muted); margin-top:14px; }
   .auth-switch a{ color:var(--accent-2); cursor:pointer; }
   .logout-link{ text-align:right; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); margin-bottom:14px; cursor:pointer; }
-  .top-links{ display:flex; justify-content:space-between; margin-bottom:14px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+  .top-links{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); }
+  .top-links > *{ cursor:pointer; white-space:nowrap; }
 
   #reels-icon-btn{
     position:fixed; right:20px; bottom:26px; z-index:40; width:56px; height:56px; border-radius:50%;
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; font-size:24px;
-    cursor:pointer; box-shadow:0 6px 20px rgba(76,141,255,0.4); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:0 6px 20px rgba(227,167,104,0.4); display:flex; align-items:center; justify-content:center;
   }
   #pinboard-icon-btn{
     position:fixed; left:20px; bottom:26px; z-index:40; width:56px; height:56px; border-radius:50%;
@@ -225,7 +227,7 @@
   .pinboard-post-card:hover{ border-color:var(--accent-2); }
   .pinboard-post-topic{
     display:inline-block; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--accent-2);
-    background:rgba(76,141,255,0.12); padding:2px 8px; border-radius:999px; margin-bottom:6px;
+    background:rgba(227,167,104,0.14); padding:2px 8px; border-radius:999px; margin-bottom:6px;
   }
   .pinboard-post-text{ font-size:14px; margin-bottom:6px; }
   .pinboard-post-meta{ font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; }
@@ -233,8 +235,8 @@
   .pinboard-fab{
     position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:75;
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border:none;
-    font-family:'Inter', sans-serif; font-weight:600; font-size:13.5px; padding:12px 22px; border-radius:999px;
-    cursor:pointer; box-shadow:0 6px 20px rgba(76,141,255,0.4);
+    font-family:'Manrope', sans-serif; font-weight:600; font-size:13.5px; padding:12px 22px; border-radius:999px;
+    cursor:pointer; box-shadow:0 6px 20px rgba(227,167,104,0.4);
   }
   .pinboard-reply{
     background:var(--surface-2); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px;
@@ -272,7 +274,7 @@
   }
   .reel-tile video{ width:100%; height:100%; object-fit:contain; background:#000; }
   .reel-tile .reel-caption{
-    position:absolute; left:16px; right:70px; bottom:26px; color:#fff; font-family:'Inter', sans-serif;
+    position:absolute; left:16px; right:70px; bottom:26px; color:#fff; font-family:'Manrope', sans-serif;
   }
   .reel-tile .reel-author-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; cursor:pointer; }
   .reel-tile .reel-author-avatar{
@@ -284,14 +286,14 @@
   .reel-tile .reel-title-text{ font-size:13px; color:rgba(255,255,255,0.85); }
   .reel-tile .reel-delete-btn{
     position:absolute; top:16px; right:14px; background:rgba(229,72,77,0.9); border:none; color:#fff;
-    font-family:'Inter', sans-serif; font-size:12px; padding:7px 12px; border-radius:20px; cursor:pointer;
+    font-family:'Manrope', sans-serif; font-size:12px; padding:7px 12px; border-radius:20px; cursor:pointer;
   }
   .reel-actions{
     position:absolute; right:12px; bottom:100px; display:flex; flex-direction:column; align-items:center; gap:18px;
   }
   .reel-action-btn{
     background:none; border:none; color:#fff; display:flex; flex-direction:column; align-items:center; gap:3px;
-    cursor:pointer; font-family:'Inter', sans-serif;
+    cursor:pointer; font-family:'Manrope', sans-serif;
   }
   .reel-action-btn .reel-action-icon{ font-size:28px; line-height:1; transition:transform 0.15s; }
   .reel-action-btn.liked .reel-action-icon{ transform:scale(1.15); }
@@ -303,10 +305,10 @@
   .comment-panel.active{ display:flex; }
   .comment-panel-header{
     display:flex; justify-content:space-between; align-items:center; padding:0 18px 14px;
-    border-bottom:1px solid rgba(255,255,255,0.15); color:#fff; font-weight:700; font-family:'Inter', sans-serif;
+    border-bottom:1px solid rgba(255,255,255,0.15); color:#fff; font-weight:700; font-family:'Manrope', sans-serif;
   }
   .comment-panel-list{ flex:1; overflow-y:auto; padding:14px 18px; }
-  .comment-item{ margin-bottom:14px; color:#fff; font-family:'Inter', sans-serif; }
+  .comment-item{ margin-bottom:14px; color:#fff; font-family:'Manrope', sans-serif; }
   .comment-item .comment-author{ font-weight:700; font-size:13px; margin-right:6px; }
   .comment-item .comment-text{ font-size:13.5px; }
   .comment-item .comment-time{ font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px; }
@@ -322,7 +324,7 @@
   }
   .reels-upload-fab{
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff;
-    font-family:'Inter', sans-serif; font-weight:600; font-size:13px; padding:8px 16px; border-radius:20px;
+    font-family:'Manrope', sans-serif; font-weight:600; font-size:13px; padding:8px 16px; border-radius:20px;
     cursor:pointer;
   }
   .reel-upload-panel{
@@ -394,7 +396,7 @@
   }
   .invite-toast.active{ display:block; }
   .invite-toast .row{ display:flex; gap:8px; margin-top:12px; }
-  .invite-toast button{ flex:1; font-size:12.5px; padding:8px; border-radius:8px; border:1px solid var(--border-strong); cursor:pointer; font-family:'Inter',sans-serif; font-weight:600; }
+  .invite-toast button{ flex:1; font-size:12.5px; padding:8px; border-radius:8px; border:1px solid var(--border-strong); cursor:pointer; font-family:'Manrope',sans-serif; font-weight:600; }
   .invite-toast .accept{ background:var(--accent-2); color:#fff; border:none; }
   .invite-toast .decline{ background:transparent; color:var(--muted); }
 
@@ -440,7 +442,7 @@
   .caption-bubble{
     background:rgba(0,0,0,0.72); color:#fff; padding:7px 14px; border-radius:10px;
     font-size:13px; line-height:1.4; max-width:100%; text-align:center;
-    font-family:'Inter', sans-serif; display:none;
+    font-family:'Manrope', sans-serif; display:none;
   }
   .caption-bubble.active{ display:block; }
   .caption-bubble .caption-speaker{ color:var(--accent-2); font-weight:600; margin-right:5px; }
@@ -457,7 +459,7 @@
   .live-transcript .line{ margin-bottom:3px; }
   .live-transcript .who{ color:var(--accent-2); font-weight:600; }
   .impulse-banner{
-    display:none; background:linear-gradient(135deg, rgba(124,111,240,0.18), rgba(76,63,176,0.18));
+    display:none; background:linear-gradient(135deg, rgba(227,167,104,0.18), rgba(180,120,60,0.18));
     border:1px solid var(--accent-2); border-radius:10px; padding:12px 14px; margin:0 0 14px;
     font-size:13px; line-height:1.5; color:var(--ink); animation: impulse-in 0.35s ease;
   }
@@ -516,7 +518,7 @@
   .toggle-btn{
     flex:1; background:var(--surface-2); border:1px solid var(--border-strong); color:var(--ink);
     border-radius:9px; padding:10px; font-size:13px; font-weight:600; cursor:pointer;
-    font-family:'Inter', sans-serif;
+    font-family:'Manrope', sans-serif;
   }
   .toggle-btn.off{ background:#e5484d; border-color:#e5484d; color:#fff; }
   .toggle-btn.active{ background:var(--accent-2); border-color:var(--accent-2); color:#fff; }
@@ -590,6 +592,7 @@
       <span id="history-link">🕓 Verlauf</span>
       <span id="dashboard-link">📊 Dein Flowvalu</span>
       <span id="goal-link">🎯 Mein Ziel</span>
+      <span id="weekly-recap-link">🗓️ Woche</span>
       <span id="points-badge" title="Beliebtheit + Kreativität aus Bewertungen anderer">⭐ …</span>
       <span id="logout-link">Ausloggen</span>
     </div>
@@ -769,10 +772,10 @@
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
       <div style="display:flex; align-items:center; gap:10px;">
-        <span style="font-weight:700; font-family:'Inter', sans-serif; display:flex; align-items:center; gap:6px;">FlowValu <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
+        <span style="font-weight:700; font-family:'Manrope', sans-serif; display:flex; align-items:center; gap:6px;">FlowValu <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
         <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:999px; padding:2px;">
-          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
-          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Inter', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🔍 Mentoren</button>
+          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
+          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🔍 Mentoren</button>
         </div>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
