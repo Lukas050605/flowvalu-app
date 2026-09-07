@@ -371,7 +371,8 @@ app.get('/api/homepage', (req, res) => {
     trending: {
       ...store.getTodayCompletedCallStats(),
       popularTopics: store.getPopularCustomChips(6)
-    }
+    },
+    platformStats: store.getPlatformStats()
   };
 
   // Feed/Mentoren-Bereiche nur laden, wenn's überhaupt was zu zeigen gibt UND die
@@ -507,7 +508,11 @@ app.get('/api/mentors', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const topics = req.query.topics ? String(req.query.topics).split(',').filter(Boolean) : [];
   res.json({
-    mentors: store.searchMentors(topics).map(m => ({ ...m, isOnline: !!userSockets[m.email] })),
+    mentors: store.searchMentors(topics).map(m => ({
+      ...m,
+      isOnline: !!userSockets[m.email],
+      level: getEffectiveMentorLevel(m.email)
+    })),
     availableTopics: store.getAllMentorTopics()
   });
 });

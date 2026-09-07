@@ -282,7 +282,7 @@ module.exports = {
   getFlowBreakdown, getMentorLevel, MENTOR_LEVELS, setMentorDebugLevel,
   getStreakDays, getTodayCompletedCallStats, getNextStepRecommendation,
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
-  logWaitTime, getEstimatedWaitSeconds,
+  logWaitTime, getEstimatedWaitSeconds, getPlatformStats,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
   searchMentors, getAllMentorTopics,
   FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
@@ -1064,6 +1064,31 @@ function getTodayCompletedCallStats() {
   const uniquePeople = new Set();
   todaysMatches.forEach(m => { uniquePeople.add(m.userAEmail); uniquePeople.add(m.userBEmail); });
   return { completedCallsToday: todaysMatches.length, peopleToday: uniquePeople.size };
+}
+
+// Plattformweite Community-Statistik fürs 3-Spalten-Raster (Thema "Community"
+// aus dem Original-Design) — AUSSCHLIESSLICH echte, berechnete Zahlen. Keine
+// erfundenen Mitgliederzahlen wie im Marketing-Entwurf.
+function getPlatformStats() {
+  const users = readUsers();
+  const allMatches = readMatches().filter(m => m.hadCall);
+
+  // "Bleiben dabei": Anteil der Nutzer mit mehr als einem abgeschlossenen Call —
+  // eine echte, nachvollziehbare Wiederkehr-Quote statt einer erfundenen Prozentzahl.
+  const callCountByUser = {};
+  allMatches.forEach(m => {
+    callCountByUser[m.userAEmail] = (callCountByUser[m.userAEmail] || 0) + 1;
+    callCountByUser[m.userBEmail] = (callCountByUser[m.userBEmail] || 0) + 1;
+  });
+  const usersWithCalls = Object.keys(callCountByUser).length;
+  const returningUsers = Object.values(callCountByUser).filter(c => c > 1).length;
+  const returnRate = usersWithCalls > 0 ? Math.round((returningUsers / usersWithCalls) * 100) : 0;
+
+  return {
+    totalMembers: users.length,
+    totalCalls: allMatches.length,
+    returnRatePct: returnRate
+  };
 }
 
 // Einfache, ehrliche "Dein nächster Schritt"-Empfehlung — basiert auf echtem Status,

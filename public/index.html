@@ -108,6 +108,36 @@
 
   .shell-wrap{ display:flex; justify-content:center; padding:clamp(24px, 4vh, 48px) clamp(16px, 4vw, 40px); }
 
+  .fv-footer{ padding:clamp(40px, 6vh, 64px) clamp(20px, 5vw, 56px) 32px; background:#08080a; border-top:1px solid rgba(242,240,237,0.09); margin-top:20px; }
+  .fv-footer-inner{ max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:28px; align-items:start; }
+  .fv-footer-tagline{ font-size:12.5px; font-weight:300; color:rgba(242,240,237,0.5); max-width:28ch; line-height:1.5; }
+  .fv-footer-col{ display:flex; flex-direction:column; gap:10px; font-size:12.5px; color:rgba(242,240,237,0.6); }
+  .fv-footer-col a{ cursor:pointer; }
+  .fv-footer-col a:hover{ color:var(--accent); }
+  .fv-footer-heading{ font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:rgba(242,240,237,0.4); margin-bottom:2px; }
+  .fv-footer-bottom{
+    max-width:1100px; margin:32px auto 0; padding-top:18px; border-top:1px solid rgba(242,240,237,0.09);
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between;
+    font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:rgba(242,240,237,0.4);
+  }
+
+  /* Kernkette-Raster: 1px-Trennlinien-Gitter statt einzelner Karten mit Abstand,
+     exakt wie im Original-Design. */
+  .fv-kernkette-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1px;
+    background:rgba(242,240,237,0.1); border:1px solid rgba(242,240,237,0.1);
+    border-radius:var(--radius-card); overflow:hidden;
+  }
+  .fv-kk-cell{ background:#0b0b0d; padding:22px; min-height:180px; display:flex; flex-direction:column; }
+  .fv-kk-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .fv-kk-label{ font-family:'Archivo', sans-serif; font-weight:700; font-size:10.5px; letter-spacing:0.24em; text-transform:uppercase; color:var(--accent); }
+  .fv-kk-num{ font-family:'Archivo', sans-serif; font-weight:700; font-size:22px; color:rgba(242,240,237,0.16); }
+  .fv-kk-num-accent{ color:var(--accent); }
+  .fv-kk-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:16px; line-height:1.25; letter-spacing:-0.01em; margin-bottom:8px; }
+  .fv-kk-text{ font-size:12.5px; line-height:1.55; font-weight:300; color:rgba(242,240,237,0.6); margin:0; }
+  .fv-kk-quote-cell{ background:#0d0d10; justify-content:space-between; }
+  .fv-kk-cta{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; border-bottom:1px solid rgba(242,240,237,0.3); padding-bottom:5px; align-self:flex-start; cursor:pointer; }
+
   h1{ font-weight:600; font-size:26px; line-height:1.2; letter-spacing:-0.02em; margin:0 0 12px; }
   h1 .grad{ background:linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   p.lead{ font-size:14.5px; line-height:1.6; color:var(--muted); margin:0 0 26px; }
@@ -611,6 +641,7 @@
   <div class="fv-logo"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
   <nav class="fv-app-nav" id="fv-app-nav">
     <a data-nav="home" id="nav-home">Start</a>
+    <a data-nav="howitworks" id="nav-howitworks">Die Kernkette</a>
     <a data-nav="reels" id="nav-reels">Mentoren</a>
     <a data-nav="goal" id="nav-goal">Mein Ziel</a>
     <a data-nav="weekly" id="nav-weekly">Woche</a>
@@ -852,6 +883,56 @@
   </section>
 
   <!-- ZIEL & PERSÖNLICHER WEG (Thema 27) -->
+  <!-- SO FUNKTIONIERT'S: Kernkette-Raster aus dem Original-Design, mit ECHTEN
+       FlowValu-Features (nicht die Marketing-Beispiel-Texte aus dem Entwurf) -->
+  <section class="screen" id="screen-howitworks">
+    <div class="eyebrow">Die Kernkette</div>
+    <h2>Wie aus einem Wunsch ein Ergebnis wird</h2>
+    <p class="lead" style="margin-bottom:24px;">Sieben Stationen. Jede greift in die nächste.</p>
+    <div class="fv-kernkette-grid">
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Ziel</span><span class="fv-kk-num">01</span></div>
+        <div class="fv-kk-title">Du sagst, was du erreichen willst</div>
+        <p class="fv-kk-text">Bei "Mein Ziel" in eigenen Worten — kein Kurskatalog zum Durchsuchen.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Persönlicher Weg</span><span class="fv-kk-num">02</span></div>
+        <div class="fv-kk-title">Daraus entsteht ein Schritt-Weg</div>
+        <p class="fv-kk-text">5 Schritte, teilweise gesperrt — du siehst immer, was als Nächstes dran ist.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Aktion</span><span class="fv-kk-num">03</span></div>
+        <div class="fv-kk-title">Jeder Schritt endet in einer Aufgabe</div>
+        <p class="fv-kk-text">Eigene Aufgaben, die du dir selbst setzt und abhakst.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Austausch</span><span class="fv-kk-num">04</span></div>
+        <div class="fv-kk-title">Direkter Call mit jemand anderem</div>
+        <p class="fv-kk-text">Live-Matching nach Thema oder zufällig, plus Pinnwand für offene Fragen.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Mentor</span><span class="fv-kk-num">05</span></div>
+        <div class="fv-kk-title">Hilfe von Leuten mit echter Erfahrung</div>
+        <p class="fv-kk-text">Nach Thema durchsuchbar, mit echtem Level und echten Bewertungen.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Fortschritt</span><span class="fv-kk-num">06</span></div>
+        <div class="fv-kk-title">Du siehst, dass es vorangeht</div>
+        <p class="fv-kk-text">Flow-Punkte, Level, Streak — alles aus echten Aktivitäten berechnet.</p>
+      </div>
+      <div class="fv-kk-cell">
+        <div class="fv-kk-head"><span class="fv-kk-label">Ergebnis</span><span class="fv-kk-num fv-kk-num-accent">07</span></div>
+        <div class="fv-kk-title">Das Ziel ist erreicht — oder größer geworden</div>
+        <p class="fv-kk-text">Du markierst es selbst als erreicht. Und setzt dir das nächste.</p>
+      </div>
+      <div class="fv-kk-cell fv-kk-quote-cell">
+        <p class="fv-quote" style="margin:0 0 14px;">Große Ziele<br>brauchen<br>klare Schritte.</p>
+        <span class="fv-kk-cta" id="howitworks-to-goal-btn">Mein Ziel setzen →</span>
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="back-from-howitworks-btn" style="margin-top:20px;">Zurück</button>
+  </section>
+
   <section class="screen" id="screen-goal">
     <p class="eyebrow">Dein Weg</p>
     <h2>🎯 Mein Ziel</h2>
@@ -1087,6 +1168,35 @@
 </div>
 </div>
 
+<footer class="fv-footer" id="fv-footer" style="display:none;">
+  <div class="fv-footer-inner">
+    <div>
+      <div class="fv-logo" style="margin-bottom:16px;"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
+      <div class="fv-footer-tagline">Discipline builds freedom. Dein Ziel, dein Weg, dein Fortschritt.</div>
+    </div>
+    <div class="fv-footer-col">
+      <div class="fv-footer-heading">Der Weg</div>
+      <a id="footer-goal-link">Mein Ziel</a>
+      <a id="footer-dashboard-link">Dein Flowvalu</a>
+      <a id="footer-weekly-link">Woche</a>
+    </div>
+    <div class="fv-footer-col">
+      <div class="fv-footer-heading">Unterstützung</div>
+      <a id="footer-reels-link">Mentoren</a>
+      <a id="footer-pinboard-link">Pinnwand</a>
+    </div>
+    <div class="fv-footer-col">
+      <div class="fv-footer-heading">Rechtliches</div>
+      <a href="/impressum.html" target="_blank">Impressum</a>
+      <a href="/datenschutz.html" target="_blank">Datenschutz</a>
+    </div>
+  </div>
+  <div class="fv-footer-bottom">
+    <span>© 2026 Flow Valu</span>
+    <span>Dein Ziel. Dein Weg. Dein Fortschritt.</span>
+  </div>
+</footer>
+
 <!-- VIDEO CALL OVERLAY -->
 <div class="call-overlay" id="call-overlay">
   <div class="call-box">
@@ -1312,6 +1422,7 @@ async function onAuthSuccess(email){
   myEmail = email || myEmail;
   socket.connect();
   document.getElementById('fv-app-nav').classList.add('visible');
+  document.getElementById('fv-footer').style.display = 'block';
   // Bewertungspunkte-Anzeige einmalig in die Kopfzeile verschieben (bestehende
   // refreshPointsBadge()-Logik bleibt dabei unverändert, da dieselbe ID erhalten bleibt)
   const badgeSlot = document.getElementById('points-badge-slot');
@@ -1447,14 +1558,24 @@ function buildHomepageSections(data){
 
   // Community & Trending: nur echte Plattform-Zahlen
   const trending = data.trending;
-  html += '<div class="home-section"><h3>🌍 Community</h3><div class="trending-box">' +
-    (trending.peopleToday > 0
-      ? '<span class="trending-highlight">' + trending.peopleToday + ' Menschen</span> hatten heute schon einen Call auf FlowValu.'
-      : 'Sei heute die erste Person mit einem Call!') +
-    (trending.popularTopics.length
-      ? '<div style="margin-top:8px;">Gerade beliebt: <span class="trending-highlight">' + trending.popularTopics.slice(0, 4).map(escapeHtml).join(', ') + '</span></div>'
-      : '') +
-  '</div></div>';
+  const ps = data.platformStats;
+  html += '<div class="home-section"><h3>🌍 Community</h3>' +
+    '<div style="border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:22px;">' +
+      '<div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:18px;">' +
+        '<div><div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:24px; letter-spacing:-0.02em;">' + ps.totalMembers + '</div><div style="font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Mitglieder</div></div>' +
+        '<div><div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:24px; letter-spacing:-0.02em;">' + ps.totalCalls + '</div><div style="font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Calls gesamt</div></div>' +
+        '<div><div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:24px; letter-spacing:-0.02em;">' + ps.returnRatePct + '%</div><div style="font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Kommen wieder</div></div>' +
+      '</div>' +
+      '<div style="border-top:1px solid rgba(242,240,237,0.1); padding-top:14px; font-size:12.5px; color:var(--muted);">' +
+        (trending.peopleToday > 0
+          ? '<span style="color:var(--ink); font-weight:600;">' + trending.peopleToday + ' Menschen</span> hatten heute schon einen Call.'
+          : 'Sei heute die erste Person mit einem Call!') +
+        (trending.popularTopics.length
+          ? '<div style="margin-top:6px;">Gerade beliebt: <span style="color:var(--accent);">' + trending.popularTopics.slice(0, 4).map(escapeHtml).join(', ') + '</span></div>'
+          : '') +
+      '</div>' +
+    '</div>' +
+  '</div>';
 
   return html;
 }
@@ -1494,6 +1615,7 @@ document.getElementById('logout-link').addEventListener('click', async () => {
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('fv-app-nav').classList.remove('visible');
+  document.getElementById('fv-footer').style.display = 'none';
   setAuthMode('login');
   show('screen-auth');
 });
@@ -1502,11 +1624,21 @@ document.getElementById('logout-link').addEventListener('click', async () => {
 document.getElementById('nav-home').addEventListener('click', () => show('screen-profile'));
 document.getElementById('nav-reels').addEventListener('click', () => document.getElementById('reels-icon-btn').click());
 document.getElementById('nav-goal').addEventListener('click', () => document.getElementById('goal-link').click());
+document.getElementById('nav-howitworks').addEventListener('click', () => show('screen-howitworks'));
+document.getElementById('back-from-howitworks-btn').addEventListener('click', () => show('screen-profile'));
+document.getElementById('howitworks-to-goal-btn').addEventListener('click', () => document.getElementById('goal-link').click());
 document.getElementById('nav-weekly').addEventListener('click', () => document.getElementById('weekly-recap-link').click());
 document.getElementById('nav-dashboard').addEventListener('click', () => document.getElementById('dashboard-link').click());
 document.getElementById('nav-history').addEventListener('click', () => document.getElementById('history-link').click());
 document.getElementById('nav-profile').addEventListener('click', () => document.getElementById('edit-profile-link').click());
 document.getElementById('nav-logout').addEventListener('click', () => document.getElementById('logout-link').click());
+
+/* ---------- Footer-Links: dieselben echten Funktionen wie die Kopfzeile ---------- */
+document.getElementById('footer-goal-link').addEventListener('click', () => document.getElementById('goal-link').click());
+document.getElementById('footer-dashboard-link').addEventListener('click', () => document.getElementById('dashboard-link').click());
+document.getElementById('footer-weekly-link').addEventListener('click', () => document.getElementById('weekly-recap-link').click());
+document.getElementById('footer-reels-link').addEventListener('click', () => document.getElementById('reels-icon-btn').click());
+document.getElementById('footer-pinboard-link').addEventListener('click', () => document.getElementById('pinboard-icon-btn').click());
 
 // Beim Laden prüfen, ob schon eine Sitzung besteht
 fetch('/api/me').then(r => r.json()).then(data => {
@@ -1771,21 +1903,27 @@ const store_USER_LEVELS_CLIENT = [
   { level: 5, label: 'Flowvalu Pro' }
 ];
 
+// Die 5 Marken-Wörter aus "Discipline Builds Freedom" — passen exakt 1:1 auf
+// unsere 5 Level-Stufen und werden hier als Zeilen-Label genutzt, genau wie im
+// Original bei "Fortschritt & Level" (dort: Level 1 — Routine, Level 2 — Umsetzung, ...).
+const BRAND_WORDS = ['Discipline', 'Action', 'Growth', 'Results', 'Freedom'];
+
 function buildLevelTrack(title, levels, currentLevel){
-  const rows = levels.map(lvl => {
+  const rows = levels.map((lvl, i) => {
     const isCurrent = lvl.level === currentLevel;
     const isDone = lvl.level < currentLevel;
     const pct = isDone ? 100 : (isCurrent ? 46 : 0);
     const barColor = isCurrent ? 'var(--accent)' : (isDone ? 'rgba(242,240,237,0.7)' : 'rgba(242,240,237,0.12)');
-    const labelColor = isCurrent ? 'var(--accent)' : (isDone ? 'var(--ink)' : 'rgba(242,240,237,0.35)');
-    return '<div style="display:grid; grid-template-columns:1fr 1.3fr auto; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid rgba(242,240,237,0.09);">' +
-      '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:' + labelColor + ';">' + escapeHtml(lvl.label) + '</div>' +
+    const labelColor = isCurrent ? 'var(--accent)' : (isDone ? 'var(--ink)' : 'rgba(242,240,237,0.4)');
+    const statusWord = isCurrent ? 'Aktuell' : (isDone ? 'Erreicht' : 'Gesperrt');
+    return '<div style="display:grid; grid-template-columns:1fr 1.3fr auto; gap:12px; align-items:center; padding:16px 0; border-bottom:1px solid rgba(242,240,237,0.09);">' +
+      '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:' + labelColor + ';">' + BRAND_WORDS[i] + '</div>' +
       '<div style="height:2px; background:rgba(242,240,237,0.12); position:relative; border-radius:2px;"><div style="position:absolute; inset:0; width:' + pct + '%; background:' + barColor + '; border-radius:2px;"></div></div>' +
-      '<div style="font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:' + labelColor + '; white-space:nowrap;">' + (isCurrent ? 'Aktuell' : (isDone ? 'Erreicht' : 'Gesperrt')) + '</div>' +
+      '<div style="font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:' + labelColor + '; white-space:nowrap;">Level ' + lvl.level + ' — ' + escapeHtml(lvl.label) + '</div>' +
     '</div>';
   }).join('');
 
-  return '<div style="grid-column:1 / -1; margin-top:10px; border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:20px;">' +
+  return '<div style="grid-column:1 / -1; margin-top:10px; border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:24px;">' +
     '<div class="eyebrow" style="margin-bottom:4px;">' + escapeHtml(title) + '</div>' +
     rows +
   '</div>';
@@ -2016,24 +2154,31 @@ function renderMentorSearchResults(mentors){
   results.innerHTML = '';
   if(!mentors.length){ empty.style.display = 'block'; return; }
   empty.style.display = 'none';
+  results.style.display = 'grid';
+  results.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  results.style.gap = '16px';
 
   mentors.forEach(m => {
     const card = document.createElement('div');
-    card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:10px;';
+    card.style.cssText = 'cursor:pointer;';
     const avatarHtml = m.avatarDataUrl
-      ? '<img src="' + m.avatarDataUrl + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
-      : '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + escapeHtml(m.displayName[0].toUpperCase()) + '</div>';
-    const tagsHtml = m.workingOnChips.slice(0, 3).map(t => '<span style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 7px; border-radius:var(--radius-pill); margin-right:4px;">' + escapeHtml(t) + '</span>').join('');
+      ? '<img src="' + m.avatarDataUrl + '" style="width:100%; height:100%; object-fit:cover;">'
+      : '<div style="width:100%; height:100%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:32px;">' + escapeHtml(m.displayName[0].toUpperCase()) + '</div>';
+    const topicLabel = m.workingOnChips[0] || 'FlowValu';
 
     card.innerHTML =
-      avatarHtml +
-      '<div style="flex:1; color:#fff; cursor:pointer;" class="mentor-search-info">' +
-        '<div style="font-weight:700; font-size:14px;">' + (m.isOnline ? '🟢 ' : '') + escapeHtml(m.displayName) + '</div>' +
-        '<div style="margin-top:4px;">' + tagsHtml + '</div>' +
+      '<div style="position:relative; aspect-ratio:3/4; border-radius:var(--radius-card); overflow:hidden; border:1px solid rgba(242,240,237,0.1); margin-bottom:12px;">' +
+        avatarHtml +
+        (m.isOnline ? '<div style="position:absolute; top:10px; right:10px; width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></div>' : '') +
       '</div>' +
-      (m.isOnline ? '<button class="btn-sm mentor-live-call-btn" data-email="' + escapeHtml(m.email) + '" style="background:linear-gradient(135deg,var(--accent),var(--accent-2)); border:none; color:#fff; white-space:nowrap;">📞 Live Call</button>' : '');
+      '<div style="font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); margin-bottom:6px;">' + m.level.emoji + ' Level ' + m.level.level + ' · ' + escapeHtml(topicLabel) + '</div>' +
+      '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:14.5px; letter-spacing:0.01em; margin-bottom:3px;">' + escapeHtml(m.displayName) + '</div>' +
+      (m.isOnline ? '<button class="btn-sm mentor-live-call-btn" data-email="' + escapeHtml(m.email) + '" style="background:none; border:none; color:var(--ink); padding:0; font-size:11.5px; text-decoration:underline; cursor:pointer; font-family:inherit;">📞 Jetzt live sprechen</button>' : '<div style="font-size:11.5px; color:var(--muted);">Gerade nicht da</div>');
 
-    card.querySelector('.mentor-search-info').addEventListener('click', () => openMentorMiniProfile(m.email));
+    card.addEventListener('click', (e) => {
+      if(e.target.classList.contains('mentor-live-call-btn')) return;
+      openMentorMiniProfile(m.email);
+    });
     const liveCallBtn = card.querySelector('.mentor-live-call-btn');
     if(liveCallBtn){
       liveCallBtn.addEventListener('click', (e) => {
