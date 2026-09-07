@@ -53,6 +53,21 @@
   }
   .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-2); }
 
+  /* Logo-Lockup wie im Original: F-Zeichen + Wortmarke mit weitem Buchstabenabstand */
+  .fv-logo{ display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+  .fv-logo .fv-logo-mark{ font-family:'Archivo', sans-serif; font-weight:800; font-size:24px; line-height:0.8; letter-spacing:-0.04em; color:var(--ink); }
+  .fv-logo .fv-logo-word{ font-family:'Archivo', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.32em; text-transform:uppercase; color:var(--ink); }
+
+  .fv-pillars{ display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin:18px 0 22px; }
+  .fv-pillar{
+    display:flex; align-items:center; gap:10px; padding:14px; border-radius:16px; cursor:pointer;
+    border:1px solid rgba(242,240,237,0.12); background:rgba(16,16,19,0.5); backdrop-filter:blur(10px);
+  }
+  .fv-pillar:hover{ border-color:rgba(227,167,104,0.5); }
+  .fv-pillar-icon{ font-size:18px; }
+  .fv-pillar-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:12.5px; }
+  .fv-pillar-sub{ font-size:10.5px; color:var(--muted); margin-top:1px; }
+
   h1{ font-weight:600; font-size:26px; line-height:1.2; letter-spacing:-0.02em; margin:0 0 12px; }
   h1 .grad{ background:linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   p.lead{ font-size:14.5px; line-height:1.6; color:var(--muted); margin:0 0 26px; }
@@ -140,23 +155,31 @@
     padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px;
   }
   .next-step-label{ font-size:10.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; font-weight:600; }
+
+  /* Label-Wert-Zeile aus der "Aus einem Satz wird ein Plan"-Sektion des Originals */
+  .fv-lv-row{ display:grid; grid-template-columns:90px 1fr; gap:12px; border-top:1px solid rgba(242,240,237,0.12); padding:12px 0; }
+  .fv-lv-label{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(242,240,237,0.5); }
+  .fv-lv-value{ font-size:13.5px; font-weight:400; color:rgba(242,240,237,0.9); line-height:1.4; }
+
   .home-scroll-row{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
   .home-reel-card{
-    flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:10px; overflow:hidden; position:relative;
-    background:#000; cursor:pointer;
+    flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:16px; overflow:hidden; position:relative;
+    background:#000; cursor:pointer; border:1px solid rgba(242,240,237,0.12); transition:border-color 0.15s;
   }
+  .home-reel-card:hover{ border-color:rgba(227,167,104,0.6); }
   .home-reel-card video{ width:100%; height:100%; object-fit:cover; }
   .home-reel-card .home-reel-likes{
     position:absolute; bottom:6px; left:6px; color:#fff; font-size:10.5px; font-family:'JetBrains Mono', monospace;
     background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:999px;
   }
   .home-mentor-card{
-    flex:0 0 auto; width:120px; text-align:center; background:var(--surface-2); border:1px solid var(--border-strong);
-    border-radius:12px; padding:12px 8px; cursor:pointer;
+    flex:0 0 auto; width:120px; text-align:center; background:rgba(18,18,21,0.5); backdrop-filter:blur(10px);
+    border:1px solid rgba(242,240,237,0.12); border-radius:16px; padding:14px 8px; cursor:pointer; transition:border-color 0.15s;
   }
+  .home-mentor-card:hover{ border-color:rgba(227,167,104,0.5); }
   .home-mentor-card .avatar{ width:44px; height:44px; margin:0 auto 6px; font-size:16px; }
-  .home-mentor-card .mentor-name{ font-size:12px; font-weight:600; }
-  .home-mentor-card .mentor-level{ font-size:10.5px; color:var(--accent-2); margin-top:2px; }
+  .home-mentor-card .mentor-name{ font-family:'Archivo', sans-serif; font-size:12px; font-weight:700; }
+  .home-mentor-card .mentor-level{ font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-top:3px; }
   .trending-box{ background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; font-size:12.5px; color:var(--muted); }
   .trending-box .trending-highlight{ color:var(--ink); font-weight:600; }
 
@@ -544,7 +567,7 @@
 
   <!-- AUTH -->
   <section class="screen active" id="screen-auth">
-    <span class="badge"><span class="dot"></span>FlowValu</span>
+    <div class="fv-logo"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
     <h1 id="auth-title">Anmelden</h1>
     <p class="lead">Ein Konto schützt dich und andere vor Missbrauch.</p>
     <input type="email" id="auth-email" placeholder="deine@email.de">
@@ -627,6 +650,14 @@
 
     <h1 id="home-heading">Woran <span class="grad">hängst</span> du gerade?</h1>
     <p class="lead">Ein Satz reicht. Wir verbinden dich mit jemandem, der gerade online ist.</p>
+
+    <div class="fv-pillars">
+      <div class="fv-pillar" id="pillar-lernen"><span class="fv-pillar-icon">🎓</span><div><div class="fv-pillar-title">Lernen</div><div class="fv-pillar-sub">Themen wählen</div></div></div>
+      <div class="fv-pillar" id="pillar-austausch"><span class="fv-pillar-icon">💬</span><div><div class="fv-pillar-title">Austausch</div><div class="fv-pillar-sub">Pinnwand & Chat</div></div></div>
+      <div class="fv-pillar" id="pillar-mentoren"><span class="fv-pillar-icon">🧑</span><div><div class="fv-pillar-title">Mentoren</div><div class="fv-pillar-sub">Echte Erfahrung</div></div></div>
+      <div class="fv-pillar" id="pillar-ergebnisse"><span class="fv-pillar-icon">📈</span><div><div class="fv-pillar-title">Fortschritt</div><div class="fv-pillar-sub">Dein Flow-Level</div></div></div>
+    </div>
+
     <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
 
     <label>Kreativ-Bereich (optional)</label>
@@ -1596,32 +1627,82 @@ document.getElementById('dashboard-link').addEventListener('click', async () => 
   const container = document.getElementById('dashboard-content');
   container.innerHTML = 'Lädt …';
   try{
-    const res = await fetch('/api/mentor-dashboard');
-    const d = await res.json();
+    const [dashRes, profileRes] = await Promise.all([
+      fetch('/api/mentor-dashboard'),
+      fetch('/api/profile')
+    ]);
+    const d = await dashRes.json();
+    const profile = await profileRes.json();
 
     document.getElementById('dashboard-heading').textContent = d.level.emoji + ' ' + d.level.label;
 
+    // Statistik-Kacheln im Original-Stil: große Archivo-Zahl + Versal-Label,
+    // Raster mit dünner oberer Trennlinie (wie die "12.400 Mitglieder"-Sektion)
     const tile = (label, value) =>
-      '<div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px;">' +
-        '<div style="font-size:20px; font-weight:700; color:var(--accent-2);">' + value + '</div>' +
-        '<div style="font-size:11.5px; color:var(--muted); margin-top:3px;">' + label + '</div>' +
+      '<div style="border-top:1px solid rgba(242,240,237,0.12); padding-top:14px;">' +
+        '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:26px; letter-spacing:-0.02em; color:var(--ink);">' + value + '</div>' +
+        '<div style="font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); margin-top:6px;">' + label + '</div>' +
       '</div>';
 
+    container.style.gridTemplateColumns = '1fr 1fr';
     container.innerHTML =
-      tile('⭐ Ø Beliebtheit', d.rating.avgBeliebtheit ?? '—') +
-      tile('💡 Ø Kreativität', d.rating.avgKreativitaet ?? '—') +
-      tile('📞 Abgeschlossene Calls', d.completedCalls) +
-      tile('🔥 Tage aktiv (Serie)', d.streakDays) +
-      tile('🎬 Reels hochgeladen', d.reelCount) +
-      tile('❤️ Likes auf Reels', d.totalReelLikes) +
-      tile('💬 Kommentare auf Reels', d.totalReelComments) +
-      tile('🔁 Stammkunden', d.returningPartners) +
-      tile('🌊 Flow gesamt', d.flow) +
-      tile('📝 Bewertungen erhalten', d.rating.count);
+      tile('Ø Beliebtheit', d.rating.avgBeliebtheit ?? '—') +
+      tile('Ø Kreativität', d.rating.avgKreativitaet ?? '—') +
+      tile('Calls', d.completedCalls) +
+      tile('Tage aktiv', d.streakDays) +
+      tile('Reels', d.reelCount) +
+      tile('Likes', d.totalReelLikes) +
+      tile('Kommentare', d.totalReelComments) +
+      tile('Stammkunden', d.returningPartners) +
+      tile('Flow gesamt', d.flow) +
+      tile('Bewertungen', d.rating.count);
+
+    // Level-Spur im Original-Stil (Discipline → Action → Growth → Results → Freedom):
+    // alle 5 Stufen als Balken-Zeilen, aktuelle Stufe bronzefarben hervorgehoben.
+    container.innerHTML += buildLevelTrack('Mentor-Level', store_MENTOR_LEVELS_CLIENT, d.level.level);
+    container.innerHTML += buildLevelTrack('Dein Level', store_USER_LEVELS_CLIENT, profile.userLevel.level);
   } catch(e){
     container.innerHTML = 'Konnte nicht geladen werden.';
   }
 });
+
+// Level-Namen fürs Frontend gespiegelt (rein zur Anzeige — die eigentliche Berechnung
+// bleibt serverseitig in store.js, hier nur zum Rendern der Spur).
+const store_MENTOR_LEVELS_CLIENT = [
+  { level: 1, label: 'Newcomer' },
+  { level: 2, label: 'Rising Mentor' },
+  { level: 3, label: 'Top Mentor' },
+  { level: 4, label: 'Elite Mentor' },
+  { level: 5, label: 'Flowvalu Master' }
+];
+
+const store_USER_LEVELS_CLIENT = [
+  { level: 1, label: 'Explorer' },
+  { level: 2, label: 'Learner' },
+  { level: 3, label: 'Doer' },
+  { level: 4, label: 'Builder' },
+  { level: 5, label: 'Flowvalu Pro' }
+];
+
+function buildLevelTrack(title, levels, currentLevel){
+  const rows = levels.map(lvl => {
+    const isCurrent = lvl.level === currentLevel;
+    const isDone = lvl.level < currentLevel;
+    const pct = isDone ? 100 : (isCurrent ? 46 : 0);
+    const barColor = isCurrent ? 'var(--accent)' : (isDone ? 'rgba(242,240,237,0.7)' : 'rgba(242,240,237,0.12)');
+    const labelColor = isCurrent ? 'var(--accent)' : (isDone ? 'var(--ink)' : 'rgba(242,240,237,0.35)');
+    return '<div style="display:grid; grid-template-columns:1fr 1.3fr auto; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid rgba(242,240,237,0.09);">' +
+      '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:' + labelColor + ';">' + escapeHtml(lvl.label) + '</div>' +
+      '<div style="height:2px; background:rgba(242,240,237,0.12); position:relative; border-radius:2px;"><div style="position:absolute; inset:0; width:' + pct + '%; background:' + barColor + '; border-radius:2px;"></div></div>' +
+      '<div style="font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:' + labelColor + '; white-space:nowrap;">' + (isCurrent ? 'Aktuell' : (isDone ? 'Erreicht' : 'Gesperrt')) + '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div style="grid-column:1 / -1; margin-top:10px; border:1px solid rgba(242,240,237,0.12); border-radius:20px; background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:20px;">' +
+    '<div class="eyebrow" style="margin-bottom:4px;">' + escapeHtml(title) + '</div>' +
+    rows +
+  '</div>';
+}
 
 document.getElementById('back-from-dashboard-btn').addEventListener('click', () => show('screen-profile'));
 
@@ -1775,20 +1856,21 @@ let reelsObserver = null;
 
 document.getElementById('reels-icon-btn').addEventListener('click', async () => {
   document.getElementById('reels-overlay').classList.add('active');
-  await loadReelsUploadStatus();
-  await loadReelsFeed();
-});
-
-document.getElementById('reels-close-btn').addEventListener('click', closeReelsOverlay);
-
-document.getElementById('reels-icon-btn').addEventListener('click', async () => {
-  document.getElementById('reels-overlay').classList.add('active');
   showReelsOrMentorsTab('videos');
   await loadReelsUploadStatus();
   await loadReelsFeed();
 });
 
 document.getElementById('reels-close-btn').addEventListener('click', closeReelsOverlay);
+
+/* ---------- 4-Pfeiler-Kacheln: echte Funktionen verlinkt, keine Deko ---------- */
+document.getElementById('pillar-lernen').addEventListener('click', () => document.getElementById('hangup').focus());
+document.getElementById('pillar-austausch').addEventListener('click', () => document.getElementById('pinboard-icon-btn').click());
+document.getElementById('pillar-mentoren').addEventListener('click', () => {
+  document.getElementById('reels-icon-btn').click();
+  setTimeout(() => document.getElementById('reels-tab-mentors-btn')?.click(), 300);
+});
+document.getElementById('pillar-ergebnisse').addEventListener('click', () => document.getElementById('dashboard-link').click());
 
 /* ---------- Tab-Umschaltung: Reels-Feed vs. Mentoren-Suche (Thema 19) ---------- */
 let selectedMentorSearchTopics = [];
@@ -2088,23 +2170,25 @@ async function openMentorMiniProfile(email){
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:95; display:flex; align-items:center; justify-content:center; padding:20px;';
     modal.innerHTML =
-      '<div style="background:var(--surface); border-radius:16px; padding:24px; max-width:360px; width:100%; max-height:80vh; overflow-y:auto;">' +
-        '<div style="display:flex; align-items:center; gap:14px; margin-bottom:12px;">' +
+      '<div style="border:1px solid rgba(242,240,237,0.12); border-radius:26px; background:rgba(16,16,19,0.85); backdrop-filter:blur(20px); padding:26px; max-width:360px; width:100%; max-height:80vh; overflow-y:auto;">' +
+        '<div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">' +
           avatarHtml +
           '<div>' +
-            '<div style="font-weight:700; font-size:17px;">' + escapeHtml(d.displayName) + '</div>' +
-            '<div style="font-size:12.5px; color:var(--accent-2); font-weight:600;">' + lvl.emoji + ' ' + escapeHtml(lvl.label) + '</div>' +
+            '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:17px;">' + escapeHtml(d.displayName) + '</div>' +
+            '<div style="font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-top:3px;">' + lvl.emoji + ' ' + escapeHtml(lvl.label) + '</div>' +
           '</div>' +
         '</div>' +
-        (d.bio ? '<p style="font-size:13.5px; color:var(--muted); margin-bottom:10px;">' + escapeHtml(d.bio) + '</p>' : '') +
-        '<p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">' + ratingText + ' · 🎬 ' + data.reels.length + ' Video(s) · <span id="mentor-mini-follower-count">' + data.followerCount + '</span> Follower</p>' +
+        (d.bio ? '<p style="font-size:13.5px; color:rgba(242,240,237,0.75); font-weight:300; margin-bottom:4px;">' + escapeHtml(d.bio) + '</p>' : '') +
+        '<div class="fv-lv-row"><div class="fv-lv-label">Bewertung</div><div class="fv-lv-value">' + (d.rating.count ? '⭐ ' + d.rating.avgBeliebtheit + ' · 💡 ' + d.rating.avgKreativitaet + ' (' + d.rating.count + ')' : 'Noch keine') + '</div></div>' +
+        '<div class="fv-lv-row"><div class="fv-lv-label">Reels</div><div class="fv-lv-value">' + data.reels.length + ' hochgeladen</div></div>' +
+        '<div class="fv-lv-row" style="border-bottom:1px solid rgba(242,240,237,0.12);"><div class="fv-lv-label">Follower</div><div class="fv-lv-value"><span id="mentor-mini-follower-count">' + data.followerCount + '</span></div></div>' +
         (isOwnProfile ? '' :
-          '<button class="btn" id="mentor-mini-follow-btn" data-following="' + data.isFollowing + '" style="margin-bottom:10px; ' +
-            (data.isFollowing ? 'background:var(--surface-2); color:var(--muted);' : '') + '">' +
+          '<button class="btn" id="mentor-mini-follow-btn" data-following="' + data.isFollowing + '" style="margin-top:18px; margin-bottom:10px; ' +
+            (data.isFollowing ? 'background:rgba(255,255,255,0.06); color:var(--muted);' : '') + '">' +
             (data.isFollowing ? '✓ Gefolgt' : '+ Folgen') +
           '</button>'
         ) +
-        '<button class="btn btn-ghost" id="mentor-mini-close-btn">Schließen</button>' +
+        '<button class="btn btn-ghost" id="mentor-mini-close-btn" style="margin-top:' + (isOwnProfile ? '18px' : '0') + ';">Schließen</button>' +
       '</div>';
     modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
