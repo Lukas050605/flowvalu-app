@@ -176,6 +176,16 @@ function addCallSummary({ roomId, participantEmails, summary, ideas, actionItems
   writeCallSummaries(entries.slice(-500));
 }
 
+// Alle echten Call-Zusammenfassungen dieser Person aus den letzten 7 Tagen —
+// Rohmaterial für den wöchentlichen Rückblick (Thema 5). Kein Fake, nur was
+// wirklich in echten Calls besprochen wurde.
+function getCallSummariesLastWeek(email) {
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return readCallSummaries()
+    .filter(e => e.participantEmails.includes(email) && e.createdAt >= sevenDaysAgo)
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
 // Gibt die letzten Ideen zurück, die eine Person in FRÜHEREN Calls (nicht im aktuellen
 // Raum) besprochen hat — Grundlage fürs "persönliche Gedächtnis" der Live-Impulse.
 function getRecentIdeasForUser(email, excludeRoomId, limit = 2) {
@@ -256,7 +266,7 @@ function getEffectiveImpulseExamples(limit = 3) {
 module.exports = {
   readUsers, writeUsers, readReports, writeReports,
   readMatches, writeMatches, findUserByEmail, getPublicProfile, findMatchByPdfToken,
-  addCallSummary, getRecentIdeasForUser,
+  addCallSummary, getRecentIdeasForUser, getCallSummariesLastWeek,
   logImpulse, resolveOpenImpulse, resolveAllOpenImpulsesForRoom, getEffectiveImpulseExamples,
   addRating, getUserRatingSummary, hasRated,
   trackCustomChipUsage, getPopularCustomChips, deleteCustomChip, getAllCustomChipsWithCounts,

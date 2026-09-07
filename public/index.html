@@ -768,6 +768,54 @@
     <button class="btn btn-ghost" id="back-from-goal-btn" style="margin-top:14px;">Zurück</button>
   </section>
 
+  <!-- WÖCHENTLICHER RÜCKBLICK (Thema 5) -->
+  <section class="screen" id="screen-weekly-recap">
+    <p class="eyebrow">Deine Woche</p>
+    <h2>🗓️ Deine Woche mit FlowValu</h2>
+
+    <div id="weekly-recap-empty" style="display:none;">
+      <p class="lead">Noch keine Calls in den letzten 7 Tagen — starte einen, um hier deinen ersten Rückblick zu sehen.</p>
+    </div>
+
+    <div id="weekly-recap-content" style="display:none;">
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:20px;" id="weekly-recap-call-count"></p>
+
+      <div id="weekly-recap-ai-view" style="display:none;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">💡 Wichtigste Ideen der Woche</div>
+          <ul id="weekly-top-ideas" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
+        </div>
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">🔁 Wiederkehrende Themen</div>
+          <p id="weekly-recurring-themes" style="margin:0; font-size:13px; line-height:1.6;"></p>
+        </div>
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">❓ Offene Punkte</div>
+          <ul id="weekly-open-points" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
+        </div>
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">➡️ Nächste Schritte</div>
+          <ul id="weekly-next-steps" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
+        </div>
+      </div>
+
+      <!-- Fallback ohne KI-Synthese: einfach die rohen Ideen/Aufgaben auflisten -->
+      <div id="weekly-recap-raw-view" style="display:none;">
+        <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px;">Keine KI-Zusammenfassung verfügbar — hier deine Rohdaten aus dieser Woche:</p>
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">💡 Ideen</div>
+          <ul id="weekly-raw-ideas" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
+        </div>
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px;">
+          <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">✅ Nächste Schritte</div>
+          <ul id="weekly-raw-actions" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-ghost" id="back-from-weekly-btn" style="margin-top:20px;">Zurück</button>
+  </section>
+
   <!-- MENTOR REELS: Vollbild-Scroll-Overlay, wie bei Instagram Reels -->
   <div class="reels-overlay" id="reels-overlay">
     <div class="reels-topbar">
@@ -1567,6 +1615,58 @@ document.getElementById('goal-link').addEventListener('click', async () => {
 });
 
 document.getElementById('back-from-goal-btn').addEventListener('click', () => show('screen-profile'));
+
+/* ---------- Wöchentlicher Rückblick (Thema 5) ---------- */
+document.getElementById('weekly-recap-link').addEventListener('click', async () => {
+  show('screen-weekly-recap');
+  await loadWeeklyRecap();
+});
+
+document.getElementById('back-from-weekly-btn').addEventListener('click', () => show('screen-profile'));
+
+async function loadWeeklyRecap(){
+  const empty = document.getElementById('weekly-recap-empty');
+  const content = document.getElementById('weekly-recap-content');
+  const aiView = document.getElementById('weekly-recap-ai-view');
+  const rawView = document.getElementById('weekly-recap-raw-view');
+
+  empty.style.display = 'none';
+  content.style.display = 'none';
+
+  try{
+    const res = await fetch('/api/weekly-recap');
+    const data = await res.json();
+
+    if(!data.hasData){
+      empty.style.display = 'block';
+      return;
+    }
+    content.style.display = 'block';
+    document.getElementById('weekly-recap-call-count').textContent =
+      data.callCount + ' Call' + (data.callCount === 1 ? '' : 's') + ' in den letzten 7 Tagen';
+
+    if(data.recap){
+      aiView.style.display = 'block';
+      rawView.style.display = 'none';
+      document.getElementById('weekly-top-ideas').innerHTML =
+        (data.recap.topIdeas || []).map(i => '<li>' + escapeHtml(i) + '</li>').join('') || '<li>Keine notiert</li>';
+      document.getElementById('weekly-recurring-themes').textContent = data.recap.recurringThemes || 'Noch kein klares Muster erkennbar';
+      document.getElementById('weekly-open-points').innerHTML =
+        (data.recap.openPoints || []).map(i => '<li>' + escapeHtml(i) + '</li>').join('') || '<li>Keine offenen Punkte notiert</li>';
+      document.getElementById('weekly-next-steps').innerHTML =
+        (data.recap.nextSteps || []).map(i => '<li>' + escapeHtml(i) + '</li>').join('') || '<li>Keine notiert</li>';
+    } else {
+      aiView.style.display = 'none';
+      rawView.style.display = 'block';
+      document.getElementById('weekly-raw-ideas').innerHTML =
+        data.rawIdeas.map(i => '<li>' + escapeHtml(i) + '</li>').join('') || '<li>Keine Ideen notiert</li>';
+      document.getElementById('weekly-raw-actions').innerHTML =
+        data.rawActionItems.map(i => '<li>' + escapeHtml(i) + '</li>').join('') || '<li>Keine notiert</li>';
+    }
+  } catch(e){
+    empty.style.display = 'block';
+  }
+}
 
 async function loadGoal(){
   const res = await fetch('/api/goal');

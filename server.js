@@ -8,6 +8,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const store = require('./store');
 const { summarizeWithAI, buildPdf, transcribeAudioFallback } = require('./call-summary');
+const { buildWeeklyRecap } = require('./weekly-recap');
 const { classifyTopic, computeAssociationScore } = require('./topic-matcher');
 const { generateImpulse } = require('./live-impulse');
 const { isAddressedToValu, generateValuAnswer, generateValuChatAnswer } = require('./valu-ai');
@@ -271,6 +272,25 @@ app.get('/api/popular-chips', (req, res) => {
 // historische Daten vorliegen, statt eine erfundene Zahl zu zeigen.
 // Flow-Reward-Katalog + eigenes Guthaben (Thema 30/31).
 // Nutzer-Ziele & persönlicher Weg (Thema 27) — alles serverseitig geprüft.
+// Wöchentlicher Rückblick (Thema 5) — aus echten Call-Zusammenfassungen der
+// letzten 7 Tage, mit KI-Synthese (fällt bei fehlendem Key auf die Rohdaten zurück).
+app.get('/api/weekly-recap', async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const summaries = store.getCallSummariesLastWeek(req.session.user.email);
+  if (!summaries.length) {
+    return res.json({ hasData: false, callCount: 0 });
+  }
+  const displayName = store.getPublicProfile(req.session.user.email).displayName;
+  const recap = await buildWeeklyRecap(summaries, displayName);
+  res.json({
+    hasData: true,
+    callCount: summaries.length,
+    recap, // null, falls keine KI-Synthese möglich war
+    rawIdeas: summaries.flatMap(s => s.ideas),
+    rawActionItems: summaries.flatMap(s => s.actionItems)
+  });
+});
+
 app.get('/api/goal', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json({ path: store.getGoalPath(req.session.user.email) });
