@@ -83,6 +83,12 @@
 
   /* ---- App-Kopfzeile: persistent, wie die Nav im Original-Design ---- */
   body{ display:block; padding:0; }
+  /* Grain-Overlay — wortwörtlich aus styles.css übernommen */
+  .fv-grain {
+    position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0.5;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
   .fv-app-header{
     display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
     padding:22px clamp(20px, 5vw, 56px) 0;
@@ -169,7 +175,9 @@
     font-family:'Manrope', sans-serif; font-size:11.5px; font-weight:600; padding:9px 16px; border-radius:var(--radius-pill);
     letter-spacing:0.08em; text-transform:uppercase;
     border:1px solid rgba(242,240,237,0.2); background:rgba(16,16,19,0.6); color:var(--muted); cursor:pointer;
+    transition:border-color 0.15s;
   }
+  .chip:hover{ border-color:rgba(227,167,104,0.7); }
   .chip.selected{ background:rgba(227,167,104,0.14); color:var(--accent); border-color:rgba(227,167,104,0.6); }
   .chip-remove{
     display:inline-block; margin-left:4px; opacity:0.6; font-weight:700;
@@ -184,12 +192,15 @@
     width:100%; font-family:'Manrope', sans-serif; font-size:12.5px; font-weight:600;
     padding:16px 20px; border-radius:var(--radius-pill); letter-spacing:0.1em; text-transform:uppercase;
     border:none; cursor:pointer; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0a0a0c;
+    transition:background 0.15s, opacity 0.15s;
   }
+  .btn:hover:not(:disabled){ background:var(--accent); }
   .btn:disabled{ opacity:.45; cursor:not-allowed; }
   .btn-ghost{
     background:rgba(255,255,255,0.04); border:1px solid rgba(242,240,237,0.24); color:rgba(242,240,237,0.85);
-    margin-top:10px; backdrop-filter:blur(10px);
+    margin-top:10px; backdrop-filter:blur(10px); transition:border-color 0.15s, background 0.15s, color 0.15s;
   }
+  .btn-ghost:hover{ border-color:rgba(242,240,237,0.65); background:rgba(12,12,14,0.55); color:var(--ink); }
 
   .queue-ring{ width:70px; height:70px; margin:20px auto; border-radius:50%; border:2px solid var(--border); position:relative; }
   .queue-ring::before{ content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:var(--accent-2); animation:spin 1s linear infinite; }
@@ -647,9 +658,617 @@
   }
   .toggle-btn.off{ background:#e5484d; border-color:#e5484d; color:#fff; }
   .toggle-btn.active{ background:var(--accent-2); border-color:var(--accent-2); color:#fff; }
+
+  /* =====================================================================
+     Öffentliche Startseite (Premium-Design aus Claude Design)
+     Alle Klassen/IDs mit "lp-" (Landingpage) präfixiert, damit nichts mit
+     dem bestehenden App-Screens (.btn, .eyebrow, .badge, .chip, …) kollidiert.
+     Sichtbar nur für nicht eingeloggte Besucher: body.lp-mode steuert das.
+     ===================================================================== */
+  :root{
+    --lp-alt: #0b0b0d; --lp-card: #0d0d10;
+    --lp-ink-90: rgba(242,240,237,0.9); --lp-ink-85: rgba(242,240,237,0.85);
+    --lp-ink-80: rgba(242,240,237,0.8); --lp-ink-72: rgba(242,240,237,0.72);
+    --lp-ink-70: rgba(242,240,237,0.7); --lp-ink-62: rgba(242,240,237,0.62);
+    --lp-ink-60: rgba(242,240,237,0.6); --lp-ink-55: rgba(242,240,237,0.55);
+    --lp-ink-50: rgba(242,240,237,0.5); --lp-ink-45: rgba(242,240,237,0.45);
+    --lp-ink-42: rgba(242,240,237,0.42); --lp-ink-40: rgba(242,240,237,0.4);
+    --lp-ink-38: rgba(242,240,237,0.38); --lp-ink-30: rgba(242,240,237,0.3);
+    --lp-hair: rgba(242,240,237,0.09); --lp-hair-strong: rgba(242,240,237,0.12);
+    --lp-hair-soft: rgba(242,240,237,0.08); --lp-line-14: rgba(242,240,237,0.14);
+    --lp-glass: rgba(16,16,19,0.55); --lp-glass-2: rgba(18,18,21,0.5);
+    --lp-glass-3: rgba(14,14,17,0.6); --lp-glass-accent: rgba(20,17,14,0.7);
+    --lp-pad-x: clamp(20px, 5vw, 72px); --lp-maxw: 1560px;
+    --lp-r-lg: 30px; --lp-r-md: 28px; --lp-r-sm: 24px;
+  }
+  body.lp-mode #fv-app-header, body.lp-mode .fv-brandstrip,
+  body.lp-mode .shell-wrap, body.lp-mode #fv-footer{ display:none; }
+  #screen-landing{ display:none; }
+  body.lp-mode #screen-landing{ display:block; }
+
+  /* :where() hält diese Reset-Regeln bei Spezifität 0 — sonst würde die ID
+     #screen-landing jede .lp-btn/.lp-nav__cta-Farbregel überstimmen (z.B. weißer
+     Text auf weißem Button-Grund). */
+  :where(#screen-landing) *{ box-sizing:border-box; }
+  :where(#screen-landing) h1, :where(#screen-landing) h2, :where(#screen-landing) h3{ margin:0; font-family:'Archivo', sans-serif; letter-spacing:-0.02em; }
+  :where(#screen-landing) p{ margin:0; }
+  :where(#screen-landing) img{ display:block; max-width:100%; }
+  :where(#screen-landing) a{ color:var(--ink); text-decoration:none; transition:color .25s ease, border-color .25s ease, background .25s ease; }
+  :where(#screen-landing) a:hover{ color:var(--accent); }
+
+  .lp-wrap{ max-width:var(--lp-maxw); margin:0 auto; }
+  .lp-section{ padding:clamp(72px, 12vh, 150px) var(--lp-pad-x); }
+  .lp-section--wide{ max-width:var(--lp-maxw); margin:0 auto; }
+  .lp-section--alt{ background:var(--lp-alt); border-top:1px solid rgba(242,240,237,0.07); padding:clamp(70px, 11vh, 140px) var(--lp-pad-x); }
+  .lp-split{ display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:clamp(36px, 6vw, 90px); align-items:start; }
+  .lp-split--center{ align-items:center; gap:clamp(36px, 6vw, 80px); }
+  .lp-stack{ display:flex; flex-direction:column; gap:18px; }
+  .lp-headrow{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:clamp(34px, 5vh, 56px); }
+  .lp-headrow--tight{ margin-bottom:clamp(24px, 3.4vh, 38px); }
+
+  .lp-eyebrow{ font-size:10.5px; letter-spacing:0.34em; text-transform:uppercase; color:var(--accent); margin-bottom:20px; }
+  .lp-h2{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(28px, 3.4vw, 50px); line-height:1.06; letter-spacing:-0.025em; max-width:22ch; text-wrap:balance; }
+  .lp-h2--xl{ font-size:clamp(30px, 3.9vw, 58px); line-height:1.04; max-width:none; margin-bottom:26px; }
+  .lp-h2--sm{ font-size:clamp(27px, 3.2vw, 46px); max-width:20ch; margin-bottom:22px; }
+  .lp-h3{ font-family:'Archivo', sans-serif; font-weight:700; font-size:19px; line-height:1.22; letter-spacing:-0.01em; margin-bottom:12px; }
+  .lp-lead{ font-size:clamp(15px, 1.2vw, 18px); line-height:1.68; color:var(--lp-ink-72); max-width:52ch; margin-bottom:20px; }
+  .lp-lead--last{ margin-bottom:0; }
+  .lp-note{ font-size:15px; line-height:1.6; color:var(--lp-ink-62); max-width:34ch; }
+  .lp-body{ font-size:14.5px; line-height:1.62; color:var(--lp-ink-62); }
+  .lp-micro{ font-size:10.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--lp-ink-45); margin-bottom:22px; }
+  .lp-micro--tight{ margin-bottom:12px; }
+  .lp-micro--accent{ color:var(--accent); margin-bottom:14px; }
+  .lp-script{ font-family:'Caveat', cursive; font-size:clamp(24px, 2.4vw, 34px); line-height:1.2; color:var(--lp-ink-90); }
+  .lp-link-ul{ align-self:flex-start; font-size:11.5px; letter-spacing:0.2em; text-transform:uppercase; border-bottom:1px solid var(--lp-ink-30); padding-bottom:6px; }
+
+  .lp-btn{ display:inline-flex; align-items:center; gap:12px; border-radius:999px; font-family:'Manrope', sans-serif; font-size:12.5px; letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; }
+  .lp-btn--solid{ background:var(--ink); color:#0a0a0c; padding:18px 34px; font-weight:600; border:0; }
+  .lp-btn--solid:hover{ background:var(--accent); color:#0a0a0c; }
+  .lp-btn--sm{ padding:15px 26px; font-size:12px; }
+  .lp-btn__rule{ display:block; width:18px; height:1px; background:#0a0a0c; }
+  .lp-btn--sm .lp-btn__rule{ width:16px; }
+  .lp-btn--glass{ padding:18px 32px; font-weight:500; color:var(--lp-ink-90); border:1px solid rgba(242,240,237,0.28); background:rgba(12,12,14,0.35); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); }
+  .lp-btn--glass:hover{ border-color:rgba(242,240,237,0.65); background:rgba(12,12,14,0.55); color:var(--ink); }
+
+  .lp-hero{ position:relative; background:var(--bg); }
+  .lp-nav{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:18px; padding:26px var(--lp-pad-x) 0; }
+  .lp-nav__links{ display:flex; flex-wrap:wrap; align-items:center; gap:clamp(14px, 2vw, 34px); font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(242,240,237,0.66); }
+  .lp-nav__links a{ color:inherit; cursor:pointer; }
+  .lp-nav__actions{ display:flex; align-items:center; gap:16px; }
+  .lp-nav__login{ font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(242,240,237,0.6); cursor:pointer; }
+  .lp-nav__cta{ font-size:11px; letter-spacing:0.2em; text-transform:uppercase; border:1px solid var(--lp-ink-30); border-radius:999px; padding:11px 20px; background:rgba(12,12,14,0.35); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); cursor:pointer; }
+  .lp-nav__cta:hover{ border-color:var(--accent); }
+
+  .lp-hero__plate-wrap{ display:flex; justify-content:center; padding:clamp(20px, 3vh, 40px) clamp(16px, 4vw, 48px) 0; }
+  .lp-hero__plate{ position:relative; height:min(88vh, 1000px); aspect-ratio:1145/1388; max-width:100%; border-radius:22px; overflow:hidden; border:1px solid rgba(242,240,237,0.1); background:#060608; }
+  .lp-hero__img{ width:100%; height:100%; object-fit:contain; }
+  .lp-hotspot{ position:absolute; top:53.5%; height:10.4%; border-radius:14px; border:1px solid transparent; z-index:4; }
+  .lp-hotspot:hover{ border-color:rgba(227,167,104,0.85); background:rgba(227,167,104,0.08); }
+  .lp-hotspot--1{ left:17.1%; width:15.9%; }
+  .lp-hotspot--2{ left:34.6%; width:16.9%; }
+  .lp-hotspot--3{ left:53.3%; width:17.1%; }
+  .lp-hotspot--4{ left:72.3%; width:17.7%; }
+  .lp-hero__actions{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:center; padding:clamp(28px, 5vh, 48px) var(--lp-pad-x) clamp(20px, 3vh, 36px); }
+  .lp-hero__actions .lp-btn--solid{ padding:17px 30px; }
+  .lp-hero__actions .lp-btn--glass{ padding:17px 28px; border-color:rgba(242,240,237,0.24); background:rgba(12,12,14,0.32); }
+
+  .lp-chainbar{ background:#0a0a0c; border-top:1px solid var(--lp-hair); border-bottom:1px solid var(--lp-hair); padding:22px var(--lp-pad-x); }
+  .lp-chainbar__inner{ display:flex; flex-wrap:wrap; align-items:center; gap:clamp(12px, 2.4vw, 34px); font-family:'Archivo', sans-serif; font-weight:600; font-size:clamp(10px, 1vw, 12.5px); letter-spacing:0.3em; text-transform:uppercase; color:var(--lp-ink-55); }
+  .lp-chainbar__strong{ color:var(--ink); }
+  .lp-chainbar__arrow{ color:var(--accent); }
+
+  .lp-glass{ border:1px solid var(--lp-hair-strong); border-radius:var(--lp-r-md); background:var(--lp-glass); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); }
+  .lp-glass--pad{ padding:clamp(24px, 2.6vw, 36px); border-radius:26px; }
+  .lp-glass--pad-lg{ padding:clamp(26px, 3.4vw, 48px); border-radius:var(--lp-r-lg); }
+  .lp-glass--accent{ border-color:rgba(227,167,104,0.45); background:var(--lp-glass-accent); }
+
+  .lp-qlist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px; font-family:'Archivo', sans-serif; font-weight:600; font-size:clamp(14px, 1.4vw, 18px); letter-spacing:0.02em; }
+  .lp-qlist li{ display:flex; gap:14px; align-items:baseline; }
+  .lp-qlist__num{ color:var(--accent); font-size:11px; }
+  .lp-claim{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(13px, 1.5vw, 20px); line-height:1.5; letter-spacing:0.24em; text-transform:uppercase; }
+  .lp-claim__mid{ color:var(--lp-ink-55); }
+  .lp-claim__accent{ color:var(--accent); }
+
+  .lp-grid-hair{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:1px; background:rgba(242,240,237,0.1); border:1px solid rgba(242,240,237,0.1); border-radius:26px; overflow:hidden; }
+  .lp-chaincell{ background:var(--lp-alt); padding:clamp(24px, 2.6vw, 34px); min-height:230px; display:flex; flex-direction:column; }
+  .lp-chaincell__top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+  .lp-chaincell__kicker{ font-family:'Archivo', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
+  .lp-chaincell__num{ font-family:'Archivo', sans-serif; font-weight:700; font-size:26px; color:rgba(242,240,237,0.16); }
+  .lp-chaincell__num--accent{ color:var(--accent); }
+  .lp-chaincell--quote{ background:var(--lp-card); justify-content:space-between; }
+
+  .lp-chips{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:clamp(24px, 3.4vh, 38px); }
+  .lp-chip{ display:flex; align-items:center; gap:10px; cursor:pointer; font-family:'Manrope', sans-serif; font-size:12.5px; letter-spacing:0.12em; text-transform:uppercase; padding:13px 20px; border-radius:999px; border:1px solid rgba(242,240,237,0.2); background:rgba(16,16,19,0.6); color:var(--lp-ink-60); transition:border-color .25s ease, color .25s ease; }
+  .lp-chip:hover{ border-color:rgba(227,167,104,0.7); }
+  .lp-chip.lp-is-active{ color:var(--ink); }
+  .lp-chip__dot{ display:block; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+
+  .lp-pathgrid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; align-items:start; }
+  .lp-pathgrid > .lp-glass{ background:var(--lp-glass-3); }
+  .lp-goal-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(19px, 2vw, 26px); line-height:1.2; letter-spacing:-0.01em; margin-bottom:26px; }
+  .lp-progress{ display:flex; align-items:center; gap:16px; margin-bottom:30px; }
+  .lp-progress__track{ flex:1; height:2px; background:var(--lp-line-14); border-radius:2px; position:relative; }
+  .lp-progress__fill{ position:absolute; inset:0 auto 0 0; background:var(--accent); border-radius:2px; transition:width .4s ease; }
+  .lp-progress__label{ font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--lp-ink-60); white-space:nowrap; }
+  .lp-steps{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+  .lp-step{ display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:14px; align-items:center; padding:14px 0; border-top:1px solid var(--lp-hair-soft); }
+  .lp-step__num{ font-family:'Archivo', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.1em; color:var(--lp-ink-30); }
+  .lp-step__title{ font-size:14.5px; font-weight:400; line-height:1.45; color:var(--lp-ink-40); }
+  .lp-step__badge{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--lp-ink-38); white-space:nowrap; }
+  .lp-step.lp-is-done .lp-step__num{ color:var(--lp-ink-60); }
+  .lp-step.lp-is-done .lp-step__title{ color:var(--lp-ink-72); }
+  .lp-step.lp-is-done .lp-step__badge{ color:var(--lp-ink-60); }
+  .lp-step.lp-is-current .lp-step__num, .lp-step.lp-is-current .lp-step__badge{ color:var(--accent); }
+  .lp-step.lp-is-current .lp-step__title{ color:var(--ink); }
+  .lp-now-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(18px, 1.8vw, 24px); line-height:1.24; letter-spacing:-0.01em; margin-bottom:20px; }
+  .lp-deflist{ margin:0 0 26px; display:flex; flex-direction:column; gap:16px; }
+  .lp-deflist--wide{ margin-bottom:0; gap:14px; }
+  .lp-deflist__row{ display:grid; grid-template-columns:96px minmax(0,1fr); gap:14px; border-top:1px solid var(--lp-hair-strong); padding-top:14px; }
+  .lp-deflist--wide .lp-deflist__row{ grid-template-columns:110px minmax(0,1fr); }
+  .lp-deflist dt{ font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:var(--lp-ink-50); }
+  .lp-deflist__dt--accent{ color:var(--accent) !important; }
+  .lp-deflist dd{ margin:0; font-size:14.5px; font-weight:300; line-height:1.55; color:var(--lp-ink-85); }
+  .lp-deflist__dd--strong{ font-weight:400; color:var(--ink) !important; }
+  .lp-quotebox{ border:1px solid var(--lp-line-14); border-radius:16px; padding:18px 20px; font-size:14.5px; line-height:1.55; color:var(--lp-ink-90); margin-bottom:24px; }
+
+  .lp-photo{ position:relative; border-radius:26px; overflow:hidden; border:1px solid rgba(242,240,237,0.1); background:linear-gradient(140deg, rgba(227,167,104,0.07), rgba(6,6,8,0)), #0d0d10; background-size:cover; background-position:center; }
+  .lp-photo--43{ aspect-ratio:4/3; }
+  .lp-photo--34{ aspect-ratio:3/4; margin-bottom:18px; }
+  .lp-photo--45{ aspect-ratio:4/5; border-radius:var(--lp-r-md); }
+  .lp-photo[data-photo]::after{ content:attr(data-photo); position:absolute; inset:auto 18px 18px 18px; font-size:11px; line-height:1.5; letter-spacing:0.06em; color:var(--lp-ink-40); }
+
+  .lp-cards4{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; }
+  .lp-card{ border:1px solid var(--lp-hair-strong); background:var(--lp-glass-2); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); border-radius:var(--lp-r-sm); padding:28px; min-height:230px; display:flex; flex-direction:column; gap:14px; transition:border-color .25s ease; }
+  .lp-card:hover{ border-color:rgba(227,167,104,0.5); }
+  .lp-card__kicker{ font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--accent); }
+  .lp-card__title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:21px; line-height:1.2; letter-spacing:-0.01em; }
+  .lp-card__meta{ margin-top:auto; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--lp-ink-42); }
+
+  .lp-mentors{ display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:18px; }
+  .lp-mentor__level{ font-size:10.5px; letter-spacing:0.24em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+  .lp-mentor__name{ font-family:'Archivo', sans-serif; font-weight:700; font-size:16px; letter-spacing:0.04em; margin-bottom:6px; }
+  .lp-mentor__match{ font-size:13px; color:var(--lp-ink-55); }
+  .lp-testimonial{ background:var(--lp-glass-2); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); border-radius:26px; padding:30px; display:flex; flex-direction:column; justify-content:space-between; gap:24px; min-height:280px; }
+  .lp-testimonial__quote{ font-family:'Archivo', sans-serif; font-weight:500; font-size:clamp(17px, 1.5vw, 22px); line-height:1.38; letter-spacing:-0.01em; }
+  .lp-testimonial__who{ font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--lp-ink-50); }
+
+  .lp-community{ display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); border-top:1px solid rgba(242,240,237,0.07); }
+  .lp-community__photo{ min-height:clamp(340px, 52vh, 620px); border-radius:0; border:0; }
+  .lp-community__text{ background:var(--bg); padding:clamp(48px, 8vh, 110px) clamp(24px, 5vw, 80px); display:flex; flex-direction:column; justify-content:center; }
+  .lp-community__text .lp-lead{ font-size:15.5px; line-height:1.66; color:var(--lp-ink-70); max-width:48ch; margin-bottom:38px; }
+  .lp-stats{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:20px; border-top:1px solid var(--lp-hair-strong); padding-top:28px; }
+  .lp-stats__num{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(24px, 2.4vw, 36px); letter-spacing:-0.02em; margin-bottom:8px; }
+  .lp-stats__label{ font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--lp-ink-50); }
+
+  .lp-levels{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 210px; gap:clamp(14px, 3vw, 40px); align-items:center; }
+  .lp-levels > *{ padding:22px 0; border-bottom:1px solid var(--lp-hair); }
+  .lp-levels__name{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(13px, 1.2vw, 16px); letter-spacing:0.22em; text-transform:uppercase; }
+  .lp-levels__name--accent{ color:var(--accent); }
+  .lp-levels__name--dim{ color:var(--lp-ink-45); }
+  .lp-levels__label{ font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:var(--lp-ink-62); white-space:nowrap; }
+  .lp-levels__label--accent{ color:var(--accent); }
+  .lp-levels__label--dim{ color:var(--lp-ink-45); }
+  .lp-levels__row--last{ border-bottom:0; }
+  .lp-bar{ height:2px; background:var(--lp-line-14); position:relative; }
+  .lp-bar__fill{ position:absolute; inset:0 auto 0 0; background:var(--ink); }
+  .lp-bar__fill--accent{ background:var(--accent); }
+
+  .lp-rulelist{ display:flex; flex-direction:column; gap:16px; max-width:46ch; }
+  .lp-rulelist__row{ display:flex; gap:16px; align-items:baseline; border-top:1px solid var(--lp-hair-strong); padding-top:16px; font-size:15px; color:var(--lp-ink-80); }
+  .lp-rulelist__num{ font-size:11px; letter-spacing:0.2em; color:var(--accent); min-width:26px; }
+  #lp-business .lp-lead{ font-size:15.5px; line-height:1.66; color:var(--lp-ink-70); max-width:50ch; margin-bottom:34px; }
+  #lp-ki .lp-lead{ font-size:15.5px; line-height:1.66; color:var(--lp-ink-70); max-width:48ch; }
+
+  .lp-finale{ position:relative; min-height:clamp(460px, 80vh, 760px); display:flex; align-items:center; justify-content:center; text-align:center; padding:clamp(60px, 10vh, 120px) var(--lp-pad-x); overflow:hidden; }
+  .lp-finale__photo{ position:absolute; inset:0; border-radius:0; border:0; }
+  .lp-finale__scrim{ position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg, rgba(6,6,8,0.92) 0%, rgba(6,6,8,0.55) 45%, rgba(6,6,8,0.9) 100%); }
+  .lp-finale__inner{ position:relative; z-index:3; max-width:900px; }
+  .lp-finale__kicker{ font-family:'Archivo', sans-serif; font-weight:600; font-size:11px; letter-spacing:0.34em; text-transform:uppercase; color:rgba(242,240,237,0.75); margin-bottom:26px; }
+  .lp-finale__h{ font-family:'Archivo', sans-serif; font-weight:700; font-size:clamp(32px, 5.2vw, 74px); line-height:1.02; letter-spacing:-0.03em; margin-bottom:24px; text-wrap:balance; }
+  .lp-finale__p{ font-size:clamp(15px, 1.3vw, 18px); line-height:1.62; color:var(--lp-ink-80); max-width:46ch; margin:0 auto 40px; }
+  .lp-finale__actions{ display:flex; flex-wrap:wrap; gap:14px; justify-content:center; }
+  .lp-finale__actions .lp-btn--glass{ border-color:var(--lp-ink-30); }
+
+  .lp-footer{ padding:clamp(48px, 7vh, 80px) var(--lp-pad-x) 44px; background:var(--bg); border-top:1px solid var(--lp-hair); }
+  .lp-footer__grid{ max-width:var(--lp-maxw); margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:36px; align-items:start; }
+  .lp-brand{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .lp-brand__mono{ font-family:'Archivo', sans-serif; font-weight:800; font-size:26px; line-height:0.8; letter-spacing:-0.04em; }
+  .lp-brand__word{ font-family:'Archivo', sans-serif; font-weight:600; font-size:15px; letter-spacing:0.3em; text-transform:uppercase; }
+  .lp-footer__claim{ font-size:13px; color:var(--lp-ink-55); max-width:30ch; }
+  .lp-footer__col{ display:flex; flex-direction:column; gap:12px; font-size:13px; color:var(--lp-ink-62); }
+  .lp-footer__col a{ color:inherit; cursor:pointer; }
+  .lp-footer__head{ font-size:10.5px; letter-spacing:0.24em; text-transform:uppercase; color:var(--lp-ink-45); margin-bottom:4px; }
+  .lp-footer__base{ max-width:var(--lp-maxw); margin:44px auto 0; padding-top:22px; border-top:1px solid var(--lp-hair); display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--lp-ink-45); }
+
+  @media (max-width: 900px){
+    .lp-levels{ grid-template-columns:minmax(0,1fr) auto; row-gap:0; }
+    .lp-levels__bar{ grid-column:1/-1; padding-top:0; border-bottom:0; }
+    .lp-levels__name{ border-bottom:0; padding-bottom:10px; }
+    .lp-levels__label{ border-bottom:0; padding-bottom:10px; text-align:right; }
+    .lp-levels__label + .lp-levels__name{ border-top:1px solid var(--lp-hair); }
+  }
+  @media (max-width: 760px){
+    .lp-hero__plate{ height:auto; width:100%; }
+    .lp-hotspot{ display:none; }
+    .lp-nav{ gap:16px; }
+    .lp-nav__links{ font-size:10.5px; letter-spacing:0.16em; gap:14px; }
+    .lp-btn--solid, .lp-btn--glass{ padding:16px 24px; }
+    .lp-step{ grid-template-columns:28px minmax(0,1fr); }
+    .lp-step__badge{ grid-column:2; }
+    .lp-deflist__row, .lp-deflist--wide .lp-deflist__row{ grid-template-columns:minmax(0,1fr); gap:6px; }
+    .lp-stats{ grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+    .lp-footer__base{ flex-direction:column; }
+  }
 </style>
 </head>
-<body>
+<body class="lp-mode">
+<div class="fv-grain" aria-hidden="true"></div>
+
+<!-- ÖFFENTLICHE STARTSEITE — nur für nicht eingeloggte Besucher (siehe body.lp-mode) -->
+<section id="screen-landing">
+
+  <!-- HERO -->
+  <div class="lp-hero">
+    <header class="lp-nav">
+      <div class="lp-nav__links">
+        <a data-lp-scroll="lp-kernkette">Der Weg</a>
+        <a data-lp-scroll="lp-beispiel">Beispiel</a>
+        <a data-lp-scroll="lp-kurse">Kurse</a>
+        <a data-lp-scroll="lp-mentoren">Mentoren</a>
+        <a data-lp-scroll="lp-community">Community</a>
+      </div>
+      <div class="lp-nav__actions">
+        <a class="lp-nav__login" id="lp-login-link">Anmelden</a>
+        <a class="lp-nav__cta" id="lp-nav-cta">Jetzt starten</a>
+      </div>
+    </header>
+
+    <div class="lp-hero__plate-wrap">
+      <div class="lp-hero__plate">
+        <img class="lp-hero__img" src="/assets/hero.png" alt="Flow Valu Kampagnenmotiv: Person am Fenster mit Blick über die Stadt im Sonnenuntergang" />
+        <a class="lp-hotspot lp-hotspot--1" data-lp-scroll="lp-kurse" title="Lernen — Praxisnahe Kurse" aria-label="Lernen — Praxisnahe Kurse"></a>
+        <a class="lp-hotspot lp-hotspot--2" data-lp-scroll="lp-community" title="Austausch — Starke Community" aria-label="Austausch — Starke Community"></a>
+        <a class="lp-hotspot lp-hotspot--3" data-lp-scroll="lp-mentoren" title="Mentoren — Echte Erfahrungen" aria-label="Mentoren — Echte Erfahrungen"></a>
+        <a class="lp-hotspot lp-hotspot--4" data-lp-scroll="lp-fortschritt" title="Ergebnisse — Ein besseres Ich" aria-label="Ergebnisse — Ein besseres Ich"></a>
+      </div>
+    </div>
+
+    <div class="lp-hero__actions">
+      <a class="lp-btn lp-btn--solid" id="lp-hero-cta">Jetzt starten<span class="lp-btn__rule"></span></a>
+      <a class="lp-btn lp-btn--glass" data-lp-scroll="lp-kernkette">Entdecke deinen Weg</a>
+    </div>
+  </div>
+
+  <!-- CHAIN BAR -->
+  <div class="lp-chainbar">
+    <div class="lp-chainbar__inner">
+      <span class="lp-chainbar__strong">Discipline</span><span class="lp-chainbar__arrow">&rarr;</span>
+      <span>Action</span><span class="lp-chainbar__arrow">&rarr;</span>
+      <span>Growth</span><span class="lp-chainbar__arrow">&rarr;</span>
+      <span>Results</span><span class="lp-chainbar__arrow">&rarr;</span>
+      <span class="lp-chainbar__strong">Freedom</span>
+    </div>
+  </div>
+
+  <!-- 01 PHILOSOPHIE -->
+  <section class="lp-section lp-section--wide">
+    <div class="lp-split">
+      <div>
+        <div class="lp-eyebrow">01 — Philosophie</div>
+        <h2 class="lp-h2 lp-h2--xl">Kein Kurskatalog.<br />Ein Weg.</h2>
+        <p class="lp-lead">Die meisten Plattformen geben dir 500 Kurse und die Aufgabe, selbst herauszufinden, was davon dich weiterbringt. Flow Valu macht das Gegenteil: Du nennst dein Ziel, und daraus entsteht ein konkreter Weg — Schritt für Schritt, mit Aufgaben, Mentoren und sichtbarem Fortschritt.</p>
+        <p class="lp-lead lp-lead--last">Nicht mehr Inhalte konsumieren. Sondern jeden Tag ein Stück weiterkommen.</p>
+      </div>
+      <div class="lp-stack">
+        <div class="lp-glass lp-glass--pad">
+          <div class="lp-micro">Das siehst du jeden Tag</div>
+          <ul class="lp-qlist">
+            <li><span class="lp-qlist__num">01</span><span>Wo bin ich?</span></li>
+            <li><span class="lp-qlist__num">02</span><span>Was ist mein Ziel?</span></li>
+            <li><span class="lp-qlist__num">03</span><span>Was ist als Nächstes zu tun?</span></li>
+            <li><span class="lp-qlist__num">04</span><span>Warum dieser Schritt?</span></li>
+            <li><span class="lp-qlist__num">05</span><span>Wer hilft mir dabei?</span></li>
+            <li><span class="lp-qlist__num">06</span><span>Wie weit bin ich?</span></li>
+          </ul>
+        </div>
+        <div class="lp-claim">
+          <div>Dein Ziel.</div>
+          <div class="lp-claim__mid">Dein Weg.</div>
+          <div class="lp-claim__accent">Dein Fortschritt.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 KERNKETTE -->
+  <section id="lp-kernkette" class="lp-section lp-section--alt">
+    <div class="lp-wrap">
+      <div class="lp-eyebrow">02 — Die Kernkette</div>
+      <div class="lp-headrow">
+        <h2 class="lp-h2">Wie aus einem Wunsch ein Ergebnis wird</h2>
+        <p class="lp-note">Sieben Stationen. Jede greift in die nächste — kein Baustein steht für sich.</p>
+      </div>
+      <div class="lp-grid-hair">
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Ziel</span><span class="lp-chaincell__num">01</span></div>
+          <h3 class="lp-h3">Du sagst, was du erreichen willst</h3>
+          <p class="lp-body">„Erstes Unternehmen gründen." „Vertrieb lernen." „Führungskraft werden." In deinen Worten, nicht in Kurskategorien.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Persönlicher Weg</span><span class="lp-chaincell__num">02</span></div>
+          <h3 class="lp-h3">Daraus entstehen konkrete Schritte</h3>
+          <p class="lp-body">Gesperrt, bis der Schritt davor sitzt. Du weißt immer, was dran ist — und warum.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Aktion</span><span class="lp-chaincell__num">03</span></div>
+          <h3 class="lp-h3">Jeder Schritt endet in einer Aufgabe</h3>
+          <p class="lp-body">Kein Video zum Abhaken, sondern etwas, das du danach vorzeigen kannst.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Skills</span><span class="lp-chaincell__num">04</span></div>
+          <h3 class="lp-h3">Fähigkeiten wachsen sichtbar mit</h3>
+          <p class="lp-body">Kurse sind Werkzeuge für einen Schritt — nicht das Ziel. Was du lernst, wird sofort angewendet.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Mentor</span><span class="lp-chaincell__num">05</span></div>
+          <h3 class="lp-h3">Hilfe genau dann, wenn sie zählt</h3>
+          <p class="lp-body">Empfohlen passend zu deinem aktuellen Schritt. Du durchsuchst keine Mentorenliste.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Fortschritt</span><span class="lp-chaincell__num">06</span></div>
+          <h3 class="lp-h3">Du siehst, dass es vorangeht</h3>
+          <p class="lp-body">Level, Meilensteine, abgeschlossene Aufgaben. Erwachsen, ruhig, ohne Konfetti.</p>
+        </article>
+        <article class="lp-chaincell">
+          <div class="lp-chaincell__top"><span class="lp-chaincell__kicker">Ergebnis</span><span class="lp-chaincell__num lp-chaincell__num--accent">07</span></div>
+          <h3 class="lp-h3">Das Ziel ist erreicht — oder größer geworden</h3>
+          <p class="lp-body">Erster Kunde, neue Rolle, eigenes Angebot. Und danach der nächste Weg.</p>
+        </article>
+        <article class="lp-chaincell lp-chaincell--quote">
+          <p class="lp-script">Große Ziele<br />brauchen<br />klare Schritte.</p>
+          <a class="lp-link-ul" data-lp-scroll="lp-beispiel">Beispiel ansehen</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 BEISPIEL -->
+  <section id="lp-beispiel" class="lp-section lp-section--wide">
+    <div class="lp-eyebrow">03 — Ein echter Weg</div>
+    <div class="lp-headrow lp-headrow--tight">
+      <h2 class="lp-h2">Wähle ein Ziel. Sieh den Weg.</h2>
+      <p class="lp-note">So sieht der Weg auf der Plattform aus: abgeschlossen, aktuell, gesperrt.</p>
+    </div>
+
+    <div class="lp-chips" id="lp-goal-chips" role="tablist" aria-label="Ziel wählen"></div>
+
+    <div class="lp-pathgrid">
+      <div class="lp-glass lp-glass--pad-lg">
+        <div class="lp-micro lp-micro--tight">Dein Ziel</div>
+        <h3 class="lp-goal-title" id="lp-goal-title"></h3>
+        <div class="lp-progress">
+          <div class="lp-progress__track"><div class="lp-progress__fill" id="lp-progress-fill"></div></div>
+          <div class="lp-progress__label" id="lp-progress-label"></div>
+        </div>
+        <ol class="lp-steps" id="lp-steps"></ol>
+      </div>
+
+      <div class="lp-stack">
+        <div class="lp-glass lp-glass--accent lp-glass--pad-lg">
+          <div class="lp-micro lp-micro--accent">Jetzt dran</div>
+          <h3 class="lp-now-title" id="lp-current-title"></h3>
+          <dl class="lp-deflist">
+            <div class="lp-deflist__row"><dt>Warum</dt><dd id="lp-current-why"></dd></div>
+            <div class="lp-deflist__row"><dt>Aufgabe</dt><dd id="lp-current-task"></dd></div>
+            <div class="lp-deflist__row"><dt>Kurs</dt><dd id="lp-current-course"></dd></div>
+            <div class="lp-deflist__row"><dt>Mentor</dt><dd id="lp-current-mentor"></dd></div>
+          </dl>
+          <a class="lp-btn lp-btn--solid lp-btn--sm" id="lp-beispiel-cta">Schritt starten<span class="lp-btn__rule"></span></a>
+        </div>
+        <div class="lp-photo lp-photo--43" data-photo="Arbeitsszene — Notizbuch, warmes Licht, Fokus"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 BEGLEITUNG -->
+  <section id="lp-ki" class="lp-section lp-section--alt">
+    <div class="lp-wrap lp-split lp-split--center">
+      <div>
+        <div class="lp-eyebrow">04 — Begleitung</div>
+        <h2 class="lp-h2 lp-h2--sm">Aus einem Satz wird ein Plan</h2>
+        <p class="lp-lead lp-lead--last">Flow Valu antwortet nicht mit langen Texten. Es antwortet mit dem nächsten Schritt, der passenden Aufgabe und dem Menschen, der dabei helfen kann. Kein Chatbot — ein Begleiter im Hintergrund deines Weges.</p>
+      </div>
+      <div class="lp-glass lp-glass--pad">
+        <p class="lp-quotebox">„Ich möchte ein Unternehmen gründen, aber ich weiß nicht, wo ich anfangen soll."</p>
+        <dl class="lp-deflist lp-deflist--wide">
+          <div class="lp-deflist__row"><dt class="lp-deflist__dt--accent">Dein Ziel</dt><dd class="lp-deflist__dd--strong">Eigenes Unternehmen starten</dd></div>
+          <div class="lp-deflist__row"><dt>Erster Schritt</dt><dd>Finde heraus, welches Problem du lösen willst</dd></div>
+          <div class="lp-deflist__row"><dt>Aktion</dt><dd>Aufgabe „Problem-Interview" bearbeiten</dd></div>
+          <div class="lp-deflist__row"><dt>Danach</dt><dd>Grundlagen der Marktanalyse, dann Mentorengespräch</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 KURSE -->
+  <section id="lp-kurse" class="lp-section lp-section--wide">
+    <div class="lp-eyebrow">05 — Kurse &amp; Skills</div>
+    <div class="lp-headrow">
+      <h2 class="lp-h2">Kurse sind Werkzeuge, keine Sammlung</h2>
+      <p class="lp-note">Jeder Kurs gehört zu einem Schritt und endet in einer Aufgabe, die deinen Fortschritt bewegt.</p>
+    </div>
+    <div class="lp-cards4">
+      <article class="lp-card">
+        <div class="lp-card__kicker">Schritt 04 · Business</div>
+        <h3 class="lp-card__title">Geschäftsidee entwickeln</h3>
+        <p class="lp-body">Vom Problem zur Idee, die jemand wirklich braucht.</p>
+        <div class="lp-card__meta">6 Lektionen → Aufgabe</div>
+      </article>
+      <article class="lp-card">
+        <div class="lp-card__kicker">Schritt 07 · Vertrieb</div>
+        <h3 class="lp-card__title">Dein erstes Angebot</h3>
+        <p class="lp-body">Preis, Nutzen, Formulierung — bis es verkaufbar ist.</p>
+        <div class="lp-card__meta">9 Lektionen → Aufgabe</div>
+      </article>
+      <article class="lp-card">
+        <div class="lp-card__kicker">Schritt 02 · Finanzen</div>
+        <h3 class="lp-card__title">Struktur statt Bauchgefühl</h3>
+        <p class="lp-body">Cashflow, Rücklagen, Entscheidungen mit klaren Regeln.</p>
+        <div class="lp-card__meta">7 Lektionen → Aufgabe</div>
+      </article>
+      <article class="lp-card">
+        <div class="lp-card__kicker">Schritt 09 · Leadership</div>
+        <h3 class="lp-card__title">Verhandeln ohne Härte</h3>
+        <p class="lp-body">Ruhig bleiben, klar fordern, Beziehungen behalten.</p>
+        <div class="lp-card__meta">5 Lektionen → Aufgabe</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- 06 MENTOREN -->
+  <section id="lp-mentoren" class="lp-section lp-section--alt">
+    <div class="lp-wrap">
+      <div class="lp-eyebrow">06 — Mentoren</div>
+      <div class="lp-headrow">
+        <h2 class="lp-h2">Empfohlen zu deinem Schritt, nicht zum Durchsuchen</h2>
+        <p class="lp-note">Status und Preis werden vom System vergeben — nach Qualität und Ergebnissen, nicht nach Selbstvermarktung.</p>
+      </div>
+      <div class="lp-mentors">
+        <article class="lp-mentor">
+          <div class="lp-photo lp-photo--34" data-photo="Mentor-Portrait — dunkles Studio, warmes Streiflicht"></div>
+          <div class="lp-mentor__level">Level 4 · Business</div>
+          <h3 class="lp-mentor__name">Jonas Reiter</h3>
+          <p class="lp-mentor__match">Passend zu Schritt 06 — Idee prüfen</p>
+        </article>
+        <article class="lp-mentor">
+          <div class="lp-photo lp-photo--34" data-photo="Mentor-Portrait — dunkles Studio, warmes Streiflicht"></div>
+          <div class="lp-mentor__level">Level 3 · Vertrieb</div>
+          <h3 class="lp-mentor__name">Elif Kaya</h3>
+          <p class="lp-mentor__match">Passend zu Schritt 10 — erste Kunden</p>
+        </article>
+        <article class="lp-mentor">
+          <div class="lp-photo lp-photo--34" data-photo="Mentor-Portrait — dunkles Studio, warmes Streiflicht"></div>
+          <div class="lp-mentor__level">Level 5 · Leadership</div>
+          <h3 class="lp-mentor__name">Marek Dorn</h3>
+          <p class="lp-mentor__match">Passend zu Schritt 11 — Team aufbauen</p>
+        </article>
+        <article class="lp-glass lp-testimonial">
+          <p class="lp-testimonial__quote">„Ich brauchte keinen Motivator. Ich brauchte jemanden, der mir sagt, was als Nächstes dran ist."</p>
+          <div class="lp-testimonial__who">Nils, 26 · Schritt 08 von 12</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 COMMUNITY -->
+  <section id="lp-community" class="lp-community">
+    <div class="lp-community__photo lp-photo" data-photo="Kleine Gruppe am Tisch, Abendlicht, warme Töne"></div>
+    <div class="lp-community__text">
+      <div class="lp-eyebrow">07 — Community</div>
+      <h2 class="lp-h2 lp-h2--sm">Menschen, die am gleichen Schritt arbeiten</h2>
+      <p class="lp-lead">Fragen zu deinem aktuellen Schritt, Fortschritte von Leuten, die zwei Schritte weiter sind, ehrliche Antworten statt Selbstdarstellung. Kein endloser Feed.</p>
+      <div class="lp-stats" id="lp-community-stats">
+        <div><div class="lp-stats__num">—</div><div class="lp-stats__label">Mitglieder</div></div>
+        <div><div class="lp-stats__num">—</div><div class="lp-stats__label">Calls gesamt</div></div>
+        <div><div class="lp-stats__num">—</div><div class="lp-stats__label">Kommen wieder</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 FORTSCHRITT -->
+  <section id="lp-fortschritt" class="lp-section lp-section--wide">
+    <div class="lp-eyebrow">08 — Fortschritt &amp; Level</div>
+    <div class="lp-headrow">
+      <h2 class="lp-h2">Fortschritt, den man sehen kann</h2>
+      <p class="lp-note">Level werden durch abgeschlossene Schritte freigeschaltet — nicht durch Bildschirmzeit.</p>
+    </div>
+    <div class="lp-glass lp-glass--pad-lg">
+      <div class="lp-levels">
+        <div class="lp-levels__name">Discipline</div>
+        <div class="lp-levels__bar"><div class="lp-bar"><span class="lp-bar__fill" style="width:100%"></span></div></div>
+        <div class="lp-levels__label">Level 1 — Routine</div>
+
+        <div class="lp-levels__name">Action</div>
+        <div class="lp-levels__bar"><div class="lp-bar"><span class="lp-bar__fill" style="width:78%"></span></div></div>
+        <div class="lp-levels__label">Level 2 — Umsetzung</div>
+
+        <div class="lp-levels__name lp-levels__name--accent">Growth</div>
+        <div class="lp-levels__bar"><div class="lp-bar"><span class="lp-bar__fill lp-bar__fill--accent" style="width:46%"></span></div></div>
+        <div class="lp-levels__label lp-levels__label--accent">Level 3 — Aktuell</div>
+
+        <div class="lp-levels__name lp-levels__name--dim">Results</div>
+        <div class="lp-levels__bar"><div class="lp-bar"></div></div>
+        <div class="lp-levels__label lp-levels__label--dim">Level 4 — Gesperrt</div>
+
+        <div class="lp-levels__name lp-levels__name--dim lp-levels__row--last">Freedom</div>
+        <div class="lp-levels__bar lp-levels__row--last"><div class="lp-bar"></div></div>
+        <div class="lp-levels__label lp-levels__label--dim lp-levels__row--last">Level 5 — Gesperrt</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 BUSINESS -->
+  <section id="lp-business" class="lp-section lp-section--alt">
+    <div class="lp-wrap lp-split lp-split--center">
+      <div>
+        <div class="lp-eyebrow">09 — Business &amp; Karriere</div>
+        <h2 class="lp-h2 lp-h2--sm">Wachstum, das sich auch im Konto zeigt</h2>
+        <p class="lp-lead">Persönliche Entwicklung endet nicht beim Gefühl. Sie zeigt sich in Verantwortung, in Verhandlungen, in Kunden und in Entscheidungen, die du dir früher nicht zugetraut hättest.</p>
+        <div class="lp-rulelist">
+          <div class="lp-rulelist__row"><span class="lp-rulelist__num">01</span><span>Positionierung: sichtbar werden für das, was du kannst.</span></div>
+          <div class="lp-rulelist__row"><span class="lp-rulelist__num">02</span><span>Angebot: aus Fähigkeiten wird ein bezahltes Ergebnis.</span></div>
+          <div class="lp-rulelist__row"><span class="lp-rulelist__num">03</span><span>System: Prozesse, die ohne ständige Motivation laufen.</span></div>
+        </div>
+      </div>
+      <div class="lp-photo lp-photo--45" data-photo="Person im Mantel, Stadtstraße im goldenen Licht"></div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="lp-finale">
+    <div class="lp-finale__photo lp-photo" data-photo="Weite Stadt im Sonnenuntergang, Person von hinten"></div>
+    <div class="lp-finale__scrim" aria-hidden="true"></div>
+    <div class="lp-finale__inner">
+      <div class="lp-finale__kicker">Discipline · Action · Growth · Results · Freedom</div>
+      <h2 class="lp-finale__h">Nenne dein Ziel. Den Weg baust du ab heute.</h2>
+      <p class="lp-finale__p">Ein Ziel, ein erster Schritt, eine Aufgabe. Der Rest entsteht, während du gehst.</p>
+      <div class="lp-finale__actions">
+        <a class="lp-btn lp-btn--solid" id="lp-finale-cta">Jetzt starten<span class="lp-btn__rule"></span></a>
+        <a class="lp-btn lp-btn--glass" data-lp-scroll="lp-kernkette">Entdecke deinen Weg</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="lp-footer">
+    <div class="lp-footer__grid">
+      <div>
+        <div class="lp-brand">
+          <span class="lp-brand__mono">F</span>
+          <span class="lp-brand__word">Flow Valu</span>
+        </div>
+        <p class="lp-footer__claim">Discipline builds freedom. Dein Ziel, dein Weg, dein Fortschritt.</p>
+      </div>
+      <nav class="lp-footer__col" aria-label="Der Weg">
+        <div class="lp-footer__head">Der Weg</div>
+        <a data-lp-scroll="lp-kernkette">Kernkette</a><a data-lp-scroll="lp-beispiel">Beispiel-Weg</a><a data-lp-scroll="lp-fortschritt">Level</a>
+      </nav>
+      <nav class="lp-footer__col" aria-label="Unterstützung">
+        <div class="lp-footer__head">Unterstützung</div>
+        <a data-lp-scroll="lp-kurse">Kurse</a><a data-lp-scroll="lp-mentoren">Mentoren</a><a data-lp-scroll="lp-community">Community</a>
+      </nav>
+      <nav class="lp-footer__col" aria-label="Rechtliches">
+        <div class="lp-footer__head">Rechtliches</div>
+        <a href="/impressum.html" target="_blank">Impressum</a><a href="/datenschutz.html" target="_blank">Datenschutz</a>
+      </nav>
+    </div>
+    <div class="lp-footer__base">
+      <span>© 2026 Flow Valu</span>
+      <span>Dein Ziel. Dein Weg. Dein Fortschritt.</span>
+    </div>
+  </footer>
+
+</section>
+
 
 <header class="fv-app-header" id="fv-app-header">
   <div class="fv-logo"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
@@ -1673,6 +2292,7 @@ document.getElementById('logout-link').addEventListener('click', async () => {
   document.getElementById('fv-footer').style.display = 'none';
   setAuthMode('login');
   show('screen-auth');
+  document.body.classList.add('lp-mode');
 });
 
 /* ---------- Persistente App-Navigation (Kopfzeile) ---------- */
@@ -1804,6 +2424,98 @@ document.getElementById('example-set-real-goal-btn').addEventListener('click', (
 buildExampleChips();
 renderExampleGoal();
 
+/* ---------- Öffentliche Startseite (#screen-landing) ---------- */
+let lpActiveGoal = 0;
+
+function goToAuth(mode){
+  document.body.classList.remove('lp-mode');
+  setAuthMode(mode);
+  show('screen-auth');
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function buildLpChips(){
+  const container = document.getElementById('lp-goal-chips');
+  container.innerHTML = '';
+  EXAMPLE_GOALS.forEach((goal, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lp-chip';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', i === lpActiveGoal ? 'true' : 'false');
+    btn.innerHTML = '<span class="lp-chip__dot" hidden></span><span>' + escapeHtml(goal.label) + '</span>';
+    btn.addEventListener('click', () => { lpActiveGoal = i; renderLpGoal(); });
+    container.appendChild(btn);
+  });
+}
+
+function renderLpGoal(){
+  const g = EXAMPLE_GOALS[lpActiveGoal];
+  const total = g.steps.length;
+
+  Array.prototype.forEach.call(document.getElementById('lp-goal-chips').children, (chip, i) => {
+    const on = i === lpActiveGoal;
+    chip.classList.toggle('lp-is-active', on);
+    chip.setAttribute('aria-selected', on ? 'true' : 'false');
+    chip.querySelector('.lp-chip__dot').hidden = !on;
+  });
+
+  document.getElementById('lp-goal-title').textContent = g.title;
+  document.getElementById('lp-progress-fill').style.width = Math.round(((g.done + 0.5) / total) * 100) + '%';
+  document.getElementById('lp-progress-label').textContent = 'Schritt ' + (g.done + 1) + ' von ' + total;
+
+  const stepsEl = document.getElementById('lp-steps');
+  stepsEl.innerHTML = '';
+  g.steps.forEach((title, i) => {
+    const done = i < g.done;
+    const current = i === g.done;
+    const li = document.createElement('li');
+    li.className = 'lp-step' + (current ? ' lp-is-current' : done ? ' lp-is-done' : '');
+    li.innerHTML =
+      '<span class="lp-step__num">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<span class="lp-step__title"></span>' +
+      '<span class="lp-step__badge">' + (current ? 'Jetzt dran' : done ? 'Erledigt' : 'Gesperrt') + '</span>';
+    li.querySelector('.lp-step__title').textContent = title;
+    stepsEl.appendChild(li);
+  });
+
+  document.getElementById('lp-current-title').textContent = g.steps[g.done];
+  document.getElementById('lp-current-why').textContent = g.why;
+  document.getElementById('lp-current-task').textContent = g.task;
+  document.getElementById('lp-current-course').textContent = g.course;
+  document.getElementById('lp-current-mentor').textContent = g.mentor;
+}
+
+async function loadLpCommunityStats(){
+  try{
+    const res = await fetch('/api/public-stats');
+    const data = await res.json();
+    const nums = document.querySelectorAll('#lp-community-stats .lp-stats__num');
+    nums[0].textContent = data.totalMembers;
+    nums[1].textContent = data.totalCalls;
+    nums[2].textContent = data.returnRatePct + '%';
+  } catch(e){ /* Platzhalter-Striche bleiben stehen, wenn die Zahlen nicht laden */ }
+}
+
+function initLandingPage(){
+  document.getElementById('lp-hero-cta').addEventListener('click', () => goToAuth('register'));
+  document.getElementById('lp-nav-cta').addEventListener('click', () => goToAuth('register'));
+  document.getElementById('lp-finale-cta').addEventListener('click', () => goToAuth('register'));
+  document.getElementById('lp-beispiel-cta').addEventListener('click', () => goToAuth('register'));
+  document.getElementById('lp-login-link').addEventListener('click', () => goToAuth('login'));
+
+  document.querySelectorAll('[data-lp-scroll]').forEach(el => {
+    el.addEventListener('click', () => {
+      const target = document.getElementById(el.dataset.lpScroll);
+      if(target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  buildLpChips();
+  renderLpGoal();
+  loadLpCommunityStats();
+}
+
 
 document.getElementById('back-from-howitworks-btn').addEventListener('click', () => show('screen-profile'));
 document.getElementById('howitworks-to-goal-btn').addEventListener('click', () => document.getElementById('goal-link').click());
@@ -1824,9 +2536,12 @@ document.getElementById('footer-pinboard-link').addEventListener('click', () => 
 // Beim Laden prüfen, ob schon eine Sitzung besteht
 fetch('/api/me').then(r => r.json()).then(data => {
   if(data.user){
+    document.body.classList.remove('lp-mode');
     onAuthSuccess(data.user.email);
   }
 });
+
+initLandingPage();
 
 socket.on('you_are_banned', () => {
   endCall();

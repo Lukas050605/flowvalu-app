@@ -1,0 +1,13 @@
+[
+  {
+    "id": "0cb699e7-2100-44fa-9daf-323e6b327dbc",
+    "email": "testuser-lp@example.com",
+    "passwordHash": "$2b$10$164H2Ikis8PwCPerpnYQgO8w2os4llT5npVOvxL6suo1KxpO8IF1a",
+    "banned": false,
+    "reportCount": 0,
+    "emailVerified": true,
+    "verificationToken": "6fb0b1e24e32b19e50242f3c871c2b743d4d697e98475a4d",
+    "verificationTokenExpires": 1788904908202,
+    "createdAt": "2026-09-07T22:01:48.202Z"
+  }
+]

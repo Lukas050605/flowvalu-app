@@ -255,6 +255,14 @@ app.get('/api/me', (req, res) => {
   res.json({ user: req.session.user, emailVerified: dbUser ? dbUser.emailVerified : false });
 });
 
+/* ---------------- Öffentliche Startseite ---------------- */
+
+// Bewusst ohne Login abrufbar: die neue öffentliche Startseite (Premium-Design) zeigt
+// echte Plattform-Zahlen statt erfundener Marketing-Werte, auch für Besucher ohne Konto.
+app.get('/api/public-stats', (req, res) => {
+  res.json(store.getPlatformStats());
+});
+
 /* ---------------- Profil-Routen ---------------- */
 
 app.get('/api/popular-chips', (req, res) => {
