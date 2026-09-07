@@ -138,6 +138,20 @@
   .fv-kk-quote-cell{ background:#0d0d10; justify-content:space-between; }
   .fv-kk-cta{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; border-bottom:1px solid rgba(242,240,237,0.3); padding-bottom:5px; align-self:flex-start; cursor:pointer; }
 
+  /* Beispiel-Weg-Schritte, 1:1 aus dem Original-CSS (.step) übernommen */
+  .example-step-row{
+    display:grid; grid-template-columns:28px minmax(0,1fr) auto; gap:12px; align-items:center;
+    padding:12px 0; border-top:1px solid rgba(242,240,237,0.08);
+  }
+  .example-step-row .es-num{ font-family:'Archivo', sans-serif; font-weight:700; font-size:11px; letter-spacing:0.1em; color:rgba(242,240,237,0.3); }
+  .example-step-row .es-title{ font-size:13.5px; font-weight:400; line-height:1.45; color:rgba(242,240,237,0.4); }
+  .example-step-row .es-badge{ font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(242,240,237,0.38); white-space:nowrap; }
+  .example-step-row.is-done .es-num{ color:rgba(242,240,237,0.6); }
+  .example-step-row.is-done .es-title{ color:rgba(242,240,237,0.72); }
+  .example-step-row.is-done .es-badge{ color:rgba(242,240,237,0.6); }
+  .example-step-row.is-current .es-num, .example-step-row.is-current .es-badge{ color:var(--accent); }
+  .example-step-row.is-current .es-title{ color:var(--ink); }
+
   h1{ font-weight:600; font-size:26px; line-height:1.2; letter-spacing:-0.02em; margin:0 0 12px; }
   h1 .grad{ background:linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   p.lead{ font-size:14.5px; line-height:1.6; color:var(--muted); margin:0 0 26px; }
@@ -757,6 +771,31 @@
       <div class="fv-pillar" id="pillar-ergebnisse"><span class="fv-pillar-icon">📈</span><div><div class="fv-pillar-title">Fortschritt</div><div class="fv-pillar-sub">Dein Flow-Level</div></div></div>
     </div>
 
+    <!-- Beispiel-Weg: zeigt, wie ein Weg auf der Plattform aussieht (frei wählbares
+         Beispiel, keine echten Nutzerdaten — genau wie im Original als "Beispiel" markiert) -->
+    <div class="home-section">
+      <h3>🧭 So sieht dein Weg aus — ein Beispiel</h3>
+      <div class="chips" id="example-goal-chips" style="margin-bottom:14px;"></div>
+      <div style="border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:22px; margin-bottom:14px;">
+        <div class="eyebrow" style="margin-bottom:8px;">Dein Ziel (Beispiel)</div>
+        <div style="font-family:'Archivo', sans-serif; font-weight:700; font-size:17px; margin-bottom:20px;" id="example-goal-title"></div>
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:20px;">
+          <div style="flex:1; height:2px; background:rgba(242,240,237,0.14); border-radius:2px; position:relative;"><div id="example-progress-fill" style="position:absolute; inset:0 auto 0 0; background:var(--accent); border-radius:2px; transition:width 0.4s ease;"></div></div>
+          <div id="example-progress-label" style="font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); white-space:nowrap;"></div>
+        </div>
+        <div id="example-steps"></div>
+      </div>
+      <div style="border:1px solid rgba(227,167,104,0.45); border-radius:var(--radius-card); background:rgba(20,17,14,0.7); backdrop-filter:blur(14px); padding:22px;">
+        <div class="next-step-label">Jetzt dran (Beispiel)</div>
+        <div style="font-family:'Archivo', sans-serif; font-weight:700; font-size:16px; margin-bottom:16px;" id="example-current-title"></div>
+        <div class="fv-lv-row" style="border-top-color:rgba(227,167,104,0.25);"><div class="fv-lv-label">Warum</div><div class="fv-lv-value" id="example-current-why"></div></div>
+        <div class="fv-lv-row"><div class="fv-lv-label">Aufgabe</div><div class="fv-lv-value" id="example-current-task"></div></div>
+        <div class="fv-lv-row"><div class="fv-lv-label">Kurs</div><div class="fv-lv-value" id="example-current-course"></div></div>
+        <div class="fv-lv-row" style="border-bottom:1px solid rgba(242,240,237,0.12);"><div class="fv-lv-label">Mentor</div><div class="fv-lv-value" id="example-current-mentor"></div></div>
+        <button class="btn" id="example-set-real-goal-btn" style="margin-top:16px;">Eigenes Ziel setzen →</button>
+      </div>
+    </div>
+
     <textarea id="hangup" placeholder="z. B. Mir fehlt der Name für mein Café …"></textarea>
 
     <label>Kreativ-Bereich (optional)</label>
@@ -930,6 +969,22 @@
         <span class="fv-kk-cta" id="howitworks-to-goal-btn">Mein Ziel setzen →</span>
       </div>
     </div>
+
+    <!-- 04 — Begleitung: Valu-KI als Beispiel gezeigt, keine echten Nutzerdaten -->
+    <div class="eyebrow" style="margin-top:44px;">04 — Begleitung</div>
+    <h2 style="font-size:24px; margin-bottom:10px;">Aus einem Satz wird ein Plan</h2>
+    <p class="lead" style="margin-bottom:20px;">Valu antwortet nicht mit langen Texten, sondern mit dem nächsten Schritt. Kein Chatbot — ein Begleiter im Hintergrund deines Weges.</p>
+    <div style="border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:24px;">
+      <p style="font-family:'Archivo', sans-serif; font-weight:500; font-size:15px; line-height:1.5; color:rgba(242,240,237,0.85); margin:0 0 18px; font-style:italic;">
+        „Ich möchte ein Unternehmen gründen, aber ich weiß nicht, wo ich anfangen soll." <span style="font-style:normal; font-size:11px; color:var(--muted); letter-spacing:0.05em;">— Beispiel</span>
+      </p>
+      <div class="fv-lv-row" style="border-top-color:rgba(227,167,104,0.3);"><div class="fv-lv-label" style="color:var(--accent);">Dein Ziel</div><div class="fv-lv-value" style="font-weight:600;">Eigenes Unternehmen starten</div></div>
+      <div class="fv-lv-row"><div class="fv-lv-label">Erster Schritt</div><div class="fv-lv-value">Finde heraus, welches Problem du lösen willst</div></div>
+      <div class="fv-lv-row"><div class="fv-lv-label">Aktion</div><div class="fv-lv-value">Aufgabe "Problem-Interview" bearbeiten</div></div>
+      <div class="fv-lv-row" style="border-bottom:1px solid rgba(242,240,237,0.12);"><div class="fv-lv-label">Danach</div><div class="fv-lv-value">Passenden Mentor finden</div></div>
+      <button class="btn" id="howitworks-to-valu-btn" style="margin-top:18px;">💬 Frag Valu jetzt</button>
+    </div>
+
     <button class="btn btn-ghost" id="back-from-howitworks-btn" style="margin-top:20px;">Zurück</button>
   </section>
 
@@ -1625,8 +1680,134 @@ document.getElementById('nav-home').addEventListener('click', () => show('screen
 document.getElementById('nav-reels').addEventListener('click', () => document.getElementById('reels-icon-btn').click());
 document.getElementById('nav-goal').addEventListener('click', () => document.getElementById('goal-link').click());
 document.getElementById('nav-howitworks').addEventListener('click', () => show('screen-howitworks'));
+
+/* ---------- Beispiel-Weg auf dem Home-Bildschirm — 1:1 aus dem Original
+   script.js portiert (gleiche 4 Beispiel-Ziele, gleiche Logik) ---------- */
+const EXAMPLE_GOALS = [
+  {
+    label: 'Erstes Unternehmen',
+    title: 'Ich möchte mein erstes eigenes Unternehmen aufbauen.',
+    done: 3,
+    steps: [
+      'Eigene Stärken und Interessen verstehen', 'Grundlagen von Business lernen',
+      'Erste praktische Aufgabe erledigen', 'Geschäftsidee entwickeln',
+      'Geschäftsidee überprüfen', 'Mit einem passenden Mentor sprechen',
+      'Angebot entwickeln', 'Erste Version erstellen', 'Feedback sammeln',
+      'Erste Kunden gewinnen', 'Nächstes Level freischalten', 'Ziel erreichen'
+    ],
+    why: 'Ohne geprüfte Idee baust du an etwas, das niemand braucht.',
+    task: 'Formuliere deine Idee in drei Sätzen: Problem, Zielgruppe, Lösung.',
+    course: 'Geschäftsidee entwickeln — 6 Lektionen',
+    mentor: 'Business-Mentor, Level 4'
+  },
+  {
+    label: 'Vertrieb lernen',
+    title: 'Ich möchte lernen, souverän zu verkaufen.',
+    done: 2,
+    steps: [
+      'Eigene Hemmungen beim Verkaufen erkennen', 'Grundlagen des Gesprächsaufbaus',
+      'Zielgruppe und Nutzen schärfen', 'Erste 10 Gespräche führen',
+      'Einwände sicher behandeln', 'Mit einem Vertriebs-Mentor üben',
+      'Preisgespräch führen', 'Abschlussquote messen', 'Eigenen Gesprächsleitfaden bauen',
+      'Empfehlungen aufbauen', 'Nächstes Level freischalten', 'Ziel erreichen'
+    ],
+    why: 'Struktur nimmt dir die Angst — nicht Motivation.',
+    task: 'Führe drei Gespräche mit dem neuen Aufbau und notiere die Reaktionen.',
+    course: 'Gesprächsaufbau in der Praxis — 8 Lektionen',
+    mentor: 'Vertriebs-Mentor, Level 3'
+  },
+  {
+    label: 'Finanziell unabhängiger',
+    title: 'Ich möchte finanziell unabhängiger werden.',
+    done: 4,
+    steps: [
+      'Kompletten Überblick über Einnahmen und Ausgaben', 'Fixkosten senken',
+      'Puffer von drei Monatsausgaben aufbauen', 'Sparquote festlegen',
+      'Erste Investition mit klaren Regeln', 'Zweite Einnahmequelle prüfen',
+      'Nebeneinkommen starten', 'Einnahmen stabilisieren', 'Steuern und Struktur klären',
+      'Vermögen automatisiert aufbauen', 'Nächstes Level freischalten', 'Ziel erreichen'
+    ],
+    why: 'Ohne Regeln entscheidet die Stimmung über dein Geld.',
+    task: 'Definiere deine Sparquote und automatisiere sie für den nächsten Monat.',
+    course: 'Struktur statt Bauchgefühl — 7 Lektionen',
+    mentor: 'Finanz-Mentor, Level 4'
+  },
+  {
+    label: 'Führungskraft werden',
+    title: 'Ich möchte eine Führungsrolle übernehmen.',
+    done: 3,
+    steps: [
+      'Eigene Wirkung realistisch einschätzen', 'Grundlagen von Führung lernen',
+      'Verantwortung im aktuellen Job übernehmen', 'Erstes Feedbackgespräch führen',
+      'Konflikte ruhig klären', 'Mit einem Leadership-Mentor sprechen',
+      'Team-Ziele formulieren', 'Delegieren üben', 'Ergebnisse sichtbar machen',
+      'Sich intern positionieren', 'Nächstes Level freischalten', 'Ziel erreichen'
+    ],
+    why: 'Führung beginnt bei Gesprächen, nicht beim Titel.',
+    task: 'Führe ein 20-Minuten-Feedbackgespräch und halte drei Erkenntnisse fest.',
+    course: 'Feedback, das ankommt — 5 Lektionen',
+    mentor: 'Leadership-Mentor, Level 5'
+  }
+];
+
+let exampleActiveGoal = 0;
+
+function padExample(n){ return n < 10 ? '0' + n : String(n); }
+
+function buildExampleChips(){
+  const container = document.getElementById('example-goal-chips');
+  container.innerHTML = '';
+  EXAMPLE_GOALS.forEach((goal, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip' + (i === exampleActiveGoal ? ' selected' : '');
+    btn.textContent = goal.label;
+    btn.addEventListener('click', () => { exampleActiveGoal = i; renderExampleGoal(); });
+    container.appendChild(btn);
+  });
+}
+
+function renderExampleGoal(){
+  const g = EXAMPLE_GOALS[exampleActiveGoal];
+  const total = g.steps.length;
+
+  document.querySelectorAll('#example-goal-chips .chip').forEach((chip, i) => {
+    chip.classList.toggle('selected', i === exampleActiveGoal);
+  });
+
+  document.getElementById('example-goal-title').textContent = g.title;
+  document.getElementById('example-progress-fill').style.width = Math.round(((g.done + 0.5) / total) * 100) + '%';
+  document.getElementById('example-progress-label').textContent = 'Schritt ' + (g.done + 1) + ' von ' + total;
+
+  const stepsContainer = document.getElementById('example-steps');
+  stepsContainer.innerHTML = g.steps.map((title, i) => {
+    const done = i < g.done;
+    const current = i === g.done;
+    const cls = current ? 'is-current' : (done ? 'is-done' : '');
+    const badge = current ? 'Jetzt dran' : (done ? 'Erledigt' : 'Gesperrt');
+    return '<div class="example-step-row ' + cls + '">' +
+      '<span class="es-num">' + padExample(i + 1) + '</span>' +
+      '<span class="es-title">' + escapeHtml(title) + '</span>' +
+      '<span class="es-badge">' + badge + '</span>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('example-current-title').textContent = g.steps[g.done];
+  document.getElementById('example-current-why').textContent = g.why;
+  document.getElementById('example-current-task').textContent = g.task;
+  document.getElementById('example-current-course').textContent = g.course;
+  document.getElementById('example-current-mentor').textContent = g.mentor;
+}
+
+document.getElementById('example-set-real-goal-btn').addEventListener('click', () => document.getElementById('goal-link').click());
+
+buildExampleChips();
+renderExampleGoal();
+
+
 document.getElementById('back-from-howitworks-btn').addEventListener('click', () => show('screen-profile'));
 document.getElementById('howitworks-to-goal-btn').addEventListener('click', () => document.getElementById('goal-link').click());
+document.getElementById('howitworks-to-valu-btn').addEventListener('click', () => document.getElementById('valu-chat-icon-btn').click());
 document.getElementById('nav-weekly').addEventListener('click', () => document.getElementById('weekly-recap-link').click());
 document.getElementById('nav-dashboard').addEventListener('click', () => document.getElementById('dashboard-link').click());
 document.getElementById('nav-history').addEventListener('click', () => document.getElementById('history-link').click());
