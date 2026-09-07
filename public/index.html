@@ -16,13 +16,16 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@300;400;500;600;700&family=Caveat:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #08080a; --surface: #101013; --surface-2: #16161a;
     --border: rgba(242,240,237,0.09); --border-strong: rgba(242,240,237,0.16);
     --ink: #f2f0ed; --muted: #8b8b8f;
     --accent: #e3a768; --accent-2: #c9955a;
+    /* Verbindliche Radien-Skala aus dem Original-Design (Claude Design) —
+       999px Pills, 26px Standard-Karten, 16px kleine Elemente/Kacheln */
+    --radius-pill: 999px; --radius-card: 26px; --radius-sm: 16px;
   }
   *{ box-sizing:border-box; }
   body{
@@ -34,8 +37,18 @@
   h1, h2, h3{ font-family:'Archivo', sans-serif; letter-spacing:-0.02em; }
   .shell{
     width:100%; max-width:440px; border:1px solid rgba(242,240,237,0.12);
-    border-radius:26px; padding:34px 30px;
+    border-radius:var(--radius-card); padding:34px 30px;
     background:rgba(16,16,19,0.7); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  }
+  /* Auf größeren Bildschirmen mehr Atemraum, wie im Original-Design vorgesehen —
+     die Karte bleibt lesbar, wächst aber nicht grenzenlos in die Breite. */
+  @media (min-width: 720px){
+    .shell{ max-width:600px; padding:44px 48px; }
+  }
+  @media (min-width: 1100px){
+    .shell{ max-width:680px; padding:52px 56px; }
+    .fv-pillars{ gap:12px; }
+    .fv-pillar{ padding:18px; }
   }
   .screen{ display:none; } .screen.active{ display:block; animation:rise .35s ease; }
   .eyebrow{
@@ -48,7 +61,7 @@
     display:inline-flex; align-items:center; gap:7px;
     font-family:'Manrope', sans-serif; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;
     color:rgba(242,240,237,0.75);
-    border:1px solid rgba(242,240,237,0.2); border-radius:999px; padding:8px 15px; margin-bottom:20px;
+    border:1px solid rgba(242,240,237,0.2); border-radius:var(--radius-pill); padding:8px 15px; margin-bottom:20px;
     background:rgba(12,12,14,0.4); backdrop-filter:blur(10px);
   }
   .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-2); }
@@ -60,7 +73,7 @@
 
   .fv-pillars{ display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; margin:18px 0 22px; }
   .fv-pillar{
-    display:flex; align-items:center; gap:10px; padding:14px; border-radius:16px; cursor:pointer;
+    display:flex; align-items:center; gap:10px; padding:14px; border-radius:var(--radius-sm); cursor:pointer;
     border:1px solid rgba(242,240,237,0.12); background:rgba(16,16,19,0.5); backdrop-filter:blur(10px);
   }
   .fv-pillar:hover{ border-color:rgba(227,167,104,0.5); }
@@ -68,13 +81,40 @@
   .fv-pillar-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:12.5px; }
   .fv-pillar-sub{ font-size:10.5px; color:var(--muted); margin-top:1px; }
 
+  /* ---- App-Kopfzeile: persistent, wie die Nav im Original-Design ---- */
+  body{ display:block; padding:0; }
+  .fv-app-header{
+    display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;
+    padding:22px clamp(20px, 5vw, 56px) 0;
+  }
+  .fv-logo-inline{ display:none; }
+  .fv-app-nav{
+    display:none; gap:clamp(12px, 1.6vw, 26px); align-items:center; flex-wrap:wrap;
+    font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(242,240,237,0.66);
+  }
+  .fv-app-nav.visible{ display:flex; }
+  .fv-app-nav a{ cursor:pointer; white-space:nowrap; }
+  .fv-app-nav a:hover{ color:var(--accent); }
+
+  .fv-brandstrip{
+    display:flex; flex-wrap:wrap; align-items:center; gap:clamp(10px, 2vw, 26px);
+    font-family:'Archivo', sans-serif; font-weight:600; font-size:clamp(9px, 0.9vw, 11.5px);
+    letter-spacing:0.28em; text-transform:uppercase; color:rgba(242,240,237,0.5);
+    border-top:1px solid rgba(242,240,237,0.09); border-bottom:1px solid rgba(242,240,237,0.09);
+    padding:16px clamp(20px, 5vw, 56px); margin:20px 0 0; background:#0a0a0c;
+  }
+  .fv-brandstrip .ink{ color:var(--ink); }
+  .fv-brandstrip .arrow{ color:var(--accent); }
+
+  .shell-wrap{ display:flex; justify-content:center; padding:clamp(24px, 4vh, 48px) clamp(16px, 4vw, 40px); }
+
   h1{ font-weight:600; font-size:26px; line-height:1.2; letter-spacing:-0.02em; margin:0 0 12px; }
   h1 .grad{ background:linear-gradient(100deg, var(--accent), var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
   p.lead{ font-size:14.5px; line-height:1.6; color:var(--muted); margin:0 0 26px; }
 
   label{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted); display:block; margin-bottom:8px; }
   textarea{
-    width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px;
+    width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
     color:var(--ink); font-family:'Manrope',sans-serif; font-size:14px; padding:12px; resize:none;
     min-height:70px; margin-bottom:18px;
   }
@@ -82,7 +122,7 @@
 
   .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
   .chip{
-    font-family:'Manrope', sans-serif; font-size:11.5px; font-weight:600; padding:9px 16px; border-radius:999px;
+    font-family:'Manrope', sans-serif; font-size:11.5px; font-weight:600; padding:9px 16px; border-radius:var(--radius-pill);
     letter-spacing:0.08em; text-transform:uppercase;
     border:1px solid rgba(242,240,237,0.2); background:rgba(16,16,19,0.6); color:var(--muted); cursor:pointer;
   }
@@ -92,13 +132,13 @@
   }
   .chip-remove:hover{ opacity:1; }
 
-  .segmented{ display:flex; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px; padding:4px; margin-bottom:22px; }
+  .segmented{ display:flex; background:var(--bg); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:4px; margin-bottom:22px; }
   .segmented button{ flex:1; background:transparent; border:none; color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px; border-radius:7px; cursor:pointer; }
   .segmented button.active{ background:var(--surface-2); color:var(--ink); }
 
   .btn{
     width:100%; font-family:'Manrope', sans-serif; font-size:12.5px; font-weight:600;
-    padding:16px 20px; border-radius:999px; letter-spacing:0.1em; text-transform:uppercase;
+    padding:16px 20px; border-radius:var(--radius-pill); letter-spacing:0.1em; text-transform:uppercase;
     border:none; cursor:pointer; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0a0a0c;
   }
   .btn:disabled{ opacity:.45; cursor:not-allowed; }
@@ -125,7 +165,7 @@
 
   .mentor-pill{
     display:none; align-items:center; gap:4px; font-family:'Manrope', sans-serif; font-weight:700; font-size:11px;
-    color:#fff; background:linear-gradient(135deg, #f5a524, #f97316); padding:3px 10px; border-radius:999px;
+    color:#fff; background:linear-gradient(135deg, #f5a524, #f97316); padding:3px 10px; border-radius:var(--radius-pill);
     margin-left:8px;
   }
   .mentor-pill.active{ display:inline-flex; }
@@ -133,7 +173,7 @@
   .own-mentor-badge{
     display:none; align-items:center; gap:5px; font-family:'JetBrains Mono', monospace; font-weight:600; font-size:11px;
     color:#f5a524; background:rgba(245,165,36,0.12); border:1px solid rgba(245,165,36,0.4); padding:4px 10px;
-    border-radius:999px; margin-left:8px;
+    border-radius:var(--radius-pill); margin-left:8px;
   }
   .own-mentor-badge.active{ display:inline-flex; }
 
@@ -142,16 +182,16 @@
   .home-section h3{ font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
   .progress-card{
     background:rgba(16,16,19,0.6); backdrop-filter:blur(14px);
-    border:1px solid rgba(242,240,237,0.12); border-radius:20px; padding:22px;
+    border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); padding:22px;
   }
   .progress-card .progress-stats{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px; }
   .progress-card .progress-stat{ font-size:13px; }
   .progress-card .progress-stat .num{ font-weight:700; font-size:16px; color:var(--accent-2); }
-  .progress-bar-track{ height:8px; background:var(--surface-2); border-radius:999px; overflow:hidden; margin:8px 0 6px; }
-  .progress-bar-fill{ height:100%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius:999px; }
+  .progress-bar-track{ height:8px; background:var(--surface-2); border-radius:var(--radius-pill); overflow:hidden; margin:8px 0 6px; }
+  .progress-bar-fill{ height:100%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius:var(--radius-pill); }
   .next-step-banner{
     background:rgba(20,17,14,0.75); backdrop-filter:blur(14px);
-    border:1px solid rgba(227,167,104,0.45); border-radius:20px;
+    border:1px solid rgba(227,167,104,0.45); border-radius:var(--radius-card);
     padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px;
   }
   .next-step-label{ font-size:10.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; font-weight:600; }
@@ -161,26 +201,30 @@
   .fv-lv-label{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(242,240,237,0.5); }
   .fv-lv-value{ font-size:13.5px; font-weight:400; color:rgba(242,240,237,0.9); line-height:1.4; }
 
+  /* Bewusster handschriftlicher Akzent, wie im Original bei "Große Ziele brauchen
+     klare Schritte" — sparsam eingesetzt, nicht plattformweit, sonst verliert es Wirkung. */
+  .fv-quote{ font-family:'Caveat', cursive; font-size:26px; line-height:1.2; color:rgba(242,240,237,0.85); margin:18px 0; }
+
   .home-scroll-row{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
   .home-reel-card{
-    flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:16px; overflow:hidden; position:relative;
+    flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:var(--radius-sm); overflow:hidden; position:relative;
     background:#000; cursor:pointer; border:1px solid rgba(242,240,237,0.12); transition:border-color 0.15s;
   }
   .home-reel-card:hover{ border-color:rgba(227,167,104,0.6); }
   .home-reel-card video{ width:100%; height:100%; object-fit:cover; }
   .home-reel-card .home-reel-likes{
     position:absolute; bottom:6px; left:6px; color:#fff; font-size:10.5px; font-family:'JetBrains Mono', monospace;
-    background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:999px;
+    background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:var(--radius-pill);
   }
   .home-mentor-card{
     flex:0 0 auto; width:120px; text-align:center; background:rgba(18,18,21,0.5); backdrop-filter:blur(10px);
-    border:1px solid rgba(242,240,237,0.12); border-radius:16px; padding:14px 8px; cursor:pointer; transition:border-color 0.15s;
+    border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-sm); padding:14px 8px; cursor:pointer; transition:border-color 0.15s;
   }
   .home-mentor-card:hover{ border-color:rgba(227,167,104,0.5); }
   .home-mentor-card .avatar{ width:44px; height:44px; margin:0 auto 6px; font-size:16px; }
   .home-mentor-card .mentor-name{ font-family:'Archivo', sans-serif; font-size:12px; font-weight:700; }
   .home-mentor-card .mentor-level{ font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-top:3px; }
-  .trending-box{ background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; font-size:12.5px; color:var(--muted); }
+  .trending-box{ background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:14px 16px; font-size:12.5px; color:var(--muted); }
   .trending-box .trending-highlight{ color:var(--ink); font-weight:600; }
 
   .chat-log{ display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; margin-bottom:14px; }
@@ -198,7 +242,7 @@
   /* ---- auth screen ---- */
   .field-error{ font-family:'JetBrains Mono', monospace; font-size:12px; color:#ff8a80; min-height:16px; margin-bottom:10px; }
   input[type="email"], input[type="password"]{
-    width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px;
+    width:100%; background:var(--bg); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
     color:var(--ink); font-family:'Manrope',sans-serif; font-size:14px; padding:12px; margin-bottom:14px;
   }
   input[type="email"]:focus-visible, input[type="password"]:focus-visible{ outline:2px solid var(--accent-2); outline-offset:1px; }
@@ -240,7 +284,7 @@
   }
   .valu-chat-topbar h2{ margin:0; font-size:17px; display:flex; align-items:center; gap:8px; }
   .valu-chat-body{ flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
-  .valu-msg{ max-width:80%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.4; }
+  .valu-msg{ max-width:80%; padding:10px 14px; border-radius:var(--radius-sm); font-size:13.5px; line-height:1.4; }
   .valu-msg.from-user{ align-self:flex-end; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; }
   .valu-msg.from-valu{ align-self:flex-start; background:var(--surface-2); border:1px solid var(--border-strong); }
   .valu-chat-input-row{ display:flex; gap:8px; padding:14px 20px; border-top:1px solid var(--border-strong); }
@@ -258,13 +302,13 @@
   .pinboard-topbar h2{ margin:0; font-size:17px; }
   .pinboard-body{ flex:1; overflow-y:auto; padding:16px 20px 100px; }
   .pinboard-post-card{
-    background:var(--surface); border:1px solid var(--border-strong); border-radius:12px;
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
     padding:14px 16px; margin-bottom:12px; cursor:pointer;
   }
   .pinboard-post-card:hover{ border-color:var(--accent-2); }
   .pinboard-post-topic{
     display:inline-block; font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--accent-2);
-    background:rgba(227,167,104,0.14); padding:2px 8px; border-radius:999px; margin-bottom:6px;
+    background:rgba(227,167,104,0.14); padding:2px 8px; border-radius:var(--radius-pill); margin-bottom:6px;
   }
   .pinboard-post-text{ font-size:14px; margin-bottom:6px; }
   .pinboard-post-meta{ font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; }
@@ -272,11 +316,11 @@
   .pinboard-fab{
     position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:75;
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border:none;
-    font-family:'Manrope', sans-serif; font-weight:600; font-size:13.5px; padding:12px 22px; border-radius:999px;
+    font-family:'Manrope', sans-serif; font-weight:600; font-size:13.5px; padding:12px 22px; border-radius:var(--radius-pill);
     cursor:pointer; box-shadow:0 6px 20px rgba(227,167,104,0.4);
   }
   .pinboard-reply{
-    background:var(--surface-2); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px;
+    background:var(--surface-2); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px; font-size:13.5px;
   }
   .pinboard-reply .reply-author{ font-weight:600; font-size:12px; color:var(--accent-2); margin-bottom:3px; }
 
@@ -286,13 +330,13 @@
   }
   .info-modal-overlay.active{ display:flex; }
   .info-modal-box{
-    background:var(--surface); border:1px solid var(--border-strong); border-radius:16px;
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
     padding:26px 24px; max-width:420px; width:100%; max-height:80vh; overflow-y:auto;
   }
   .info-modal-box h3{ margin:0 0 14px; font-size:17px; }
   .info-modal-box .tier-row{
     display:flex; justify-content:space-between; align-items:center; background:var(--surface-2);
-    border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px;
+    border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:8px; font-size:13px;
   }
   .info-modal-box .tier-row .tier-name{ font-weight:600; }
   .info-modal-box .tier-row .tier-value{ font-family:'JetBrains Mono', monospace; color:var(--accent-2); font-size:12.5px; }
@@ -323,7 +367,7 @@
   .reel-tile .reel-title-text{ font-size:13px; color:rgba(255,255,255,0.85); }
   .reel-tile .reel-delete-btn{
     position:absolute; top:16px; right:14px; background:rgba(229,72,77,0.9); border:none; color:#fff;
-    font-family:'Manrope', sans-serif; font-size:12px; padding:7px 12px; border-radius:20px; cursor:pointer;
+    font-family:'Manrope', sans-serif; font-size:12px; padding:7px 12px; border-radius:var(--radius-card); cursor:pointer;
   }
   .reel-actions{
     position:absolute; right:12px; bottom:100px; display:flex; flex-direction:column; align-items:center; gap:18px;
@@ -361,7 +405,7 @@
   }
   .reels-upload-fab{
     background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff;
-    font-family:'Manrope', sans-serif; font-weight:600; font-size:13px; padding:8px 16px; border-radius:20px;
+    font-family:'Manrope', sans-serif; font-weight:600; font-size:13px; padding:8px 16px; border-radius:var(--radius-card);
     cursor:pointer;
   }
   .reel-upload-panel{
@@ -406,7 +450,7 @@
   .history-list{ display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; margin-bottom:8px; }
   .history-item{
     display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--border-strong);
-    border-radius:12px; background:var(--surface-2);
+    border-radius:var(--radius-sm); background:var(--surface-2);
   }
   .history-avatar{
     width:40px; height:40px; border-radius:50%; flex-shrink:0; object-fit:cover;
@@ -428,7 +472,7 @@
   /* ---- invite popup ---- */
   .invite-toast{
     position:fixed; top:20px; left:50%; transform:translateX(-50%);
-    background:var(--surface); border:1px solid var(--border-strong); border-radius:12px;
+    background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
     padding:16px 18px; z-index:70; display:none; max-width:320px; box-shadow:0 12px 30px rgba(0,0,0,0.4);
   }
   .invite-toast.active{ display:block; }
@@ -443,7 +487,7 @@
     align-items:center; justify-content:center; z-index:60; padding:20px;
   }
   .report-overlay.active{ display:flex; }
-  .report-box{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--border-strong); border-radius:14px; padding:24px; }
+  .report-box{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:24px; }
   .reason-list{ display:flex; flex-direction:column; gap:8px; margin:16px 0 20px; }
   .reason-btn{
     text-align:left; background:var(--bg); border:1px solid var(--border-strong); border-radius:9px;
@@ -459,7 +503,7 @@
   .call-overlay.active{ display:flex; }
   .call-box{ width:100%; max-width:640px; }
   .video-grid{
-    display:grid; gap:6px; border-radius:14px; overflow:hidden; background:#000;
+    display:grid; gap:6px; border-radius:var(--radius-sm); overflow:hidden; background:#000;
     border:1px solid var(--border-strong); min-height:280px; position:relative;
     grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
   }
@@ -477,7 +521,7 @@
     display:flex; justify-content:center; pointer-events:none;
   }
   .caption-bubble{
-    background:rgba(0,0,0,0.72); color:#fff; padding:7px 14px; border-radius:10px;
+    background:rgba(0,0,0,0.72); color:#fff; padding:7px 14px; border-radius:var(--radius-sm);
     font-size:13px; line-height:1.4; max-width:100%; text-align:center;
     font-family:'Manrope', sans-serif; display:none;
   }
@@ -497,7 +541,7 @@
   .live-transcript .who{ color:var(--accent-2); font-weight:600; }
   .impulse-banner{
     display:none; background:linear-gradient(135deg, rgba(227,167,104,0.18), rgba(180,120,60,0.18));
-    border:1px solid var(--accent-2); border-radius:10px; padding:12px 14px; margin:0 0 14px;
+    border:1px solid var(--accent-2); border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 14px;
     font-size:13px; line-height:1.5; color:var(--ink); animation: impulse-in 0.35s ease;
   }
   .impulse-banner.active{ display:block; }
@@ -509,7 +553,7 @@
 
   .impulse-setting-row{
     display:flex; align-items:center; justify-content:space-between; gap:14px;
-    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
     padding:12px 14px; margin-bottom:18px;
   }
 
@@ -520,7 +564,7 @@
   .rating-overlay.active{ display:flex; }
   .rating-box{
     width:100%; max-width:420px; background:var(--surface); border:1px solid var(--border-strong);
-    border-radius:16px; padding:26px 24px; text-align:center;
+    border-radius:var(--radius-sm); padding:26px 24px; text-align:center;
   }
   .rating-box h3{ margin:0 0 6px; font-size:18px; }
   .rating-box p.sub{ color:var(--muted); font-size:13px; margin:0 0 22px; }
@@ -563,11 +607,35 @@
 </head>
 <body>
 
+<header class="fv-app-header" id="fv-app-header">
+  <div class="fv-logo"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
+  <nav class="fv-app-nav" id="fv-app-nav">
+    <a data-nav="home" id="nav-home">Start</a>
+    <a data-nav="reels" id="nav-reels">Mentoren</a>
+    <a data-nav="goal" id="nav-goal">Mein Ziel</a>
+    <a data-nav="weekly" id="nav-weekly">Woche</a>
+    <a data-nav="dashboard" id="nav-dashboard">Dein Flowvalu</a>
+    <a data-nav="history" id="nav-history">Verlauf</a>
+    <a data-nav="profile" id="nav-profile">Profil</a>
+    <span id="points-badge-slot"></span>
+    <a data-nav="logout" id="nav-logout">Ausloggen</a>
+  </nav>
+</header>
+
+<div class="fv-brandstrip">
+  <span class="ink">Discipline</span><span class="arrow">→</span>
+  <span>Action</span><span class="arrow">→</span>
+  <span>Growth</span><span class="arrow">→</span>
+  <span>Results</span><span class="arrow">→</span>
+  <span class="ink">Freedom</span>
+</div>
+
+<div class="shell-wrap">
 <div class="shell">
 
   <!-- AUTH -->
   <section class="screen active" id="screen-auth">
-    <div class="fv-logo"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
+    <div class="fv-logo fv-logo-inline"><span class="fv-logo-mark">F</span><span class="fv-logo-word">Flow Valu</span></div>
     <h1 id="auth-title">Anmelden</h1>
     <p class="lead">Ein Konto schützt dich und andere vor Missbrauch.</p>
     <input type="email" id="auth-email" placeholder="deine@email.de">
@@ -624,7 +692,7 @@
 
   <!-- PROFILE -->
   <section class="screen" id="screen-profile">
-    <div class="top-links">
+    <div class="top-links" style="display:none;">
       <span id="edit-profile-link">👤 Profil</span>
       <span id="history-link">🕓 Verlauf</span>
       <span id="dashboard-link">📊 Dein Flowvalu</span>
@@ -639,7 +707,7 @@
     <span class="badge"><span class="dot"></span>Live-Matching</span>
     <span class="badge" id="active-users-badge" style="margin-left:8px;">🟢 …</span>
     <span class="own-mentor-badge" id="own-mentor-badge">🎓 Mentor-Modus aktiv</span>
-    <div id="pwa-install-banner" style="display:none; background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:12px 14px; margin-bottom:16px; align-items:center; justify-content:space-between; gap:10px;">
+    <div id="pwa-install-banner" style="display:none; background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:16px; align-items:center; justify-content:space-between; gap:10px;">
       <span style="font-size:13px;">📲 FlowValu als App installieren?</span>
       <button class="btn-sm" id="pwa-install-btn" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit;">Installieren</button>
     </div>
@@ -790,6 +858,7 @@
 
     <div id="goal-no-active" style="display:none;">
       <p class="lead">Noch kein Ziel gesetzt. Was möchtest du als Nächstes erreichen?</p>
+      <p class="fv-quote">Große Ziele<br>brauchen klare Schritte.</p>
       <textarea id="new-goal-input" placeholder="z. B. Ich möchte meinen ersten Nebenjob finden" style="min-height:80px;"></textarea>
       <button class="btn" id="set-goal-btn" style="margin-top:12px;">Ziel setzen</button>
     </div>
@@ -798,7 +867,7 @@
       <p class="lead" id="goal-text-display" style="font-weight:600;"></p>
       <div id="goal-steps-list" style="margin:20px 0;"></div>
 
-      <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px; margin-bottom:16px;">
+      <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:14px; margin-bottom:16px;">
         <div style="font-weight:600; font-size:13px; margin-bottom:10px;">Eigene Aufgaben</div>
         <div id="goal-tasks-list"></div>
         <div style="display:flex; gap:8px; margin-top:10px;">
@@ -826,19 +895,19 @@
       <p style="font-size:12.5px; color:var(--muted); margin-bottom:20px;" id="weekly-recap-call-count"></p>
 
       <div id="weekly-recap-ai-view" style="display:none;">
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">💡 Wichtigste Ideen der Woche</div>
           <ul id="weekly-top-ideas" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
         </div>
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">🔁 Wiederkehrende Themen</div>
           <p id="weekly-recurring-themes" style="margin:0; font-size:13px; line-height:1.6;"></p>
         </div>
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">❓ Offene Punkte</div>
           <ul id="weekly-open-points" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
         </div>
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px; color:var(--accent-2);">➡️ Nächste Schritte</div>
           <ul id="weekly-next-steps" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
         </div>
@@ -847,11 +916,11 @@
       <!-- Fallback ohne KI-Synthese: einfach die rohen Ideen/Aufgaben auflisten -->
       <div id="weekly-recap-raw-view" style="display:none;">
         <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px;">Keine KI-Zusammenfassung verfügbar — hier deine Rohdaten aus dieser Woche:</p>
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px; margin-bottom:14px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px; margin-bottom:14px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">💡 Ideen</div>
           <ul id="weekly-raw-ideas" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
         </div>
-        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px;">
+        <div style="background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px;">
           <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">✅ Nächste Schritte</div>
           <ul id="weekly-raw-actions" style="margin:0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
         </div>
@@ -866,9 +935,9 @@
     <div class="reels-topbar">
       <div style="display:flex; align-items:center; gap:10px;">
         <span style="font-weight:700; font-family:'Manrope', sans-serif; display:flex; align-items:center; gap:6px;">FlowValu <span id="reels-info-btn" style="cursor:pointer; font-weight:400; opacity:0.8;" title="Was ist das?">ⓘ</span></span>
-        <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:999px; padding:2px;">
-          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🎬 Reels</button>
-          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:999px; cursor:pointer;">🔍 Mentoren</button>
+        <div style="display:flex; background:rgba(255,255,255,0.1); border-radius:var(--radius-pill); padding:2px;">
+          <button id="reels-tab-videos-btn" style="border:none; background:#fff; color:#000; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:var(--radius-pill); cursor:pointer;">🎬 Reels</button>
+          <button id="reels-tab-mentors-btn" style="border:none; background:transparent; color:#fff; font-family:'Manrope', sans-serif; font-weight:600; font-size:11.5px; padding:5px 12px; border-radius:var(--radius-pill); cursor:pointer;">🔍 Mentoren</button>
         </div>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
@@ -1015,6 +1084,7 @@
     <button class="btn btn-ghost" id="report-btn">🚩 Melden</button>
     <button class="btn btn-ghost" id="skip-btn">Skip →</button>
   </section>
+</div>
 </div>
 
 <!-- VIDEO CALL OVERLAY -->
@@ -1241,6 +1311,12 @@ async function refreshPointsBadge() {
 async function onAuthSuccess(email){
   myEmail = email || myEmail;
   socket.connect();
+  document.getElementById('fv-app-nav').classList.add('visible');
+  // Bewertungspunkte-Anzeige einmalig in die Kopfzeile verschieben (bestehende
+  // refreshPointsBadge()-Logik bleibt dabei unverändert, da dieselbe ID erhalten bleibt)
+  const badgeSlot = document.getElementById('points-badge-slot');
+  const badge = document.getElementById('points-badge');
+  if(badgeSlot && badge && badge.parentElement !== badgeSlot) badgeSlot.appendChild(badge);
 
   try{
     const res = await fetch('/api/profile');
@@ -1322,7 +1398,7 @@ function buildHomepageSections(data){
     '<div class="next-step-label">Jetzt dran</div>' +
     '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;">' +
       '<span>' + escapeHtml(data.nextStep.text) + '</span>' +
-      '<button id="next-step-action-btn" data-action="' + data.nextStep.action + '" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#0a0a0c; padding:10px 18px; border-radius:999px; cursor:pointer; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;">Los geht\'s</button>' +
+      '<button id="next-step-action-btn" data-action="' + data.nextStep.action + '" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#0a0a0c; padding:10px 18px; border-radius:var(--radius-pill); cursor:pointer; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;">Los geht\'s</button>' +
     '</div>' +
   '</div></div>';
 
@@ -1417,9 +1493,20 @@ document.getElementById('logout-link').addEventListener('click', async () => {
   socket.disconnect();
   document.getElementById('auth-email').value = '';
   document.getElementById('auth-password').value = '';
+  document.getElementById('fv-app-nav').classList.remove('visible');
   setAuthMode('login');
   show('screen-auth');
 });
+
+/* ---------- Persistente App-Navigation (Kopfzeile) ---------- */
+document.getElementById('nav-home').addEventListener('click', () => show('screen-profile'));
+document.getElementById('nav-reels').addEventListener('click', () => document.getElementById('reels-icon-btn').click());
+document.getElementById('nav-goal').addEventListener('click', () => document.getElementById('goal-link').click());
+document.getElementById('nav-weekly').addEventListener('click', () => document.getElementById('weekly-recap-link').click());
+document.getElementById('nav-dashboard').addEventListener('click', () => document.getElementById('dashboard-link').click());
+document.getElementById('nav-history').addEventListener('click', () => document.getElementById('history-link').click());
+document.getElementById('nav-profile').addEventListener('click', () => document.getElementById('edit-profile-link').click());
+document.getElementById('nav-logout').addEventListener('click', () => document.getElementById('logout-link').click());
 
 // Beim Laden prüfen, ob schon eine Sitzung besteht
 fetch('/api/me').then(r => r.json()).then(data => {
@@ -1698,7 +1785,7 @@ function buildLevelTrack(title, levels, currentLevel){
     '</div>';
   }).join('');
 
-  return '<div style="grid-column:1 / -1; margin-top:10px; border:1px solid rgba(242,240,237,0.12); border-radius:20px; background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:20px;">' +
+  return '<div style="grid-column:1 / -1; margin-top:10px; border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.55); backdrop-filter:blur(14px); padding:20px;">' +
     '<div class="eyebrow" style="margin-bottom:4px;">' + escapeHtml(title) + '</div>' +
     rows +
   '</div>';
@@ -1932,11 +2019,11 @@ function renderMentorSearchResults(mentors){
 
   mentors.forEach(m => {
     const card = document.createElement('div');
-    card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:12px; padding:12px 14px; margin-bottom:10px;';
+    card.style.cssText = 'display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.06); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:10px;';
     const avatarHtml = m.avatarDataUrl
       ? '<img src="' + m.avatarDataUrl + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
       : '<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;">' + escapeHtml(m.displayName[0].toUpperCase()) + '</div>';
-    const tagsHtml = m.workingOnChips.slice(0, 3).map(t => '<span style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 7px; border-radius:999px; margin-right:4px;">' + escapeHtml(t) + '</span>').join('');
+    const tagsHtml = m.workingOnChips.slice(0, 3).map(t => '<span style="font-size:10px; background:rgba(255,255,255,0.1); padding:2px 7px; border-radius:var(--radius-pill); margin-right:4px;">' + escapeHtml(t) + '</span>').join('');
 
     card.innerHTML =
       avatarHtml +
@@ -2170,7 +2257,7 @@ async function openMentorMiniProfile(email){
     const modal = document.createElement('div');
     modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:95; display:flex; align-items:center; justify-content:center; padding:20px;';
     modal.innerHTML =
-      '<div style="border:1px solid rgba(242,240,237,0.12); border-radius:26px; background:rgba(16,16,19,0.85); backdrop-filter:blur(20px); padding:26px; max-width:360px; width:100%; max-height:80vh; overflow-y:auto;">' +
+      '<div style="border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-card); background:rgba(16,16,19,0.85); backdrop-filter:blur(20px); padding:26px; max-width:360px; width:100%; max-height:80vh; overflow-y:auto;">' +
         '<div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">' +
           avatarHtml +
           '<div>' +
@@ -2812,7 +2899,7 @@ socket.on('matched', (data) => {
   workChipsEl.innerHTML = '';
   (display.workingOnChips || []).forEach(text => {
     const tag = document.createElement('span');
-    tag.style.cssText = 'font-family:"JetBrains Mono", monospace; font-size:10px; background:var(--surface-2); border:1px solid var(--border-strong); padding:2px 8px; border-radius:999px; color:var(--muted);';
+    tag.style.cssText = 'font-family:"JetBrains Mono", monospace; font-size:10px; background:var(--surface-2); border:1px solid var(--border-strong); padding:2px 8px; border-radius:var(--radius-pill); color:var(--muted);';
     tag.textContent = text;
     workChipsEl.appendChild(tag);
   });
