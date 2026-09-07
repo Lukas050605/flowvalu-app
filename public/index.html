@@ -33,16 +33,23 @@
   }
   h1, h2, h3{ font-family:'Archivo', sans-serif; letter-spacing:-0.02em; }
   .shell{
-    width:100%; max-width:440px; border:1px solid var(--border-strong);
-    border-radius:16px; padding:34px 30px; background:var(--surface);
+    width:100%; max-width:440px; border:1px solid rgba(242,240,237,0.12);
+    border-radius:26px; padding:34px 30px;
+    background:rgba(16,16,19,0.7); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   }
   .screen{ display:none; } .screen.active{ display:block; animation:rise .35s ease; }
+  .eyebrow{
+    font-size:10.5px; letter-spacing:0.34em; text-transform:uppercase; color:var(--accent);
+    margin:0 0 14px; font-weight:600;
+  }
   @keyframes rise{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
 
   .badge{
     display:inline-flex; align-items:center; gap:7px;
-    font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--muted);
-    border:1px solid var(--border-strong); border-radius:999px; padding:6px 13px; margin-bottom:20px;
+    font-family:'Manrope', sans-serif; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;
+    color:rgba(242,240,237,0.75);
+    border:1px solid rgba(242,240,237,0.2); border-radius:999px; padding:8px 15px; margin-bottom:20px;
+    background:rgba(12,12,14,0.4); backdrop-filter:blur(10px);
   }
   .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 8px var(--accent-2); }
 
@@ -60,10 +67,11 @@
 
   .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
   .chip{
-    font-family:'JetBrains Mono', monospace; font-size:12px; padding:7px 13px; border-radius:999px;
-    border:1px solid var(--border-strong); background:var(--bg); color:var(--muted); cursor:pointer;
+    font-family:'Manrope', sans-serif; font-size:11.5px; font-weight:600; padding:9px 16px; border-radius:999px;
+    letter-spacing:0.08em; text-transform:uppercase;
+    border:1px solid rgba(242,240,237,0.2); background:rgba(16,16,19,0.6); color:var(--muted); cursor:pointer;
   }
-  .chip.selected{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; border-color:transparent; }
+  .chip.selected{ background:rgba(227,167,104,0.14); color:var(--accent); border-color:rgba(227,167,104,0.6); }
   .chip-remove{
     display:inline-block; margin-left:4px; opacity:0.6; font-weight:700;
   }
@@ -74,11 +82,15 @@
   .segmented button.active{ background:var(--surface-2); color:var(--ink); }
 
   .btn{
-    width:100%; font-size:14.5px; font-weight:600; padding:13px 20px; border-radius:10px;
-    border:none; cursor:pointer; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff;
+    width:100%; font-family:'Manrope', sans-serif; font-size:12.5px; font-weight:600;
+    padding:16px 20px; border-radius:999px; letter-spacing:0.1em; text-transform:uppercase;
+    border:none; cursor:pointer; background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0a0a0c;
   }
   .btn:disabled{ opacity:.45; cursor:not-allowed; }
-  .btn-ghost{ background:transparent; border:1px solid var(--border-strong); color:var(--muted); margin-top:10px; }
+  .btn-ghost{
+    background:rgba(255,255,255,0.04); border:1px solid rgba(242,240,237,0.24); color:rgba(242,240,237,0.85);
+    margin-top:10px; backdrop-filter:blur(10px);
+  }
 
   .queue-ring{ width:70px; height:70px; margin:20px auto; border-radius:50%; border:2px solid var(--border); position:relative; }
   .queue-ring::before{ content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; border-top-color:var(--accent-2); animation:spin 1s linear infinite; }
@@ -114,8 +126,8 @@
   .home-section{ margin-bottom:24px; }
   .home-section h3{ font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
   .progress-card{
-    background:linear-gradient(135deg, rgba(227,167,104,0.14), rgba(201,149,90,0.10));
-    border:1px solid var(--border-strong); border-radius:14px; padding:18px;
+    background:rgba(16,16,19,0.6); backdrop-filter:blur(14px);
+    border:1px solid rgba(242,240,237,0.12); border-radius:20px; padding:22px;
   }
   .progress-card .progress-stats{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px; }
   .progress-card .progress-stat{ font-size:13px; }
@@ -123,9 +135,11 @@
   .progress-bar-track{ height:8px; background:var(--surface-2); border-radius:999px; overflow:hidden; margin:8px 0 6px; }
   .progress-bar-fill{ height:100%; background:linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius:999px; }
   .next-step-banner{
-    background:var(--surface-2); border:1px solid var(--border-strong); border-radius:12px;
-    padding:14px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px;
+    background:rgba(20,17,14,0.75); backdrop-filter:blur(14px);
+    border:1px solid rgba(227,167,104,0.45); border-radius:20px;
+    padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px;
   }
+  .next-step-label{ font-size:10.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; font-weight:600; }
   .home-scroll-row{ display:flex; gap:10px; overflow-x:auto; padding-bottom:4px; }
   .home-reel-card{
     flex:0 0 auto; width:110px; aspect-ratio:9/16; border-radius:10px; overflow:hidden; position:relative;
@@ -1272,10 +1286,13 @@ function buildHomepageSections(data){
     '<div style="font-size:11.5px; color:var(--muted); margin-top:8px;">' + data.flow.completedCalls + ' Calls · ' + data.flow.ratingsGiven + ' Bewertungen abgegeben · ' + data.flow.pinboardActivity + ' Pinnwand-Beiträge</div>' +
   '</div></div>';
 
-  // Dein nächster Schritt: echte, regelbasierte Empfehlung
-  html += '<div class="home-section"><h3>🧭 Dein nächster Schritt</h3><div class="next-step-banner">' +
-    '<span>' + escapeHtml(data.nextStep.text) + '</span>' +
-    '<button class="btn-sm" id="next-step-action-btn" data-action="' + data.nextStep.action + '" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#fff; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit; white-space:nowrap;">Los geht\'s</button>' +
+  // Dein nächster Schritt: echte, regelbasierte Empfehlung — im "Jetzt dran"-Stil
+  html += '<div class="home-section"><h3>🧭 Dein nächster Schritt</h3><div class="next-step-banner" style="flex-direction:column; align-items:flex-start;">' +
+    '<div class="next-step-label">Jetzt dran</div>' +
+    '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;">' +
+      '<span>' + escapeHtml(data.nextStep.text) + '</span>' +
+      '<button id="next-step-action-btn" data-action="' + data.nextStep.action + '" style="background:linear-gradient(135deg, var(--accent), var(--accent-2)); border:none; color:#0a0a0c; padding:10px 18px; border-radius:999px; cursor:pointer; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;">Los geht\'s</button>' +
+    '</div>' +
   '</div></div>';
 
   // Für dich: echte Reels aus dem Feed
@@ -1689,12 +1706,15 @@ function renderGoal(path){
   document.getElementById('goal-text-display').textContent = '"' + path.goal.text + '"';
 
   const stepsList = document.getElementById('goal-steps-list');
-  stepsList.innerHTML = path.steps.map(step => {
-    const icon = step.locked ? '🔒' : (step.done ? '✅' : '⬜');
-    const opacity = step.locked ? '0.5' : '1';
-    return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0; opacity:' + opacity + ';">' +
-      '<span style="font-size:16px;">' + icon + '</span>' +
-      '<span style="font-size:13.5px;">' + escapeHtml(step.label) + (step.locked ? ' (bald verfügbar)' : '') + '</span>' +
+  stepsList.innerHTML = path.steps.map((step, i) => {
+    const numColor = step.locked ? 'rgba(242,240,237,0.25)' : (step.done ? 'var(--accent)' : 'rgba(242,240,237,0.4)');
+    const textOpacity = step.locked ? '0.45' : '1';
+    const badge = step.locked ? '🔒 BALD' : (step.done ? '✓ ERLEDIGT' : 'OFFEN');
+    const badgeColor = step.locked ? 'rgba(242,240,237,0.35)' : (step.done ? 'var(--accent)' : 'var(--muted)');
+    return '<div style="display:grid; grid-template-columns:28px 1fr auto; gap:12px; align-items:center; padding:12px 0; border-top:1px solid rgba(242,240,237,0.08); opacity:' + textOpacity + ';">' +
+      '<span style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:11px; color:' + numColor + ';">' + String(i + 1).padStart(2, '0') + '</span>' +
+      '<span style="font-size:13.5px;">' + escapeHtml(step.label) + '</span>' +
+      '<span style="font-size:9.5px; letter-spacing:0.15em; text-transform:uppercase; color:' + badgeColor + '; white-space:nowrap;">' + badge + '</span>' +
     '</div>';
   }).join('');
 
