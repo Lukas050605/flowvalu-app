@@ -299,6 +299,21 @@ app.get('/api/weekly-recap', async (req, res) => {
   });
 });
 
+// Persönliches Profil für normale Nutzer (Thema 23) — bündelt alles an einer
+// Stelle: Ziel, gefolgte Mentoren, gelikte Reels, abgegebene Bewertungen.
+// Verlauf (vergangene Calls) bleibt bewusst in der bestehenden /api/history-Route,
+// da die dort schon komplett aufbereitet wird.
+app.get('/api/my-profile-overview', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const email = req.session.user.email;
+  res.json({
+    activeGoal: store.getGoalPath(email),
+    followedMentors: store.getFollowedMentors(email).map(m => ({ ...m, isOnline: !!userSockets[m.email] })),
+    likedReels: store.getLikedReels(email),
+    ratingsGiven: store.getRatingsGivenList(email)
+  });
+});
+
 app.get('/api/goal', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json({ path: store.getGoalPath(req.session.user.email) });

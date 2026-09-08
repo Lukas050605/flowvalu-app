@@ -284,6 +284,7 @@ module.exports = {
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
   logWaitTime, getEstimatedWaitSeconds, getPlatformStats,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
+  getLikedReels, getRatingsGivenList,
   searchMentors, getAllMentorTopics,
   FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
   setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath
@@ -972,6 +973,25 @@ function getReelLikeCount(reelToken) {
 
 function isReelLikedBy(reelToken, email) {
   return readReelLikes().some(l => l.reelToken === reelToken && l.email === email);
+}
+
+/* ---------------- Persönliches Profil für normale Nutzer (Thema 23) ---------------- */
+
+// Alle Reels, die diese Person geliked hat — mit Anzeige-Infos angereichert.
+function getLikedReels(email) {
+  const likedTokens = readReelLikes().filter(l => l.email === email).map(l => l.reelToken);
+  return readReels()
+    .filter(r => likedTokens.includes(r.token))
+    .map(r => ({ ...r, uploaderDisplay: getPublicProfile(r.uploaderEmail) }))
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+// Alle Bewertungen, die diese Person ANDEREN gegeben hat — mit Anzeige-Infos.
+function getRatingsGivenList(email) {
+  return readRatings()
+    .filter(r => r.raterEmail === email)
+    .map(r => ({ ...r, ratedDisplay: getPublicProfile(r.ratedEmail) }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 // Schaltet den Like-Status um (liken/entliken) und gibt den neuen Stand zurück.

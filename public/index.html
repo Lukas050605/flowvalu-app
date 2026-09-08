@@ -1450,6 +1450,11 @@
   <section class="screen" id="screen-profile-edit">
     <p class="eyebrow">Dein Profil</p>
     <h2>So siehst du für andere aus</h2>
+
+    <!-- Persönliche Übersicht (Thema 23): Ziel, gefolgte Mentoren, gelikte Reels,
+         abgegebene Bewertungen — alles echte Daten, an einer Stelle gebündelt. -->
+    <div id="my-profile-overview" style="margin-bottom:24px;"></div>
+
     <div class="avatar-picker">
       <div class="avatar-preview" id="avatar-preview">?</div>
       <button class="avatar-plus-btn" id="my-reels-plus-btn" title="Reel hochladen">+</button>
@@ -2587,8 +2592,87 @@ document.getElementById('edit-profile-link').addEventListener('click', async () 
   document.getElementById('my-reels-section').style.display = status.tier > 0 ? 'block' : 'none';
   if (status.tier > 0) loadMyReelsGrid();
 
+  loadMyProfileOverview();
   show('screen-profile-edit');
 });
+
+async function loadMyProfileOverview(){
+  const container = document.getElementById('my-profile-overview');
+  container.innerHTML = 'Lädt …';
+  try{
+    const res = await fetch('/api/my-profile-overview');
+    const data = await res.json();
+
+    let html = '';
+
+    // Meine Ziele
+    html += '<div class="home-section"><h3>🎯 Mein Ziel</h3>';
+    if(data.activeGoal){
+      const doneSteps = data.activeGoal.steps.filter(s => s.done).length;
+      html += '<div style="border:1px solid rgba(242,240,237,0.12); border-radius:var(--radius-sm); background:rgba(16,16,19,0.5); padding:14px;">' +
+        '<div style="font-weight:600; font-size:13.5px; margin-bottom:4px;">' + escapeHtml(data.activeGoal.goal.text) + '</div>' +
+        '<div style="font-size:11.5px; color:var(--muted);">' + doneSteps + ' von ' + data.activeGoal.steps.length + ' Schritten erledigt</div>' +
+      '</div>';
+    } else {
+      html += '<p style="font-size:12.5px; color:var(--muted);">Noch kein Ziel gesetzt. <span style="color:var(--accent); cursor:pointer;" id="overview-set-goal-link">Jetzt setzen →</span></p>';
+    }
+    html += '</div>';
+
+    // Gefolgte Mentoren
+    html += '<div class="home-section"><h3>🤝 Gefolgte Mentoren (' + data.followedMentors.length + ')</h3>';
+    if(data.followedMentors.length){
+      html += '<div class="home-scroll-row">' + data.followedMentors.map(m => {
+        const d = m.display;
+        const avatarHtml = d.avatarDataUrl
+          ? '<img class="avatar" src="' + d.avatarDataUrl + '" style="border-radius:50%; object-fit:cover;">'
+          : '<div class="avatar" style="border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">' + escapeHtml(d.displayName[0].toUpperCase()) + '</div>';
+        return '<div class="home-mentor-card" data-email="' + escapeHtml(m.email) + '">' + avatarHtml +
+          '<div class="mentor-name">' + (m.isOnline ? '🟢 ' : '') + escapeHtml(d.displayName) + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    } else {
+      html += '<p style="font-size:12.5px; color:var(--muted);">Noch niemandem gefolgt.</p>';
+    }
+    html += '</div>';
+
+    // Gelikte Reels
+    html += '<div class="home-section"><h3>❤️ Gelikte Reels (' + data.likedReels.length + ')</h3>';
+    if(data.likedReels.length){
+      html += '<div class="home-scroll-row">' + data.likedReels.map(r =>
+        '<div class="home-reel-card" data-token="' + r.token + '"><video src="/api/reels/' + r.token + '/video" muted playsinline></video></div>'
+      ).join('') + '</div>';
+    } else {
+      html += '<p style="font-size:12.5px; color:var(--muted);">Noch keine Reels geliked.</p>';
+    }
+    html += '</div>';
+
+    // Abgegebene Bewertungen
+    html += '<div class="home-section"><h3>📝 Abgegebene Bewertungen (' + data.ratingsGiven.length + ')</h3>';
+    if(data.ratingsGiven.length){
+      html += data.ratingsGiven.slice(0, 5).map(r =>
+        '<div style="display:flex; justify-content:space-between; font-size:12.5px; padding:6px 0; border-top:1px solid rgba(242,240,237,0.08);">' +
+          '<span>' + escapeHtml(r.ratedDisplay.displayName) + '</span>' +
+          '<span style="color:var(--muted);">⭐ ' + r.beliebtheit + ' · 💡 ' + r.kreativitaet + '</span>' +
+        '</div>'
+      ).join('');
+    } else {
+      html += '<p style="font-size:12.5px; color:var(--muted);">Noch keine Bewertungen abgegeben.</p>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+
+    document.getElementById('overview-set-goal-link')?.addEventListener('click', () => document.getElementById('goal-link').click());
+    container.querySelectorAll('.home-mentor-card').forEach(card => {
+      card.addEventListener('click', () => openMentorMiniProfile(card.dataset.email));
+    });
+    container.querySelectorAll('.home-reel-card').forEach(card => {
+      card.addEventListener('click', () => document.getElementById('reels-icon-btn').click());
+    });
+  } catch(e){
+    container.innerHTML = '<p style="font-size:12.5px; color:var(--muted);">Konnte nicht geladen werden.</p>';
+  }
+}
 
 /* ---------- Eigene Reels im Profil (Instagram-artiges Raster) ---------- */
 async function loadMyReelsGrid(){
