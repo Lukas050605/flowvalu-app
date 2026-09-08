@@ -57,6 +57,21 @@
   }
   @keyframes rise{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
 
+  /* Level-Aufstiegs-Benachrichtigung (Thema 15) — dezent und seriös, kein
+     Glücksspiel-Konfetti, nur eine klare, ehrliche Info über echten Fortschritt. */
+  .level-up-toast{
+    position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-20px);
+    z-index:200; background:rgba(16,16,19,0.92); backdrop-filter:blur(16px);
+    border:1px solid rgba(227,167,104,0.5); border-radius:var(--radius-sm);
+    padding:14px 20px; display:flex; align-items:center; gap:12px;
+    opacity:0; pointer-events:none; transition:opacity 0.3s ease, transform 0.3s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  .level-up-toast.active{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .level-up-toast .lut-emoji{ font-size:26px; }
+  .level-up-toast .lut-label{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); margin-bottom:2px; }
+  .level-up-toast .lut-title{ font-family:'Archivo', sans-serif; font-weight:700; font-size:14px; }
+
   .badge{
     display:inline-flex; align-items:center; gap:7px;
     font-family:'Manrope', sans-serif; font-size:10.5px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;
@@ -903,6 +918,13 @@
 </head>
 <body class="lp-mode">
 <div class="fv-grain" aria-hidden="true"></div>
+<div class="level-up-toast" id="level-up-toast">
+  <span class="lut-emoji" id="level-up-emoji"></span>
+  <div>
+    <div class="lut-label" id="level-up-kicker">Level erreicht</div>
+    <div class="lut-title" id="level-up-title"></div>
+  </div>
+</div>
 
 <!-- ÖFFENTLICHE STARTSEITE — nur für nicht eingeloggte Besucher (siehe body.lp-mode) -->
 <section id="screen-landing">
@@ -4015,6 +4037,16 @@ async function loadFlowRewardsStatus(){
     if(data.balance < reward.cost) document.getElementById('priority-match-checkbox').checked = false;
   } catch(e){ /* egal, Option bleibt einfach versteckt */ }
 }
+
+/* ---------- Level-Aufstiegs-Benachrichtigung (Thema 15) ---------- */
+socket.on('level_up', (data) => {
+  const toast = document.getElementById('level-up-toast');
+  document.getElementById('level-up-emoji').textContent = data.emoji;
+  document.getElementById('level-up-kicker').textContent = (data.type === 'mentor' ? 'Neues Mentor-Level' : 'Neues Level') + ' erreicht';
+  document.getElementById('level-up-title').textContent = data.emoji + ' ' + data.label;
+  toast.classList.add('active');
+  setTimeout(() => toast.classList.remove('active'), 5000);
+});
 
 socket.on('priority_match_result', (data) => {
   if(!data.ok){

@@ -1505,9 +1505,28 @@ io.on('connection', (socket) => {
 
     if (bothReady) {
       delete callRequests[roomId];
+
+      // Thema 15 – Überraschungs-Belohnung fürs Nutzer-Level: Level VOR dem Call
+      // merken, NACH markCallHappened() (wodurch der Call erst als "abgeschlossen"
+      // zählt und Flow entsteht) vergleichen — nur bei echtem Aufstieg benachrichtigen.
+      const levelsBefore = {};
+      members.forEach(id => {
+        const s = io.sockets.sockets.get(id);
+        if (s && s.data.email) levelsBefore[s.data.email] = store.getUserLevel(s.data.email).level;
+      });
+
       markCallHappened(roomId);
       startImpulseWatcher(roomId);
       startGroupGrowth(roomId);
+
+      members.forEach(id => {
+        const s = io.sockets.sockets.get(id);
+        if (!s || !s.data.email || !(s.data.email in levelsBefore)) return;
+        const levelAfter = store.getUserLevel(s.data.email);
+        if (levelAfter.level > levelsBefore[s.data.email]) {
+          s.emit('level_up', { type: 'user', level: levelAfter.level, label: levelAfter.label, emoji: levelAfter.emoji });
+        }
+      });
       // Jeder bekommt die ID des jeweils ANDEREN Mitglieds mit — die Verbindung wird
       // von Anfang an als "Mesh mit einem Peer" aufgebaut, damit später problemlos
       // weitere Peers dazukommen können, ohne die Verbindungslogik umzubauen.
@@ -1656,11 +1675,29 @@ io.on('connection', (socket) => {
     }
     const ratedEmail = match.userAEmail === raterEmail ? match.userBEmail : match.userAEmail;
 
+    // Thema 15 – Überraschungs-Belohnung: NUR bei einem echten, gerade tatsächlich
+    // stattgefundenen Level-Aufstieg (kein Zufall, kein Gambling) — Level VOR und
+    // NACH der Bewertung vergleichen, bei Unterschied den/die Betroffene(n) informieren.
+    const levelBefore = store.getMentorLevel(ratedEmail).level;
+
     const success = store.addRating({ roomId, raterEmail, ratedEmail, beliebtheit, kreativitaet });
     socket.emit('rate_result', {
       ok: success,
       error: success ? null : 'Ungültige Bewertung oder du hast diesen Call schon bewertet.'
     });
+
+    if (success) {
+      const levelAfter = store.getMentorLevel(ratedEmail);
+      if (levelAfter.level > levelBefore) {
+        const ratedSocketId = userSockets[ratedEmail];
+        const ratedSocket = ratedSocketId && io.sockets.sockets.get(ratedSocketId);
+        if (ratedSocket) {
+          ratedSocket.emit('level_up', {
+            type: 'mentor', level: levelAfter.level, label: levelAfter.label, emoji: levelAfter.emoji
+          });
+        }
+      }
+    }
   });
 
   socket.on('report_user', ({ roomId, reason }) => {
