@@ -527,6 +527,12 @@ app.get('/api/reels/mine', (req, res) => {
 // Öffentliches Mini-Profil eines Mentors (Avatar, Bio, Rating, Level) + seine Reels —
 // wird angezeigt, wenn man in der Reels-Ansicht auf Avatar/Namen klickt.
 // Mentoren durchsuchen/filtern nach Themen (Thema 19) — ?topics=Café-Konzept,Marketing
+// Mentor-Challenge: echtes Wochen-Ranking (Thema 17).
+app.get('/api/mentor-challenge', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json({ leaderboard: store.getWeeklyMentorLeaderboard() });
+});
+
 app.get('/api/mentors', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const topics = req.query.topics ? String(req.query.topics).split(',').filter(Boolean) : [];

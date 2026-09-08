@@ -285,6 +285,7 @@ module.exports = {
   logWaitTime, getEstimatedWaitSeconds, getPlatformStats,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
   getLikedReels, getRatingsGivenList,
+  getWeeklyMentorLeaderboard,
   searchMentors, getAllMentorTopics,
   FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
   setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath
@@ -574,6 +575,47 @@ function getMentorProfiles() {
     if (b.mentorLevel !== a.mentorLevel) return b.mentorLevel - a.mentorLevel;
     return b.latestReelAt - a.latestReelAt;
   });
+}
+
+/* ---------------- Mentor-vs.-Mentor-Challenge (Thema 17) ---------------- */
+// Zeitbegrenzt (rollierend 7 Tage, kein persistierter Challenge-Zustand nötig) —
+// Punktzahl aus ECHTEN Aktivitäten dieser Woche: Calls, Bewertungen, neue Reel-
+// Likes. Gewichtung dokumentiert und einfach anpassbar, keine erfundenen Punkte.
+const CHALLENGE_POINTS_PER_CALL = 3;
+const CHALLENGE_POINTS_PER_RATING = 2;
+const CHALLENGE_POINTS_PER_LIKE = 1;
+
+function getWeeklyMentorLeaderboard(limit = 10) {
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const mentors = getMentorProfiles(); // jeder mit mindestens einem Reel gilt als Mentor
+  const allMatches = readMatches().filter(m => m.hadCall && m.startedAt && new Date(m.startedAt).getTime() >= sevenDaysAgo);
+  const allRatings = readRatings().filter(r => r.createdAt >= sevenDaysAgo);
+  const allLikes = readReelLikes().filter(l => l.createdAt >= sevenDaysAgo);
+  const reelsByMentor = {};
+  readReels().forEach(r => { (reelsByMentor[r.uploaderEmail] = reelsByMentor[r.uploaderEmail] || []).push(r.token); });
+
+  const scored = mentors.map(m => {
+    const callsThisWeek = allMatches.filter(match => match.userAEmail === m.email || match.userBEmail === m.email).length;
+    const ratingsThisWeek = allRatings.filter(r => r.ratedEmail === m.email).length;
+    const ownTokens = reelsByMentor[m.email] || [];
+    const likesThisWeek = allLikes.filter(l => ownTokens.includes(l.reelToken)).length;
+
+    const score = callsThisWeek * CHALLENGE_POINTS_PER_CALL +
+                  ratingsThisWeek * CHALLENGE_POINTS_PER_RATING +
+                  likesThisWeek * CHALLENGE_POINTS_PER_LIKE;
+
+    return {
+      email: m.email, displayName: m.displayName, avatarDataUrl: m.avatarDataUrl,
+      mentorLevelEmoji: m.mentorLevelEmoji, mentorLevelLabel: m.mentorLevelLabel,
+      callsThisWeek, ratingsThisWeek, likesThisWeek, score
+    };
+  })
+  .filter(m => m.score > 0) // wer diese Woche nichts gemacht hat, taucht auch nicht auf
+  .sort((a, b) => b.score - a.score)
+  .slice(0, limit);
+
+  scored.forEach((m, i) => { m.rank = i + 1; m.isChampion = i === 0; });
+  return scored;
 }
 
 // Sucht/filtert Mentoren nach Themen (Thema 19) — nutzt die "Woran arbeitest du
