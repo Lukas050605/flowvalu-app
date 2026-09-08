@@ -549,6 +549,7 @@ function getMentorProfiles() {
   return emails.map(email => {
     const display = getPublicProfile(email);
     const ownReels = reels.filter(r => r.uploaderEmail === email);
+    const level = getMentorLevel(email);
     return {
       email,
       displayName: display.displayName,
@@ -557,9 +558,22 @@ function getMentorProfiles() {
       workingOnChips: display.workingOnChips || [], // echte, selbst angegebene Themen-Tags
       rating: display.rating,
       reelCount: ownReels.length,
-      latestReelAt: Math.max(...ownReels.map(r => r.createdAt))
+      latestReelAt: Math.max(...ownReels.map(r => r.createdAt)),
+      mentorLevel: level.level,
+      mentorLevelLabel: level.label,
+      mentorLevelEmoji: level.emoji,
+      // Thema 13 – exklusiver Vorteil ab Level 3: "bessere Sichtbarkeit". Ab Level
+      // 5 zusätzlich "besondere Platzierung" (featured). Alles aus dem echten,
+      // bereits berechneten Level — keine separate Fake-Kennzeichnung.
+      hasVisibilityBoost: level.level >= 3,
+      isFeatured: level.level >= 5
     };
-  }).sort((a, b) => b.latestReelAt - a.latestReelAt);
+  }).sort((a, b) => {
+    // Höheres Level gewinnt IMMER zuerst (echte bessere Sichtbarkeit ab Level 3+),
+    // erst innerhalb desselben Levels entscheidet die Aktualität der Reels.
+    if (b.mentorLevel !== a.mentorLevel) return b.mentorLevel - a.mentorLevel;
+    return b.latestReelAt - a.latestReelAt;
+  });
 }
 
 // Sucht/filtert Mentoren nach Themen (Thema 19) — nutzt die "Woran arbeitest du

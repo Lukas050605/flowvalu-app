@@ -3147,9 +3147,10 @@ function renderMentorSearchResults(mentors){
     const topicLabel = m.workingOnChips[0] || 'FlowValu';
 
     card.innerHTML =
-      '<div style="position:relative; aspect-ratio:3/4; border-radius:var(--radius-card); overflow:hidden; border:1px solid rgba(242,240,237,0.1); margin-bottom:12px;">' +
+      '<div style="position:relative; aspect-ratio:3/4; border-radius:var(--radius-card); overflow:hidden; border:1px solid ' + (m.level.level >= 5 ? 'rgba(227,167,104,0.6)' : 'rgba(242,240,237,0.1)') + '; margin-bottom:12px;">' +
         avatarHtml +
         (m.isOnline ? '<div style="position:absolute; top:10px; right:10px; width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></div>' : '') +
+        (m.level.level >= 5 ? '<div style="position:absolute; top:10px; left:10px; background:rgba(227,167,104,0.9); color:#0a0a0c; font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:3px 8px; border-radius:var(--radius-pill);">🏆 Featured</div>' : '') +
       '</div>' +
       '<div style="font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); margin-bottom:6px;">' + m.level.emoji + ' Level ' + m.level.level + ' · ' + escapeHtml(topicLabel) + '</div>' +
       '<div style="font-family:\'Archivo\', sans-serif; font-weight:700; font-size:14.5px; letter-spacing:0.01em; margin-bottom:3px;">' + escapeHtml(m.displayName) + '</div>' +
