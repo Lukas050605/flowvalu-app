@@ -1550,6 +1550,22 @@
         <button class="file-btn" id="account-change-password-btn" type="button">Passwort ändern</button>
       </div>
       <div style="border-top:1px solid var(--border); padding-top:16px;">
+        <div style="font-weight:600; font-size:13.5px; margin-bottom:8px;">🎥 Kamera &amp; Mikrofon</div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:10px;">Testen, bevor du in einen Call gehst — die Auswahl gilt für dieses Gerät.</div>
+        <video id="device-preview-video" autoplay muted playsinline style="width:100%; max-width:220px; aspect-ratio:4/3; object-fit:cover; border-radius:10px; background:#000; margin-bottom:10px; display:none;"></video>
+        <button class="file-btn" id="device-test-btn" type="button" style="margin-bottom:12px;">Kamera/Mikrofon testen</button>
+        <div id="device-selects" style="display:none;">
+          <label class="field-label">Kamera</label>
+          <select id="camera-select" style="margin-bottom:10px; width:100%; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;"></select>
+          <label class="field-label">Mikrofon</label>
+          <select id="mic-select" style="margin-bottom:8px; width:100%; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;"></select>
+          <div style="font-size:10.5px; color:var(--muted); margin-bottom:4px;">Mikrofon-Pegel (sprich zum Testen):</div>
+          <div style="height:6px; border-radius:3px; background:var(--surface-2); overflow:hidden;"><div id="mic-level-fill" style="height:100%; width:0%; background:var(--accent-2);"></div></div>
+        </div>
+        <div class="field-error" id="device-error"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--border); padding-top:16px;">
         <div style="font-weight:600; font-size:13.5px; color:#e5484d; margin-bottom:8px;">Konto löschen</div>
         <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">Das kann nicht rückgängig gemacht werden.</div>
         <input type="password" id="account-delete-password-input" placeholder="Passwort zur Bestätigung" style="margin-bottom:8px;">
@@ -2670,7 +2686,117 @@ document.getElementById('my-reels-plus-btn').addEventListener('click', () => {
   document.getElementById('reel-upload-panel').classList.add('active');
 });
 
-document.getElementById('back-from-profile-btn').addEventListener('click', () => show('screen-profile'));
+document.getElementById('back-from-profile-btn').addEventListener('click', () => { stopDevicePreview(); show('screen-profile'); });
+
+/* ---------- Kamera & Mikrofon testen/auswählen (Auswahl gilt pro Gerät/Browser,
+   daher localStorage statt Server — ein Laptop-Mikrofon ergibt auf dem Handy keinen Sinn) ---------- */
+let devicePreviewStream = null;
+let micAudioCtx = null, micAnalyser = null, micLevelRafId = null;
+
+function stopMicLevelMeter(){
+  if(micLevelRafId){ cancelAnimationFrame(micLevelRafId); micLevelRafId = null; }
+  if(micAudioCtx){ micAudioCtx.close().catch(() => {}); micAudioCtx = null; micAnalyser = null; }
+}
+
+function stopDevicePreview(){
+  stopMicLevelMeter();
+  if(devicePreviewStream){ devicePreviewStream.getTracks().forEach(t => t.stop()); devicePreviewStream = null; }
+  const video = document.getElementById('device-preview-video');
+  if(video){ video.srcObject = null; video.style.display = 'none'; }
+}
+
+function startMicLevelMeter(stream){
+  try{
+    micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = micAudioCtx.createMediaStreamSource(stream);
+    micAnalyser = micAudioCtx.createAnalyser();
+    micAnalyser.fftSize = 512;
+    source.connect(micAnalyser);
+    const data = new Uint8Array(micAnalyser.frequencyBinCount);
+    const fill = document.getElementById('mic-level-fill');
+    (function tick(){
+      micAnalyser.getByteFrequencyData(data);
+      const avg = data.reduce((a, b) => a + b, 0) / data.length;
+      fill.style.width = Math.min(100, Math.round((avg / 255) * 180)) + '%';
+      micLevelRafId = requestAnimationFrame(tick);
+    })();
+  } catch(e){ /* Pegelanzeige ist nice-to-have, die Vorschau funktioniert auch ohne */ }
+}
+
+function getSavedDeviceIds(){
+  return {
+    camId: localStorage.getItem('flowvalu_cameraDeviceId') || '',
+    micId: localStorage.getItem('flowvalu_micDeviceId') || ''
+  };
+}
+
+async function startDevicePreview(camId, micId){
+  const errEl = document.getElementById('device-error');
+  errEl.textContent = '';
+  stopDevicePreview();
+  const constraints = {
+    video: camId ? { deviceId: { exact: camId } } : true,
+    audio: micId ? { deviceId: { exact: micId } } : true
+  };
+  try{
+    devicePreviewStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch(err){
+    errEl.textContent = 'Kamera/Mikrofon-Zugriff verweigert oder nicht verfügbar.';
+    return false;
+  }
+  const video = document.getElementById('device-preview-video');
+  video.srcObject = devicePreviewStream;
+  video.style.display = 'block';
+  startMicLevelMeter(devicePreviewStream);
+  return true;
+}
+
+async function populateDeviceSelects(){
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const { camId: savedCam, micId: savedMic } = getSavedDeviceIds();
+  const camSelect = document.getElementById('camera-select');
+  const micSelect = document.getElementById('mic-select');
+  camSelect.innerHTML = '';
+  micSelect.innerHTML = '';
+  let camCount = 0, micCount = 0;
+  devices.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    if(d.kind === 'videoinput'){
+      camCount++;
+      opt.textContent = d.label || ('Kamera ' + camCount);
+      if(d.deviceId === savedCam) opt.selected = true;
+      camSelect.appendChild(opt);
+    } else if(d.kind === 'audioinput'){
+      micCount++;
+      opt.textContent = d.label || ('Mikrofon ' + micCount);
+      if(d.deviceId === savedMic) opt.selected = true;
+      micSelect.appendChild(opt);
+    }
+  });
+}
+
+document.getElementById('device-test-btn').addEventListener('click', async () => {
+  const { camId, micId } = getSavedDeviceIds();
+  const ok = await startDevicePreview(camId, micId);
+  if(ok){
+    await populateDeviceSelects();
+    document.getElementById('device-selects').style.display = 'block';
+  }
+});
+
+document.getElementById('camera-select').addEventListener('change', () => {
+  const camId = document.getElementById('camera-select').value;
+  const micId = document.getElementById('mic-select').value;
+  localStorage.setItem('flowvalu_cameraDeviceId', camId);
+  startDevicePreview(camId, micId);
+});
+document.getElementById('mic-select').addEventListener('change', () => {
+  const camId = document.getElementById('camera-select').value;
+  const micId = document.getElementById('mic-select').value;
+  localStorage.setItem('flowvalu_micDeviceId', micId);
+  startDevicePreview(camId, micId);
+});
 
 document.getElementById('avatar-pick-btn').addEventListener('click', () => {
   document.getElementById('avatar-input').click();
@@ -2729,6 +2855,7 @@ document.getElementById('save-profile-btn').addEventListener('click', async () =
     const data = await res.json();
     if(!res.ok){ errEl.textContent = data.error || 'Fehler beim Speichern.'; return; }
     refreshOwnMentorBadge();
+    stopDevicePreview();
     show('screen-profile');
   } catch(err){
     errEl.textContent = 'Verbindung fehlgeschlagen.';
@@ -4306,7 +4433,18 @@ async function startCall(data){
   peerDisplays = {};
 
   try{
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const { camId, micId } = getSavedDeviceIds();
+    const constraints = {
+      video: camId ? { deviceId: { exact: camId } } : true,
+      audio: micId ? { deviceId: { exact: micId } } : true
+    };
+    try{
+      localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch(deviceErr){
+      // Gespeichertes Gerät existiert nicht mehr (z.B. Headset abgesteckt) —
+      // mit Standardgerät nochmal versuchen, statt den Call komplett scheitern zu lassen.
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    }
   } catch(err){
     document.getElementById('call-status').textContent = 'Kamera/Mikrofon-Zugriff verweigert oder nicht verfügbar.';
     addBubble('sys', 'Kamera/Mikrofon konnte nicht gestartet werden: ' + err.message);
