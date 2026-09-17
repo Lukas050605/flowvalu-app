@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "waitedMs": 79,
+    "loggedAt": 1789676661977
+  },
+  {
+    "waitedMs": 80,
+    "loggedAt": 1789676811750
+  },
+  {
+    "waitedMs": 74,
+    "loggedAt": 1789676943145
+  },
+  {
+    "waitedMs": 39,
+    "loggedAt": 1789676982589
+  },
+  {
+    "waitedMs": 82,
+    "loggedAt": 1789677020765
+  },
+  {
+    "waitedMs": 60,
+    "loggedAt": 1789677303630
+  }
+]
