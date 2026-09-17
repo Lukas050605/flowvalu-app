@@ -9,5 +9,38 @@
     "verificationToken": "6fb0b1e24e32b19e50242f3c871c2b743d4d697e98475a4d",
     "verificationTokenExpires": 1788904908202,
     "createdAt": "2026-09-07T22:01:48.202Z"
+  },
+  {
+    "id": "b0777ff9-2fc2-4b93-ba8c-dd9d4eadb581",
+    "email": "sectest-1789674393@example.com",
+    "passwordHash": "$2b$10$OyulVbuOp4p6.r9N7PBdoOUVLZyZ9ml2N.kd6TRZlu.0SwelEj9sy",
+    "banned": false,
+    "reportCount": 0,
+    "emailVerified": true,
+    "verificationToken": "28f31bdd5b91739ba824c538d91d91d1eb7fe19233b79d5e",
+    "verificationTokenExpires": 1789760793327,
+    "createdAt": "2026-09-17T19:46:33.327Z"
+  },
+  {
+    "id": "36a374b5-8f46-4700-9b4a-842a3d49d9cc",
+    "email": "sectest2-1789674412@example.com",
+    "passwordHash": "$2b$10$9.gKxpmYO4jSwlXf6LmPz.Z6nX37jIDAnZErQcILtmpNCVvp1JBji",
+    "banned": false,
+    "reportCount": 0,
+    "emailVerified": true,
+    "verificationToken": "a8117fa1eafddc5275c00798f662376b3d98d59a0a36db10",
+    "verificationTokenExpires": 1789760812162,
+    "createdAt": "2026-09-17T19:46:52.162Z"
+  },
+  {
+    "id": "5bbd1643-42d3-4dc0-8c1c-3add3910b319",
+    "email": "acctest2-1789674628182@example.com",
+    "passwordHash": "$2b$10$vaGvYEaUwB8FqeWH1TfUYe4sH38hJ6VHlNeae3Fq2718YoT1W2SCG",
+    "banned": false,
+    "reportCount": 0,
+    "emailVerified": true,
+    "verificationToken": "d535fb3db540e429bb8c6ee1c2ab4cbcd51cb24d46cc7b6f",
+    "verificationTokenExpires": 1789761029651,
+    "createdAt": "2026-09-17T19:50:29.651Z"
   }
 ]

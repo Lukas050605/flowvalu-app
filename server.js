@@ -142,21 +142,80 @@ async function sendVerificationEmail(email, token) {
   }
 }
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Kein Start mit dem Standard-Secret in Produktion — sonst könnte jeder, der den
+// (öffentlichen) Quellcode kennt, sich fremde Sessions fälschen. Lokal/Tests
+// bleibt der Fallback bequem nutzbar.
+if (IS_PRODUCTION && !process.env.SESSION_SECRET) {
+  console.error('❌ SESSION_SECRET fehlt. In Produktion (NODE_ENV=production) muss diese Umgebungsvariable gesetzt sein — Start abgebrochen.');
+  process.exit(1);
+}
+
 const app = express();
+// Nötig hinter Render/anderen Reverse-Proxys, damit Express req.secure und die
+// echte Client-IP (für Rate-Limiting) korrekt erkennt statt der Proxy-internen IP.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
 
+// Ein paar einfache, wirkungsvolle Sicherheits-Header — kein volles Helmet, da
+// die App mit Inline-Styles/-Scripts arbeitet und eine strikte CSP hier ohne
+// größeren Umbau mehr kaputt machen würde, als sie schützt.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'flowvalu-dev-secret-bitte-in-produktion-aendern',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 * 30 } // 30 Tage eingeloggt bleiben
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24 * 30, // 30 Tage eingeloggt bleiben
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: IS_PRODUCTION // nur über HTTPS senden, sobald wir wirklich live sind
+  }
 });
 
 app.use(sessionMiddleware);
 io.engine.use(sessionMiddleware); // gleiche Session auch für Socket.io-Verbindungen nutzbar machen
+
+// Sehr einfaches In-Memory-Rate-Limiting gegen Brute-Force auf Login/Registrierung.
+// Reicht für einen einzelnen Node-Prozess (kein Redis nötig); bei mehreren
+// Server-Instanzen bräuchte man einen geteilten Store statt dieser Map.
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 Minuten
+const RATE_LIMIT_MAX_ATTEMPTS = 10;
+const rateLimitHits = new Map(); // key -> [timestamps]
+
+function rateLimit(keyPrefix) {
+  return (req, res, next) => {
+    const key = keyPrefix + ':' + req.ip;
+    const now = Date.now();
+    const hits = (rateLimitHits.get(key) || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+    if (hits.length >= RATE_LIMIT_MAX_ATTEMPTS) {
+      return res.status(429).json({ error: 'Zu viele Versuche. Bitte warte ein paar Minuten und versuch es erneut.' });
+    }
+    hits.push(now);
+    rateLimitHits.set(key, hits);
+    next();
+  };
+}
+
+// Alte Einträge regelmäßig aufräumen, damit die Map nicht unbegrenzt wächst.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, hits] of rateLimitHits.entries()) {
+    const fresh = hits.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+    if (fresh.length) rateLimitHits.set(key, fresh);
+    else rateLimitHits.delete(key);
+  }
+}, RATE_LIMIT_WINDOW_MS).unref();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -166,7 +225,7 @@ function isValidEmail(email) {
   return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', rateLimit('register'), async (req, res) => {
   const { email, password } = req.body || {};
   if (!isValidEmail(email)) return res.status(400).json({ error: 'Bitte eine gültige E-Mail-Adresse angeben.' });
   if (!password || password.length < 6) return res.status(400).json({ error: 'Passwort muss mindestens 6 Zeichen haben.' });
@@ -217,7 +276,7 @@ app.get('/api/verify-email', (req, res) => {
   res.send('<h1>E-Mail bestätigt ✓</h1><p>Du kannst dieses Fenster schließen und in FlowValu weitermachen.</p>');
 });
 
-app.post('/api/resend-verification', async (req, res) => {
+app.post('/api/resend-verification', rateLimit('resend-verification'), async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const users = store.readUsers();
   const user = users.find(u => u.email === req.session.user.email);
@@ -232,7 +291,7 @@ app.post('/api/resend-verification', async (req, res) => {
   res.json({ ok: true, sent: result.sent });
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', rateLimit('login'), async (req, res) => {
   const { email, password } = req.body || {};
   const user = store.findUserByEmail(email || '');
   if (!user) return res.status(400).json({ error: 'E-Mail oder Passwort falsch.' });
@@ -246,6 +305,86 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+/* ---------------- Account-Verwaltung (E-Mail/Passwort ändern, Konto löschen) ---------------- */
+// Jede Aktion hier verlangt das aktuelle Passwort — auch wenn man schon eingeloggt
+// ist, damit ein kurz unbeaufsichtigt offenes Gerät nicht reicht, um E-Mail/Passwort
+// zu übernehmen oder das Konto zu löschen.
+
+app.post('/api/account/change-password', rateLimit('account'), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { currentPassword, newPassword } = req.body || {};
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'Neues Passwort muss mindestens 6 Zeichen haben.' });
+  }
+  const users = store.readUsers();
+  const user = users.find(u => u.email === req.session.user.email);
+  if (!user) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+
+  const match = await bcrypt.compare(currentPassword || '', user.passwordHash);
+  if (!match) return res.status(400).json({ error: 'Aktuelles Passwort ist falsch.' });
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  store.writeUsers(users);
+  res.json({ ok: true });
+});
+
+app.post('/api/account/change-email', rateLimit('account'), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { currentPassword, newEmail } = req.body || {};
+  if (!isValidEmail(newEmail)) return res.status(400).json({ error: 'Bitte eine gültige E-Mail-Adresse angeben.' });
+
+  const users = store.readUsers();
+  const user = users.find(u => u.email === req.session.user.email);
+  if (!user) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+
+  const match = await bcrypt.compare(currentPassword || '', user.passwordHash);
+  if (!match) return res.status(400).json({ error: 'Aktuelles Passwort ist falsch.' });
+
+  const normalizedNew = newEmail.toLowerCase();
+  if (normalizedNew !== user.email && store.findUserByEmail(normalizedNew)) {
+    return res.status(400).json({ error: 'Für diese E-Mail existiert bereits ein Konto.' });
+  }
+
+  user.email = normalizedNew;
+  // Wie bei der Registrierung: neue Adresse muss bestätigt werden, sobald Mailversand
+  // konfiguriert ist — sonst könnte man sich mit einer fremden/falsch getippten
+  // Adresse "verifiziert" fühlen, ohne je Zugriff auf das Postfach gehabt zu haben.
+  if (RESEND_API_KEY) {
+    user.emailVerified = false;
+    user.verificationToken = crypto.randomBytes(24).toString('hex');
+    user.verificationTokenExpires = Date.now() + 1000 * 60 * 60 * 24;
+    await sendVerificationEmail(user.email, user.verificationToken);
+  } else {
+    user.emailVerified = true;
+  }
+  store.writeUsers(users);
+
+  req.session.user = { id: user.id, email: user.email };
+  res.json({ ok: true, email: user.email, emailVerified: user.emailVerified });
+});
+
+app.post('/api/account/delete', rateLimit('account'), async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  const { password } = req.body || {};
+
+  const users = store.readUsers();
+  const idx = users.findIndex(u => u.email === req.session.user.email);
+  if (idx === -1) return res.status(404).json({ error: 'Konto nicht gefunden.' });
+
+  const match = await bcrypt.compare(password || '', users[idx].passwordHash);
+  if (!match) return res.status(400).json({ error: 'Passwort ist falsch.' });
+
+  // Bewusst begrenzter Umfang: das Nutzerkonto selbst wird entfernt (kein Login mehr
+  // möglich). Gemeinsame Daten wie Call-Verlauf mit anderen Nutzern bleiben unter der
+  // (jetzt frei gewordenen) E-Mail bestehen, statt fremde Chat-/Bewertungshistorie
+  // mit zu löschen — vollständige Löschung aller verknüpften Daten (Reels, Pinnwand,
+  // Meldungen) wäre ein größeres Datenmodell-Thema für sich.
+  users.splice(idx, 1);
+  store.writeUsers(users);
+
   req.session.destroy(() => res.json({ ok: true }));
 });
 
@@ -296,21 +435,6 @@ app.get('/api/weekly-recap', async (req, res) => {
     recap, // null, falls keine KI-Synthese möglich war
     rawIdeas: summaries.flatMap(s => s.ideas),
     rawActionItems: summaries.flatMap(s => s.actionItems)
-  });
-});
-
-// Persönliches Profil für normale Nutzer (Thema 23) — bündelt alles an einer
-// Stelle: Ziel, gefolgte Mentoren, gelikte Reels, abgegebene Bewertungen.
-// Verlauf (vergangene Calls) bleibt bewusst in der bestehenden /api/history-Route,
-// da die dort schon komplett aufbereitet wird.
-app.get('/api/my-profile-overview', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  const email = req.session.user.email;
-  res.json({
-    activeGoal: store.getGoalPath(email),
-    followedMentors: store.getFollowedMentors(email).map(m => ({ ...m, isOnline: !!userSockets[m.email] })),
-    likedReels: store.getLikedReels(email),
-    ratingsGiven: store.getRatingsGivenList(email)
   });
 });
 
@@ -527,12 +651,6 @@ app.get('/api/reels/mine', (req, res) => {
 // Öffentliches Mini-Profil eines Mentors (Avatar, Bio, Rating, Level) + seine Reels —
 // wird angezeigt, wenn man in der Reels-Ansicht auf Avatar/Namen klickt.
 // Mentoren durchsuchen/filtern nach Themen (Thema 19) — ?topics=Café-Konzept,Marketing
-// Mentor-Challenge: echtes Wochen-Ranking (Thema 17).
-app.get('/api/mentor-challenge', (req, res) => {
-  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
-  res.json({ leaderboard: store.getWeeklyMentorLeaderboard() });
-});
-
 app.get('/api/mentors', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   const topics = req.query.topics ? String(req.query.topics).split(',').filter(Boolean) : [];
@@ -1505,28 +1623,9 @@ io.on('connection', (socket) => {
 
     if (bothReady) {
       delete callRequests[roomId];
-
-      // Thema 15 – Überraschungs-Belohnung fürs Nutzer-Level: Level VOR dem Call
-      // merken, NACH markCallHappened() (wodurch der Call erst als "abgeschlossen"
-      // zählt und Flow entsteht) vergleichen — nur bei echtem Aufstieg benachrichtigen.
-      const levelsBefore = {};
-      members.forEach(id => {
-        const s = io.sockets.sockets.get(id);
-        if (s && s.data.email) levelsBefore[s.data.email] = store.getUserLevel(s.data.email).level;
-      });
-
       markCallHappened(roomId);
       startImpulseWatcher(roomId);
       startGroupGrowth(roomId);
-
-      members.forEach(id => {
-        const s = io.sockets.sockets.get(id);
-        if (!s || !s.data.email || !(s.data.email in levelsBefore)) return;
-        const levelAfter = store.getUserLevel(s.data.email);
-        if (levelAfter.level > levelsBefore[s.data.email]) {
-          s.emit('level_up', { type: 'user', level: levelAfter.level, label: levelAfter.label, emoji: levelAfter.emoji });
-        }
-      });
       // Jeder bekommt die ID des jeweils ANDEREN Mitglieds mit — die Verbindung wird
       // von Anfang an als "Mesh mit einem Peer" aufgebaut, damit später problemlos
       // weitere Peers dazukommen können, ohne die Verbindungslogik umzubauen.
@@ -1675,29 +1774,11 @@ io.on('connection', (socket) => {
     }
     const ratedEmail = match.userAEmail === raterEmail ? match.userBEmail : match.userAEmail;
 
-    // Thema 15 – Überraschungs-Belohnung: NUR bei einem echten, gerade tatsächlich
-    // stattgefundenen Level-Aufstieg (kein Zufall, kein Gambling) — Level VOR und
-    // NACH der Bewertung vergleichen, bei Unterschied den/die Betroffene(n) informieren.
-    const levelBefore = store.getMentorLevel(ratedEmail).level;
-
     const success = store.addRating({ roomId, raterEmail, ratedEmail, beliebtheit, kreativitaet });
     socket.emit('rate_result', {
       ok: success,
       error: success ? null : 'Ungültige Bewertung oder du hast diesen Call schon bewertet.'
     });
-
-    if (success) {
-      const levelAfter = store.getMentorLevel(ratedEmail);
-      if (levelAfter.level > levelBefore) {
-        const ratedSocketId = userSockets[ratedEmail];
-        const ratedSocket = ratedSocketId && io.sockets.sockets.get(ratedSocketId);
-        if (ratedSocket) {
-          ratedSocket.emit('level_up', {
-            type: 'mentor', level: levelAfter.level, label: levelAfter.label, emoji: levelAfter.emoji
-          });
-        }
-      }
-    }
   });
 
   socket.on('report_user', ({ roomId, reason }) => {

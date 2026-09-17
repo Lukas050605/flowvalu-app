@@ -284,8 +284,6 @@ module.exports = {
   getUserLevel, USER_LEVELS, getMentorDashboardStats,
   logWaitTime, getEstimatedWaitSeconds, getPlatformStats,
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
-  getLikedReels, getRatingsGivenList,
-  getWeeklyMentorLeaderboard,
   searchMentors, getAllMentorTopics,
   FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
   setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath
@@ -550,7 +548,6 @@ function getMentorProfiles() {
   return emails.map(email => {
     const display = getPublicProfile(email);
     const ownReels = reels.filter(r => r.uploaderEmail === email);
-    const level = getMentorLevel(email);
     return {
       email,
       displayName: display.displayName,
@@ -559,63 +556,9 @@ function getMentorProfiles() {
       workingOnChips: display.workingOnChips || [], // echte, selbst angegebene Themen-Tags
       rating: display.rating,
       reelCount: ownReels.length,
-      latestReelAt: Math.max(...ownReels.map(r => r.createdAt)),
-      mentorLevel: level.level,
-      mentorLevelLabel: level.label,
-      mentorLevelEmoji: level.emoji,
-      // Thema 13 – exklusiver Vorteil ab Level 3: "bessere Sichtbarkeit". Ab Level
-      // 5 zusätzlich "besondere Platzierung" (featured). Alles aus dem echten,
-      // bereits berechneten Level — keine separate Fake-Kennzeichnung.
-      hasVisibilityBoost: level.level >= 3,
-      isFeatured: level.level >= 5
+      latestReelAt: Math.max(...ownReels.map(r => r.createdAt))
     };
-  }).sort((a, b) => {
-    // Höheres Level gewinnt IMMER zuerst (echte bessere Sichtbarkeit ab Level 3+),
-    // erst innerhalb desselben Levels entscheidet die Aktualität der Reels.
-    if (b.mentorLevel !== a.mentorLevel) return b.mentorLevel - a.mentorLevel;
-    return b.latestReelAt - a.latestReelAt;
-  });
-}
-
-/* ---------------- Mentor-vs.-Mentor-Challenge (Thema 17) ---------------- */
-// Zeitbegrenzt (rollierend 7 Tage, kein persistierter Challenge-Zustand nötig) —
-// Punktzahl aus ECHTEN Aktivitäten dieser Woche: Calls, Bewertungen, neue Reel-
-// Likes. Gewichtung dokumentiert und einfach anpassbar, keine erfundenen Punkte.
-const CHALLENGE_POINTS_PER_CALL = 3;
-const CHALLENGE_POINTS_PER_RATING = 2;
-const CHALLENGE_POINTS_PER_LIKE = 1;
-
-function getWeeklyMentorLeaderboard(limit = 10) {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const mentors = getMentorProfiles(); // jeder mit mindestens einem Reel gilt als Mentor
-  const allMatches = readMatches().filter(m => m.hadCall && m.startedAt && new Date(m.startedAt).getTime() >= sevenDaysAgo);
-  const allRatings = readRatings().filter(r => r.createdAt >= sevenDaysAgo);
-  const allLikes = readReelLikes().filter(l => l.createdAt >= sevenDaysAgo);
-  const reelsByMentor = {};
-  readReels().forEach(r => { (reelsByMentor[r.uploaderEmail] = reelsByMentor[r.uploaderEmail] || []).push(r.token); });
-
-  const scored = mentors.map(m => {
-    const callsThisWeek = allMatches.filter(match => match.userAEmail === m.email || match.userBEmail === m.email).length;
-    const ratingsThisWeek = allRatings.filter(r => r.ratedEmail === m.email).length;
-    const ownTokens = reelsByMentor[m.email] || [];
-    const likesThisWeek = allLikes.filter(l => ownTokens.includes(l.reelToken)).length;
-
-    const score = callsThisWeek * CHALLENGE_POINTS_PER_CALL +
-                  ratingsThisWeek * CHALLENGE_POINTS_PER_RATING +
-                  likesThisWeek * CHALLENGE_POINTS_PER_LIKE;
-
-    return {
-      email: m.email, displayName: m.displayName, avatarDataUrl: m.avatarDataUrl,
-      mentorLevelEmoji: m.mentorLevelEmoji, mentorLevelLabel: m.mentorLevelLabel,
-      callsThisWeek, ratingsThisWeek, likesThisWeek, score
-    };
-  })
-  .filter(m => m.score > 0) // wer diese Woche nichts gemacht hat, taucht auch nicht auf
-  .sort((a, b) => b.score - a.score)
-  .slice(0, limit);
-
-  scored.forEach((m, i) => { m.rank = i + 1; m.isChampion = i === 0; });
-  return scored;
+  }).sort((a, b) => b.latestReelAt - a.latestReelAt);
 }
 
 // Sucht/filtert Mentoren nach Themen (Thema 19) — nutzt die "Woran arbeitest du
@@ -1029,25 +972,6 @@ function getReelLikeCount(reelToken) {
 
 function isReelLikedBy(reelToken, email) {
   return readReelLikes().some(l => l.reelToken === reelToken && l.email === email);
-}
-
-/* ---------------- Persönliches Profil für normale Nutzer (Thema 23) ---------------- */
-
-// Alle Reels, die diese Person geliked hat — mit Anzeige-Infos angereichert.
-function getLikedReels(email) {
-  const likedTokens = readReelLikes().filter(l => l.email === email).map(l => l.reelToken);
-  return readReels()
-    .filter(r => likedTokens.includes(r.token))
-    .map(r => ({ ...r, uploaderDisplay: getPublicProfile(r.uploaderEmail) }))
-    .sort((a, b) => b.createdAt - a.createdAt);
-}
-
-// Alle Bewertungen, die diese Person ANDEREN gegeben hat — mit Anzeige-Infos.
-function getRatingsGivenList(email) {
-  return readRatings()
-    .filter(r => r.raterEmail === email)
-    .map(r => ({ ...r, ratedDisplay: getPublicProfile(r.ratedEmail) }))
-    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 // Schaltet den Like-Status um (liken/entliken) und gibt den neuen Stand zurück.
