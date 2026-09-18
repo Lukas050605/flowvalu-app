@@ -36,6 +36,11 @@ const MENTOR_TIER2_UPLOAD_LIMIT = 100;
 // abgeschlossene Calls, abgegebene Bewertungen, Pinnwand-Beteiligung.
 // Die genauen Werte sind bewusst als Konstanten ausgelagert — laut Spec ist die
 // exakte Formel eine offene Produktentscheidung, die sich später leicht anpassen lässt.
+// Call-Guthaben: kostenloses Tages-Kontingent (siehe getCallQuotaStatus weiter unten).
+// Hier oben deklariert, weil module.exports weiter unten schon früh im Datei-Verlauf
+// darauf verweist (const-Deklarationen werden nicht wie Funktionen gehoisted).
+const FREE_CALL_MINUTES_PER_DAY = 15;
+
 const FLOW_PER_COMPLETED_CALL = 5;
 const FLOW_PER_RATING_GIVEN = 2;
 const FLOW_PER_PINBOARD_ACTIVITY = 1;
@@ -286,7 +291,8 @@ module.exports = {
   isFollowing, getFollowerCount, toggleFollow, getFollowedMentors,
   searchMentors, getAllMentorTopics,
   FLOW_REWARDS, getFlowSpentTotal, getFlowSpendableBalance, redeemFlowReward,
-  setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath
+  setUserGoal, getActiveGoal, addGoalTask, toggleGoalTask, markGoalAchieved, getGoalPath,
+  getCallQuotaStatus, getCallMinutesUsedToday, setSubscriptionActive, FREE_CALL_MINUTES_PER_DAY
 };
 
 /* ---------------- Eigene Themen-Chips: Häufigkeit tracken + vorschlagen ---------------- */
@@ -1089,6 +1095,60 @@ function getPlatformStats() {
     totalCalls: allMatches.length,
     returnRatePct: returnRate
   };
+}
+
+/* ---------------- Call-Guthaben (kostenloses Tages-Kontingent) ---------------- */
+// Jeder Call ist grundsätzlich kostenlos, aber begrenzt auf FREE_CALL_MINUTES_PER_DAY
+// Minuten pro Kalendertag (Serverzeit) — danach entweder warten (Reset um Mitternacht)
+// oder Abo (subscriptionActive=true, umgeht das Limit komplett). Läuft bewusst auf
+// echten, bereits geloggten Call-Zeiten (startedAt/endedAt in matches.json) statt
+// einem separaten Zähler, damit nichts dupliziert nachgeführt werden muss.
+
+// Dauer eines einzelnen Calls in Minuten. Fehlt endedAt (z.B. Server-Neustart mitten im
+// Call, oder Verbindung einfach abgebrochen ohne "call_ended"), wird eine vorsichtige
+// Pauschale angenommen statt 0 — sonst könnte man das Limit durch harte Abbrüche umgehen.
+const FALLBACK_CALL_MINUTES_IF_NO_END = 5;
+
+function callDurationMinutes(match) {
+  if (!match.startedAt) return 0;
+  if (!match.endedAt) return FALLBACK_CALL_MINUTES_IF_NO_END;
+  const ms = new Date(match.endedAt).getTime() - new Date(match.startedAt).getTime();
+  return Math.max(0, ms / 1000 / 60);
+}
+
+function getCallMinutesUsedToday(email) {
+  const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD", Serverzeit
+  return readMatches()
+    .filter(m => m.hadCall && m.startedAt && m.startedAt.slice(0, 10) === todayStr &&
+      (m.userAEmail === email || m.userBEmail === email))
+    .reduce((sum, m) => sum + callDurationMinutes(m), 0);
+}
+
+// Zentrale Stelle, die entscheidet, ob jemand JETZT noch callen darf — nutzt sowohl
+// die Warteschlange (vor dem Match) als auch die Startseite (Anzeige "noch X Minuten").
+function getCallQuotaStatus(email) {
+  const user = findUserByEmail(email);
+  const subscriptionActive = !!(user && user.subscriptionActive);
+  const usedMinutes = getCallMinutesUsedToday(email);
+  const remainingMinutes = subscriptionActive ? null : Math.max(0, FREE_CALL_MINUTES_PER_DAY - usedMinutes);
+  return {
+    subscriptionActive,
+    freeMinutesPerDay: FREE_CALL_MINUTES_PER_DAY,
+    usedMinutesToday: Math.round(usedMinutes * 10) / 10,
+    remainingMinutes: remainingMinutes === null ? null : Math.round(remainingMinutes * 10) / 10,
+    canStartCall: subscriptionActive || usedMinutes < FREE_CALL_MINUTES_PER_DAY
+  };
+}
+
+// Admin-Funktion: manuelles Freischalten/Sperren des Abos, solange keine echte
+// Zahlungsabwicklung (Stripe o.ä.) angebunden ist — z.B. nach Zahlung per Überweisung/PayPal.
+function setSubscriptionActive(email, active) {
+  const users = readUsers();
+  const user = users.find(u => u.email === String(email).toLowerCase());
+  if (!user) return { success: false, error: 'Nutzer nicht gefunden.' };
+  user.subscriptionActive = !!active;
+  writeUsers(users);
+  return { success: true };
 }
 
 // Einfache, ehrliche "Dein nächster Schritt"-Empfehlung — basiert auf echtem Status,

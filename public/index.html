@@ -1483,9 +1483,21 @@
       <label for="priority-match-checkbox" style="margin:0;">⚡ Prioritäts-Matching nutzen (<span id="priority-match-cost">20</span> Flow, du hast <span id="priority-match-balance">0</span>)</label>
     </div>
 
+    <div id="call-quota-row" style="font-size:11.5px; color:var(--muted); margin:-6px 0 14px; text-align:center;"></div>
     <button class="btn" id="start-btn">Los geht's →</button>
     <p class="fineprint" style="margin-top:22px; text-align:center;"><a href="/impressum.html" target="_blank" style="color:var(--muted);">Impressum</a> · <a href="/datenschutz.html" target="_blank" style="color:var(--muted);">Datenschutz</a></p>
   </section>
+
+  <!-- BEZAHLSCHRANKE: erscheint statt der Warteschlange, sobald das Tages-Guthaben aufgebraucht ist -->
+  <div class="rating-overlay" id="paywall-overlay">
+    <div class="rating-box" style="text-align:center;">
+      <h3>Kostenlose Zeit für heute aufgebraucht</h3>
+      <p class="sub" id="paywall-text">Du hast deine 15 Freiminuten für heute verbraucht.</p>
+      <p class="sub" style="margin-top:10px;">Warte bis Mitternacht (Reset), oder hol dir unbegrenzte Calls im Abo.</p>
+      <button class="btn" id="paywall-upgrade-btn" style="margin-top:18px;">Abo-Interesse anmelden</button>
+      <button class="btn btn-ghost" id="paywall-close-btn">Schließen</button>
+    </div>
+  </div>
 
   <!-- PROFILE EDIT -->
   <section class="screen" id="screen-profile-edit">
@@ -2208,7 +2220,50 @@ async function onAuthSuccess(email){
   refreshOwnMentorBadge();
   loadDynamicHomepage();
   loadFlowRewardsStatus();
+  loadCallQuota();
 }
+
+/* ---------- Call-Guthaben (Tages-Freiminuten) ---------- */
+let cachedCallQuota = null;
+
+async function loadCallQuota(){
+  try{
+    const res = await fetch('/api/call-quota');
+    const data = await res.json();
+    cachedCallQuota = data;
+    const row = document.getElementById('call-quota-row');
+    if(data.subscriptionActive){
+      row.textContent = '✨ Abo aktiv — unbegrenzte Calls';
+    } else {
+      row.textContent = data.remainingMinutes > 0
+        ? '⏱️ Noch ' + data.remainingMinutes + ' von ' + data.freeMinutesPerDay + ' Freiminuten heute'
+        : '⏱️ Freiminuten für heute aufgebraucht (Reset um Mitternacht)';
+    }
+  } catch(e){ /* Anzeige bleibt einfach leer, Start-Button funktioniert trotzdem normal */ }
+}
+
+function showPaywall(quota){
+  if(quota && quota.freeMinutesPerDay != null){
+    document.getElementById('paywall-text').textContent =
+      'Du hast deine ' + quota.freeMinutesPerDay + ' Freiminuten für heute verbraucht.';
+  }
+  document.getElementById('paywall-overlay').classList.add('active');
+}
+
+document.getElementById('paywall-close-btn').addEventListener('click', () => {
+  document.getElementById('paywall-overlay').classList.remove('active');
+});
+document.getElementById('paywall-upgrade-btn').addEventListener('click', () => {
+  document.getElementById('paywall-upgrade-btn').textContent = 'Danke! Melde dich kurz bei uns, wir schalten dich frei.';
+  document.getElementById('paywall-upgrade-btn').disabled = true;
+});
+
+socket.on('quota_exceeded', (quota) => {
+  document.getElementById('queue-status').textContent = '';
+  show('screen-profile');
+  loadCallQuota();
+  showPaywall(quota);
+});
 
 /* ---------- Neue dynamische Startseite ---------- */
 async function loadDynamicHomepage(){
@@ -4131,6 +4186,13 @@ document.querySelectorAll('.segmented button').forEach(btn => {
 });
 
 document.getElementById('start-btn').addEventListener('click', () => {
+  // Clientseitige Vorabprüfung nur für sofortiges Feedback (kein Flackern zur
+  // Warteschlange und zurück) — die eigentliche, nicht umgehbare Sperre läuft
+  // serverseitig über 'quota_exceeded' (siehe processJoinQueue).
+  if(cachedCallQuota && !cachedCallQuota.canStartCall){
+    showPaywall(cachedCallQuota);
+    return;
+  }
   const hangup = document.getElementById('hangup').value.trim() || 'Kein Kommentar, einfach nur festgefahren.';
   const topic = selectedChips[0] || null;
   const usePriorityMatch = document.getElementById('priority-match-checkbox').checked;
@@ -4279,6 +4341,14 @@ socket.on('call_requested_by_partner', () => {
 let peerConnections = {};   // peerId -> RTCPeerConnection
 let peerDisplays = {};      // peerId -> { displayName, avatarDataUrl }
 let localStream = null;
+
+// Löst auf, sobald die eigene Kamera/Mikrofon bereitsteht. WICHTIG: ohne das wird ein
+// eingehendes Angebot vom Partner (siehe webrtc_signal 'offer' unten) manchmal
+// bearbeitet, BEVOR die eigene getUserMedia()-Anfrage fertig ist (z.B. weil ein Handy
+// die Kamera langsamer startet als das Gerät des Partners) — dann entsteht eine
+// Verbindung OHNE eigene Video-/Audio-Spur, die auch später nie repariert wird.
+// Das war der eigentliche Grund für "nur eine Kamera funktioniert", nicht das Netzwerk.
+let localStreamReady = Promise.resolve();
 let speechRecognition = null;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -4287,9 +4357,20 @@ let recordedMimeType = '';
 let screenStream = null;
 let isScreenSharing = false;
 
+// STUN reicht für die meisten Heim-/Firmennetze, aber NICHT für restriktive Netze
+// (v.a. viele Mobilfunk-Netze mit Carrier-Grade-NAT) — dort finden zwei Geräte nie
+// direkt zueinander, egal wie oft man's versucht. Der TURN-Eintrag unten ist ein
+// kostenloser, öffentlicher Relay-Dienst (Open Relay Project) ohne Anmeldung nötig —
+// als bester verfügbarer Versuch ohne Account, aber ohne Verfügbarkeits-Garantie.
+// Für zuverlässigen Betrieb sollte das später durch einen echten (kostenlosen oder
+// bezahlten) TURN-Account ersetzt werden, siehe README.
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' }
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:openrelay.metered.ca:80' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
 ];
 
 function tileIdFor(peerId){ return 'video-tile-' + peerId; }
@@ -4499,6 +4580,9 @@ async function startCall(data){
   peerConnections = {};
   peerDisplays = {};
 
+  let resolveLocalStreamReady;
+  localStreamReady = new Promise(resolve => { resolveLocalStreamReady = resolve; });
+
   try{
     const { camId, micId } = getSavedDeviceIds();
     const constraints = {
@@ -4515,8 +4599,10 @@ async function startCall(data){
   } catch(err){
     document.getElementById('call-status').textContent = 'Kamera/Mikrofon-Zugriff verweigert oder nicht verfügbar.';
     addBubble('sys', 'Kamera/Mikrofon konnte nicht gestartet werden: ' + err.message);
+    resolveLocalStreamReady(); // sonst würde ein wartendes eingehendes Angebot ewig hängen
     return;
   }
+  resolveLocalStreamReady();
 
   addVideoTile('local', 'Du', true).srcObject = localStream;
   document.getElementById('call-status').textContent = 'Verbinde mit deinem Partner …';
@@ -4642,8 +4728,16 @@ socket.on('webrtc_signal', async (msg) => {
     // einer Gruppe dazugekommen), jetzt eine anlegen — OHNE selbst ein Angebot zu
     // schicken, wir antworten nur auf das eingehende.
     if(!pc){
-      const label = (peerDisplays[peerId] && peerDisplays[peerId].displayName) || 'Teilnehmer';
-      pc = createPeerConnection(peerId, false, label);
+      // Erst auf die eigene Kamera/Mikrofon warten — sonst entsteht eine Antwort
+      // OHNE eigene Video-/Audio-Spur, falls unser Gerät (z.B. ein Handy) die Kamera
+      // langsamer startet als das Angebot vom Partner hier ankommt. Diese fehlende
+      // Spur ließe sich später nicht mehr nachträglich reparieren.
+      await localStreamReady;
+      pc = peerConnections[peerId]; // könnte in der Zwischenzeit doch schon angelegt worden sein
+      if(!pc){
+        const label = (peerDisplays[peerId] && peerDisplays[peerId].displayName) || 'Teilnehmer';
+        pc = createPeerConnection(peerId, false, label);
+      }
     }
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
     const answer = await pc.createAnswer();
@@ -4866,6 +4960,7 @@ function endCall(){
   const finish = () => {
     if(wasActive && currentRoom){
       socket.emit('call_ended', { roomId: currentRoom });
+      setTimeout(loadCallQuota, 1000); // kurz warten, bis der Server endedAt gespeichert hat
     }
   };
 

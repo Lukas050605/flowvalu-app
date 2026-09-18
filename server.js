@@ -496,6 +496,22 @@ app.get('/api/wait-time-estimate', (req, res) => {
   res.json({ hasEnoughData: seconds !== null, estimateSeconds: seconds });
 });
 
+// Call-Guthaben: wie viel kostenlose Zeit heute noch übrig ist (oder ob ein Abo aktiv ist).
+app.get('/api/call-quota', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
+  res.json(store.getCallQuotaStatus(req.session.user.email));
+});
+
+// Admin-only, solange keine echte Zahlungsabwicklung angebunden ist: manuelles
+// Freischalten/Sperren nach Zahlung per Überweisung/PayPal o.ä.
+app.post('/api/admin/set-subscription', requireAdmin, (req, res) => {
+  const { email, active } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'E-Mail fehlt.' });
+  const result = store.setSubscriptionActive(email, !!active);
+  if (!result.success) return res.status(404).json(result);
+  res.json(result);
+});
+
 app.get('/api/mentor-dashboard', (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: 'Nicht eingeloggt.' });
   res.json(store.getMentorDashboardStats(req.session.user.email));
@@ -1331,6 +1347,21 @@ function markCallHappened(roomId) {
   }
 }
 
+// Für das Call-Guthaben (Thema Tages-Freiminuten): ohne endedAt könnten wir die
+// tatsächliche Call-Dauer nicht berechnen. Wird beim Auflegen aufgerufen — VOR dem
+// eigentlichen Aufräumen unten, damit die Zeit auch bei einem Fehler im Rest des
+// Handlers (PDF-Erstellung etc.) sauber gespeichert bleibt.
+function markCallEnded(roomId) {
+  const matchId = roomToMatchId[roomId];
+  if (!matchId) return;
+  const matches = store.readMatches();
+  const entry = matches.find(m => m.id === matchId);
+  if (entry && !entry.endedAt) {
+    entry.endedAt = new Date().toISOString();
+    store.writeMatches(matches);
+  }
+}
+
 // Wie viele Wartende maximal per Direkt-Vergleich geprüft werden (Kosten/Latenz begrenzen)
 const MAX_ASSOCIATIVE_CHECKS = 6;
 
@@ -1507,6 +1538,14 @@ io.on('connection', (socket) => {
   async function processJoinQueue(socket, profile) {
     profile = profile || {};
 
+    // Call-Guthaben: serverseitig geprüft (nicht nur im Frontend versteckt), sonst
+    // könnte man das Limit einfach durch einen direkten Socket-Aufruf umgehen.
+    const quota = store.getCallQuotaStatus(socket.data.email);
+    if (!quota.canStartCall) {
+      socket.emit('quota_exceeded', quota);
+      return;
+    }
+
     // Geschlecht + Matching-Präferenz kommen IMMER aus dem gespeicherten Account,
     // niemals vom Client — sonst könnte man den Filter einfach umgehen, indem man
     // im Request andere Werte mitschickt.
@@ -1680,6 +1719,7 @@ io.on('connection', (socket) => {
     if (!roomId || summaryInProgress.has(roomId)) return;
     const members = rooms[roomId];
     if (!members) return;
+    markCallEnded(roomId);
     summaryInProgress.add(roomId);
     stopImpulseWatcher(roomId);
     stopGroupGrowth(roomId);
@@ -1912,6 +1952,7 @@ io.on('connection', (socket) => {
     const roomId = sock.data.roomId;
     if (!roomId) return;
 
+    markCallEnded(roomId); // Tab einfach zu statt "Call beenden" geklickt -> Zeit trotzdem stoppen
     const members = rooms[roomId];
     const remainingMembers = members ? members.filter(id => id !== sock.id) : [];
 

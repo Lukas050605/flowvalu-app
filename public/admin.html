@@ -62,6 +62,16 @@
   <div id="content">Lädt …</div>
 
   <hr class="section-divider">
+  <h1>💳 Abo manuell freischalten</h1>
+  <p class="sub">Solange keine echte Zahlungsabwicklung (Stripe o.ä.) angebunden ist: nach Zahlung per Überweisung/PayPal hier die E-Mail eintragen, um das tägliche Call-Zeitlimit für diese Person aufzuheben.</p>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+    <input type="email" id="subscription-email-input" placeholder="kunde@email.de" style="flex:1; min-width:220px; padding:10px 12px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border); color:var(--ink); font-family:inherit; font-size:14px;">
+    <button class="btn-sm" id="subscription-activate-btn" style="background:var(--accent); border:none; color:#fff;">Abo aktivieren</button>
+    <button class="btn-sm" id="subscription-deactivate-btn" style="background:var(--danger); border:none; color:#fff;">Abo deaktivieren</button>
+  </div>
+  <div id="subscription-status" style="font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--muted); margin-bottom:30px;"></div>
+
+  <hr class="section-divider">
   <h1>🎓 Mentor-Modus: Vorschau</h1>
   <p class="sub">Setzt auf DEINEM eigenen Account testweise eine Mentor-Stufe, ohne echte Bewertungen sammeln zu müssen — perfekt zum Ansehen der UI, während wir weiterbauen. Betrifft nur dich, keine echten Nutzer-Daten.</p>
   <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
@@ -107,6 +117,27 @@
 </div>
 
 <script>
+async function setSubscription(active){
+  const email = document.getElementById('subscription-email-input').value.trim();
+  const el = document.getElementById('subscription-status');
+  if(!email){ el.textContent = '❌ Bitte E-Mail eingeben.'; return; }
+  try{
+    const res = await fetch('/api/admin/set-subscription', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, active })
+    });
+    const data = await res.json();
+    if(!res.ok){ el.textContent = '❌ ' + (data.error || 'Fehler.'); return; }
+    el.textContent = active
+      ? '✅ Abo aktiviert für ' + email
+      : '🚫 Abo deaktiviert für ' + email;
+  } catch(e){
+    el.textContent = '❌ Verbindung fehlgeschlagen.';
+  }
+}
+document.getElementById('subscription-activate-btn').addEventListener('click', () => setSubscription(true));
+document.getElementById('subscription-deactivate-btn').addEventListener('click', () => setSubscription(false));
+
 async function loadLevelPreviewStatus(){
   const el = document.getElementById('level-preview-status');
   try{
