@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Einsatzgebiet | CAR CARE VALU — 50 km um Limeshain</title>
+<meta name="description" content="Unser Einsatzgebiet: 50 Kilometer um Limeshain ohne Anfahrtsaufschlag — Wetterau, Main-Kinzig-Kreis und Rhein-Main.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+<header>
+  <div class="bar">
+    <a class="logo" href="index.html"><span>CAR CARE</span><b>VALU</b></a>
+    <nav class="desk">
+      <a href="index.html">Start</a>
+        <a href="innenreinigung.html">Innenreinigung</a>
+        <a href="aufbereitung.html">Aufbereitung</a>
+        <a href="abo.html">Pflege-Abo</a>
+        <a href="ergebnisse.html">Ergebnisse</a>
+        <a href="minispiel.html">Minispiel</a>
+      <a class="b2b" href="b2b.html"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M3 21V9l6-4v3l5-3v4h7v12H3zm2-2h4v-2H5v2zm0-4h4v-2H5v2zm0-4h4V9H5v2zm6 8h8v-2h-8v2zm0-4h8v-2h-8v2zm0-4h8V9h-8v2z"/></svg><span>B2B · Studios &amp; Geräte</span></a>
+      <a class="btn" style="padding:11px 20px;font-size:13px" href="innenreinigung.html">Termin buchen</a>
+    </nav>
+    <button class="burger" type="button" aria-label="Menü">☰</button>
+  </div>
+  <nav class="mob">
+      <a href="index.html">Start</a>
+      <a href="innenreinigung.html">Innenreinigung</a>
+      <a href="aufbereitung.html">Aufbereitung</a>
+      <a href="abo.html">Pflege-Abo</a>
+      <a href="ergebnisse.html">Ergebnisse</a>
+      <a href="minispiel.html">Minispiel</a>
+      <a href="gutschein.html">Gutschein</a>
+      <a href="b2b.html">B2B · Studios &amp; Autohäuser</a>
+      <a href="einsatzgebiet.html" aria-current="page">Einsatzgebiet</a>
+      <a href="impressum.html">Impressum</a>
+  </nav>
+</header>
+
+<main id="inhalt">
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><i></i><span class="mono">EINSATZGEBIET · AB 63694 LIMESHAIN</span></div>
+    <h1>Wir kommen zu dir.</h1>
+    <p class="lead">Innerhalb von 50 Kilometern um Limeshain fahren wir ohne Aufschlag. Darüber hinaus kommen Spritkosten dazu — nach der Buchung als Hinweis im Termin, bezahlt wird vor Ort.</p>
+    <div class="ticks"><span>Bis 50 km kostenfrei</span><span>Wetterau &amp; Main-Kinzig</span><span>Auch Rhein-Main</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div id="karte" role="img" aria-label="Karte des Einsatzgebiets: 20- und 50-Kilometer-Radius um Limeshain mit den erreichbaren Orten"></div>
+    <p class="note">Die Kreise zeigen 20 und 50 km Luftlinie ab Limeshain, die Punkte liegen an ihrer echten geografischen Position. Wo es eng wird, stehen die Ortsnamen in den Listen darunter. Maßgeblich für die Berechnung ist die tatsächliche Fahrstrecke.</p>
+
+    <div class="grid g3">
+      <div class="card" data-reveal>
+        <span class="mono" style="font-size:10.5px">KERNGEBIET · BIS 20 KM</span>
+        <h3 style="font-size:20px">Direkt um die Ecke</h3>
+        <div class="chips"><span>Limeshain</span><span>Altenstadt</span><span>Hammersbach</span><span>Büdingen</span><span>Ortenberg</span><span>Nidderau</span><span>Nidda</span><span>Erlensee</span></div>
+      </div>
+      <div class="card" data-reveal>
+        <span class="mono" style="font-size:10.5px">KOSTENFREI · BIS 50 KM</span>
+        <h3 style="font-size:20px">Ohne Aufschlag</h3>
+        <div class="chips"><span>Hanau</span><span>Gelnhausen</span><span>Friedberg</span><span>Bad Nauheim</span><span>Langenselbold</span><span>Bruchköbel</span><span>Karben</span><span>Maintal</span><span>Bad Vilbel</span><span>Offenbach</span><span>Frankfurt</span><span>Gießen</span><span>Bad Homburg</span></div>
+      </div>
+      <div class="card" data-reveal>
+        <span class="mono" style="font-size:10.5px">AUF ANFRAGE · ÜBER 50 KM</span>
+        <h3 style="font-size:20px">Mit Spritkostenanteil</h3>
+        <div class="chips"><span>Aschaffenburg</span><span>Darmstadt</span><span>Wiesbaden</span><span>Fulda</span><span>Marburg</span></div>
+        <p class="note" style="margin-top:0">Wie hoch der Anteil ist, rechnest du vorab selbst aus.</p>
+        <a class="btn ghost" href="index.html#anfahrt">Anfahrt berechnen →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  var mitte = [9.0083, 50.2917];
+  // [Name, Länge, Breite, km] — km steuert die Beschriftungs-Priorität
+  var orte = [
+    ["Limeshain", 9.0083, 50.2917, 0], ["Altenstadt", 8.939, 50.288, 8],
+    ["Hammersbach", 8.944, 50.198, 12], ["Büdingen", 9.113, 50.290, 13],
+    ["Ortenberg", 9.058, 50.357, 14], ["Nidderau", 8.861, 50.238, 18],
+    ["Nidda", 9.010, 50.412, 20], ["Erlensee", 8.976, 50.152, 20],
+    ["Langenselbold", 9.041, 50.176, 22], ["Bruchköbel", 8.917, 50.178, 22],
+    ["Friedberg", 8.755, 50.336, 24], ["Gelnhausen", 9.190, 50.202, 26],
+    ["Karben", 8.771, 50.231, 26], ["Hanau", 8.917, 50.133, 28],
+    ["Bad Vilbel", 8.737, 50.178, 28], ["Bad Nauheim", 8.741, 50.366, 30],
+    ["Maintal", 8.835, 50.147, 32], ["Wächtersbach", 9.298, 50.256, 34],
+    ["Butzbach", 8.671, 50.434, 36], ["Offenbach", 8.766, 50.100, 38],
+    ["Bad Homburg", 8.618, 50.227, 40], ["Frankfurt", 8.682, 50.111, 42],
+    ["Gießen", 8.678, 50.587, 46]
+  ];
+
+  var box = document.getElementById("karte");
+  var svg = d3.select(box).append("svg").attr("width", "100%").attr("height", "100%");
+  var kreis50 = d3.geoCircle().center(mitte).radius(50 / 111.32)();
+  var kreis20 = d3.geoCircle().center(mitte).radius(20 / 111.32)();
+
+  function zeichne() {
+    var w = box.clientWidth, h = box.clientHeight;
+    if (!w || !h) return;
+    svg.attr("viewBox", "0 0 " + w + " " + h).selectAll("*").remove();
+
+    var proj = d3.geoMercator().fitExtent([[34, 34], [w - 34, h - 34]], kreis50);
+    var pfad = d3.geoPath(proj);
+
+    svg.append("path").attr("d", pfad(kreis50))
+      .attr("fill", "rgba(205,180,138,.26)").attr("stroke", "#7d5d24").attr("stroke-width", 2);
+    svg.append("path").attr("d", pfad(kreis20))
+      .attr("fill", "rgba(205,180,138,.3)").attr("stroke", "#7d5d24")
+      .attr("stroke-width", 1.2).attr("stroke-dasharray", "5 5");
+
+    var gDots = svg.append("g"), gText = svg.append("g");
+    var belegt = [];
+
+    function frei(b) {
+      for (var i = 0; i < belegt.length; i++) {
+        var a = belegt[i];
+        if (b.x < a.x + a.w + 3 && b.x + b.w + 3 > a.x && b.y < a.y + a.h + 3 && b.y + b.h + 3 > a.y) return false;
+      }
+      return b.x > 4 && b.y > 4 && b.x + b.w < w - 4 && b.y + b.h < h - 4;
+    }
+
+    // alle Punkte zeichnen
+    var pkt = [];
+    orte.forEach(function (o) {
+      var p = proj([o[1], o[2]]);
+      if (!p) return;
+      var haupt = o[3] === 0;
+      pkt.push({ n: o[0], p: p, km: o[3], haupt: haupt });
+      gDots.append("circle").attr("cx", p[0]).attr("cy", p[1])
+        .attr("r", haupt ? 7 : 3.8)
+        .attr("fill", haupt ? "#cdb48a" : "#f6f2ea")
+        .attr("stroke", haupt ? "#1b1712" : "#7d5d24")
+        .attr("stroke-width", haupt ? 2.5 : 1.4);
+      if (haupt) belegt.push({ x: p[0] - 9, y: p[1] - 9, w: 18, h: 18 });
+    });
+
+    // Beschriftung: Hauptmarke zuerst, dann von außen nach innen
+    pkt.sort(function (a, b) { return (b.haupt ? 1 : 0) - (a.haupt ? 1 : 0) || b.km - a.km; });
+
+    pkt.forEach(function (d) {
+      var gr = d.haupt ? 14 : 11.5;
+      var t = gText.append("text")
+        .attr("font-family", "Manrope, Arial, sans-serif")
+        .attr("font-size", gr).attr("font-weight", d.haupt ? 700 : 500)
+        .attr("fill", d.haupt ? "#1b1712" : "#3b3427")
+        .attr("paint-order", "stroke").attr("stroke", "rgba(246,242,234,.92)")
+        .attr("stroke-width", 3.5).text(d.n);
+
+      var br = t.node().getComputedTextLength() + 2, ho = gr + 2;
+      var ab = d.haupt ? 13 : 8;
+      var kand = [
+        { x: d.p[0] + ab, y: d.p[1] - ho / 2, a: "start" },
+        { x: d.p[0] - ab - br, y: d.p[1] - ho / 2, a: "start" },
+        { x: d.p[0] - br / 2, y: d.p[1] - ab - ho, a: "start" },
+        { x: d.p[0] - br / 2, y: d.p[1] + ab, a: "start" }
+      ];
+      for (var i = 0; i < kand.length; i++) {
+        var k = kand[i], b = { x: k.x, y: k.y, w: br, h: ho };
+        if (frei(b)) {
+          belegt.push(b);
+          t.attr("x", k.x).attr("y", k.y + gr * 0.8);
+          return;
+        }
+      }
+      t.remove();
+    });
+
+    // Radius-Marken
+    var m20 = proj([mitte[0], mitte[1] + 20 / 111.32]);
+    var m50 = proj([mitte[0], mitte[1] + 50 / 111.32]);
+    [[m20, "20 KM"], [m50, "50 KM"]].forEach(function (d) {
+      if (!d[0]) return;
+      svg.append("text").attr("x", d[0][0] + 7).attr("y", d[0][1] - 6)
+        .attr("font-family", "'JetBrains Mono', monospace").attr("font-size", 10)
+        .attr("letter-spacing", "0.14em").attr("fill", "#7d5d24")
+        .attr("paint-order", "stroke").attr("stroke", "rgba(246,242,234,.95)")
+        .attr("stroke-width", 4).text(d[1]);
+    });
+  }
+
+  zeichne();
+  var t;
+  window.addEventListener("resize", function () { clearTimeout(t); t = setTimeout(zeichne, 150); });
+})();
+</script>
+</main>
+<a class="wa" href="https://wa.me/4915126718415?text=Hallo%2C%20ich%20interessiere%20mich%20f%C3%BCr%20eine%20Fahrzeugreinigung." target="_blank" rel="noopener" aria-label="Per WhatsApp schreiben">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.15-.15.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.19-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.46 0 1.45 1.06 2.85 1.2 3.05.15.2 2.05 3.28 5.02 4.46 2.48.98 2.98.78 3.52.73.54-.05 1.75-.71 2-1.4.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/><path fill="currentColor" d="M12.04 2C6.6 2 2.17 6.43 2.17 11.88c0 1.74.46 3.44 1.32 4.94L2 22l5.34-1.4a9.83 9.83 0 0 0 4.7 1.2c5.44 0 9.87-4.43 9.87-9.88C21.91 6.43 17.48 2 12.04 2zm0 17.96a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.46 3.64-8.09 8.11-8.09 4.47 0 8.1 3.63 8.1 8.1 0 4.46-3.63 8.1-8.1 8.1z"/></svg>
+  <span>WhatsApp</span>
+</a>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="logo" href="index.html"><span>CAR CARE</span><b>VALU</b></a>
+        <p style="margin:14px 0 0;font-size:14px;line-height:1.7;color:#6b6152;max-width:30ch">Mobile Fahrzeugpflege und Innenraumaufbereitung. Wir kommen zu dir.</p>
+      </div>
+      <div>
+        <h4>LEISTUNGEN</h4>
+        <div class="col">
+          <a href="innenreinigung.html">Innenreinigung</a>
+          <a href="aufbereitung.html">Premium-Aufbereitung</a>
+          <a href="abo.html">Pflege-Abo</a>
+          <a href="abo-termin.html">Abo-Termin buchen</a>
+        </div>
+      </div>
+      <div>
+        <h4>MEHR</h4>
+        <div class="col">
+          <a href="ergebnisse.html">Vorher / Nachher</a>
+          <a href="minispiel.html">Minispiel</a>
+          <a href="index.html#anfahrt">Anfahrt prüfen</a>
+          <a href="einsatzgebiet.html">Einsatzgebiet</a>
+          <a href="wetter.html">Wetter &amp; Termine</a>
+          <a href="anfrage.html">Anfrage senden</a>
+          <a href="gutschein.html">Geschenkgutschein</a>
+          <a href="b2b.html">B2B · Geschäftskunden</a>
+          <a href="fitnessstudio.html">Fitnessgeräte &amp; Lackservice</a>
+          <a href="autohaus.html">Autohäuser &amp; Fuhrpark</a>
+          <a href="vermietung.html">Vermietungen &amp; Mietwagen</a>
+        </div>
+      </div>
+      <div>
+        <h4>KONTAKT</h4>
+        <div class="col">
+          <span>Car Care Valu<br>Himbacher Str. 10<br>63694 Limeshain</span>
+          <a href="mailto:info@carcarevalu.de">info@carcarevalu.de</a>
+          <a href="tel:+4915126718415">+49 151 26718415</a>
+        </div>
+      </div>
+    </div>
+    <div class="base">
+      <span>© 2026 CAR CARE VALU · Inhaber Lukas Scheuermann</span>
+      <div>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="agb.html">AGB</a>
+      </div>
+    </div>
+  </div>
+</footer>
+<script src="app.js"></script>
+
+<script src="promo.js"></script>
+</body>
+</html>

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAR CARE VALU | Mobile Fahrzeugpflege — Limeshain, Altenstadt, Hanau</title>
+<meta name="description" content="Mobile Innenreinigung und Premium-Aufbereitung im Wetteraukreis und Main-Kinzig-Kreis. Kostenlose Anfahrt bis 50 km ab Limeshain.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="tweaks.css">
+</head>
+<body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+<header>
+  <div class="bar">
+    <a class="logo" href="index.html"><span>CAR CARE</span><b>VALU</b></a>
+    <nav class="desk">
+      <a href="index.html" aria-current="page">Start</a>
+        <a href="innenreinigung.html">Innenreinigung</a>
+        <a href="aufbereitung.html">Aufbereitung</a>
+        <a href="abo.html">Pflege-Abo</a>
+        <a href="ergebnisse.html">Ergebnisse</a>
+        <a href="minispiel.html">Minispiel</a>
+      <a class="b2b" href="b2b.html"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M3 21V9l6-4v3l5-3v4h7v12H3zm2-2h4v-2H5v2zm0-4h4v-2H5v2zm0-4h4V9H5v2zm6 8h8v-2h-8v2zm0-4h8v-2h-8v2zm0-4h8V9h-8v2z"/></svg><span>B2B · Studios &amp; Geräte</span></a>
+      <a class="btn" style="padding:11px 20px;font-size:13px" href="innenreinigung.html">Termin buchen</a>
+    </nav>
+    <button class="burger" type="button" aria-label="Menü">☰</button>
+  </div>
+  <nav class="mob">
+      <a href="index.html">Start</a>
+      <a href="innenreinigung.html">Innenreinigung</a>
+      <a href="aufbereitung.html">Aufbereitung</a>
+      <a href="abo.html">Pflege-Abo</a>
+      <a href="ergebnisse.html">Ergebnisse</a>
+      <a href="minispiel.html">Minispiel</a>
+      <a href="gutschein.html">Gutschein</a>
+      <a href="b2b.html">B2B · Studios &amp; Autohäuser</a>
+      <a href="einsatzgebiet.html">Einsatzgebiet</a>
+      <a href="impressum.html">Impressum</a>
+  </nav>
+</header>
+
+<main id="inhalt">
+<section class="hero" id="anfahrt" style="padding:0">
+  <div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:clamp(30px,4vw,56px);align-items:start">
+    <div>
+      <div class="eyebrow"><i></i><span class="mono">START IN LIMESHAIN · 63694</span></div>
+      <h1>Wir kommen zu dir. Prüf kurz die Anfahrt.</h1>
+      <p class="lead">Bis 50 km Entfernung von Limeshain fahren wir ohne Aufschlag. Darüber kommen Spritkosten dazu — der Rechner zeigt sie dir vorher.</p>
+      <div class="ticks"><span>Bis 50 km ohne Aufschlag</span><span>Transparente Festpreise</span><span>Termine auch samstags</span></div>
+      <div class="cta-row">
+        <a class="btn" href="innenreinigung.html">Leistungen ansehen →</a>
+        <a class="btn ghost" href="abo-termin.html">Abo-Kunde: direkt buchen</a>
+      </div>
+      <div class="heroimg" style="background-image:url('images/hero-car.jpg')"></div>
+    </div>
+    
+  <div id="ccv-anfahrt" class="calc">
+    <div class="calc-head">
+      <h2 style="margin:0;font-size:clamp(20px,2.4vw,26px);max-width:none">Anfahrt &amp; Spritkosten</h2>
+      <span class="mono" style="color:var(--muted2);font-size:10px">AB 63694 LIMESHAIN</span>
+    </div>
+    <label class="lbl">Ort suchen
+      <div class="search">
+        <input type="text" id="ccv-q" placeholder="Ort oder PLZ eingeben, z.B. Hanau" autocomplete="off">
+        <div id="ccv-list" hidden></div>
+      </div>
+      <span id="ccv-picked" class="picked" hidden></span>
+    </label>
+    <label class="lbl">Entfernung (einfache Strecke)
+      <div class="krow">
+        <input type="number" id="ccv-num" min="0" max="400" value="12">
+        <span class="mono" style="color:var(--muted2);font-size:12px">KM</span>
+        <input type="range" id="ccv-range" min="0" max="120" step="1" value="12">
+      </div>
+    </label>
+    <label class="lbl">Fahrzeugtyp
+      <select id="ccv-typ">
+        <option value="1">Kleinwagen</option>
+        <option value="1" selected>Limousine</option>
+        <option value="1">Kombi</option>
+        <option value="1">SUV (kompakt)</option>
+        <option value="1.39">SUV (groß)</option>
+        <option value="1.39">Van / Siebensitzer</option>
+        <option value="1.39">Transporter / Kleinbus</option>
+      </select>
+    </label>
+    <div id="ccv-out" class="out">
+      <span class="mono" id="ccv-out-label" style="font-size:10px">IM KOSTENLOSEN ANFAHRTSBEREICH</span>
+      <div class="big" id="ccv-out-sum">0,00 €</div>
+      <p id="ccv-out-text">Bei 12 km liegst du innerhalb der 50 km. Keine Anfahrtskosten.</p>
+      <div class="out-cta" id="ccv-out-cta" hidden>
+        <a class="btn" id="ccv-cta-wa" href="#" target="_blank" rel="noopener">Per WhatsApp anfragen</a>
+        <a class="btn ghost" id="ccv-cta-mail" href="#">E-Mail schreiben</a>
+        <a class="btn ghost" href="tel:+4915126718415">+49 151 26718415</a>
+      </div>
+    </div>
+    <div class="ktable">
+      <div><span>Kostenlose Anfahrt</span><b id="ccv-frei">bis 50 km</b></div>
+      <div><span>Grundlage je km darüber</span><b id="ccv-rate">0,89 € / km</b></div>
+      <div><span>Zonenbereich</span><b id="ccv-extra">bis 50 km</b></div>
+      <div><span>Anfahrtspauschale</span><b id="ccv-calc">keine</b></div>
+      <div><span>Fahrzeugklasse</span><b id="ccv-klasse">Normalpreis</b></div>
+      <div><span>Über 110 km</span><b>Preis nach Absprache</b></div>
+      <div id="ccv-frost-row" hidden><span id="ccv-frost-label">Frost-Pauschale</span><b id="ccv-frost">19,00 €</b></div>
+    </div>
+    <div class="ksum">
+      <span class="mono" style="font-size:10px">GESAMT INKLUSIVE ANFAHRT · <b id="ccv-zone" style="font-weight:500">Zone A</b></span>
+      <div><span>BASIS · 90 Min.</span><b id="ccv-sum-basis">59,00 €</b></div>
+      <div><span>PREMIUM · 120 Min.</span><b id="ccv-sum-premium">69,00 €</b></div>
+      <div id="ccv-frost-sum" class="ksum-frost" hidden><span>bei Frost am Termintag</span><b id="ccv-frost-plus">+ 19,00 €</b></div>
+    </div>
+    <div class="kgo">
+      <a class="btn" id="ccv-go-basis" href="innenreinigung.html" target="_blank" rel="noopener">BASIS buchen</a>
+      <a class="btn ghost" id="ccv-go-premium" href="innenreinigung.html" target="_blank" rel="noopener">PREMIUM buchen</a>
+    </div>
+    <p class="khint"><strong>Alles inklusive:</strong> Die Anfahrtspauschale ist im Buchungspreis bereits enthalten — keine Nachzahlung vor Ort. Über 110 km nennen wir dir den Preis auf Anfrage.</p>
+    <p class="note" style="margin-top:12px">Entfernungsangaben sind Näherungswerte für die einfache Strecke ab 63694 Limeshain. Jede Zone hat eine feste Pauschale, gerechnet ab Zonenmitte für Hin- und Rückfahrt — so zahlt niemand für die Obergrenze.</p>
+    <a class="note" style="display:block;margin-top:14px;text-align:center" href="innenreinigung.html">Alle Leistungen im Detail ansehen →</a>
+  </div>
+  </div>
+</section>
+
+<section class="abostrip">
+  <div class="wrap abostrip-in" data-reveal>
+    <div>
+      <span class="mono">NEU IM PFLEGE-ABO</span>
+      <h2>Innen <em>und</em> außen gepflegt — jeden Monat.</h2>
+      <p>Das Komplett-Abo: Innenreinigung, Außenwäsche und Fotodokumentation bei jedem Termin — ideal für Leasingfahrzeuge. Außenwäsche gibt es nur im Abo.</p>
+    </div>
+    <div class="abostrip-cta">
+      <a class="btn" href="https://app.acuityscheduling.com/catalog.php?owner=37613678&action=addCart&clear=1&id=2286606" target="_blank" rel="noopener">Komplett-Abo buchen →</a>
+      <a class="btn ghost" href="abo.html">Alle Abo-Modelle</a>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <span class="mono">01 — WAS BRAUCHT DEIN FAHRZEUG</span>
+    <h2>Drei Wege zum Termin.</h2>
+    <div class="grid g3">
+      <a class="card link" data-reveal href="innenreinigung.html">
+        <span class="mono" style="font-size:10.5px">A</span>
+        <div class="thumb" style="background-image:url('images/fussraum-sauber.jpg')"></div>
+        <h3 style="font-size:21px">Einfach sauber</h3>
+        <p>Mobile Innenreinigung für den Alltag — Frische zurück, ohne großen Aufwand.</p>
+        <span class="more">Pakete ansehen →</span>
+      </a>
+      <a class="card link" data-reveal href="aufbereitung.html">
+        <span class="mono" style="font-size:10.5px">B</span>
+        <div class="thumb" style="background-image:url('images/kofferraum-sauber.jpg')"></div>
+        <h3 style="font-size:21px">Intensiv aufbereiten</h3>
+        <p>Wenn eine normale Reinigung nicht reicht. Angebot nach der Buchung.</p>
+        <span class="more">Aufbereitung ansehen →</span>
+      </a>
+      <a class="card link" data-reveal href="abo.html">
+        <span class="mono" style="font-size:10.5px">C</span>
+        <div class="thumb" style="background-image:url('images/teppich-sauber.jpg')"></div>
+        <h3 style="font-size:21px">Dauerhaft gepflegt</h3>
+        <p>Pflege-Abo mit festem Termin zum Vorteilspreis — du musst an nichts denken.</p>
+        <span class="more">Abo ansehen →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="mono">02 — WARUM CAR CARE VALU</span>
+    <h2>Sorgfalt ist bei uns kein Extra.</h2>
+    <p class="sub">CAR CARE VALU verbindet professionelle Fahrzeugpflege mit persönlichem Service — direkt vor Ort. Bei jeder Reinigung stehen Sorgfalt, Zuverlässigkeit und Liebe zum Detail im Mittelpunkt.</p>
+    <div class="grid g2">
+      <div class="card" data-reveal><span class="mono" style="font-size:10.5px">01</span><h3 style="font-size:19px">Wir kommen zu dir</h3><p>Kein Warten, keine Anfahrt deinerseits. Zu Hause, am Arbeitsplatz oder auf dem Supermarktparkplatz, während du einkaufst.</p></div>
+      <div class="card" data-reveal><span class="mono" style="font-size:10.5px">02</span><h3 style="font-size:19px">Transparente Festpreise</h3><p>Der Preis steht vor dem Termin. Keine versteckten Kosten, keine Überraschung auf der Rechnung.</p></div>
+      <div class="card" data-reveal><span class="mono" style="font-size:10.5px">03</span><h3 style="font-size:19px">Termine samstags</h3><p>Abgestimmt auf deinen Alltag, nicht auf unsere Öffnungszeiten.</p></div>
+      <div class="card" data-reveal><span class="mono" style="font-size:10.5px">04</span><h3 style="font-size:19px">Erfahrung mit jedem Fahrzeug</h3><p>PKW, Kombi, SUV und Firmenflotten — vom Familienauto bis zum Leasingrückläufer.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <span class="mono">03 — ABLAUF</span>
+    <h2>Von der Anfrage bis zur Übergabe.</h2>
+    <ol class="steps">
+      <li data-reveal><b>01</b><h3>Anfahrt prüfen</h3><p>Kurz im Rechner schauen, ob du im freien Bereich liegst.</p></li>
+      <li data-reveal><b>02</b><h3>Paket wählen</h3><p>Innenreinigung, Aufbereitung oder Abo — je nach Zustand.</p></li>
+      <li data-reveal><b>03</b><h3>Termin buchen</h3><p>Direkt im Online-Kalender, auch samstags.</p></li>
+      <li data-reveal><b>04</b><h3>Wir kommen zu dir</h3><p>Wir bringen alles mit. Du stellst nur das Fahrzeug bereit.</p></li>
+      <li data-reveal><b>05</b><h3>Ergebnis erleben</h3><p>Übergabe, kurzer Rundgang — und einsteigen wie am ersten Tag.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="mono">04 — BEWERTUNGEN</span>
+    <h2>Was Kundinnen und Kunden sagen.</h2>
+    <p class="lead">Alle Bewertungen stammen ungefiltert aus unserem Google-Profil.</p>
+
+    <div class="revhead" data-reveal>
+      <div>
+        <span class="revscore" data-count="5" data-dez="1">5,0</span>
+        <span class="stars">★★★★★</span>
+      </div>
+      <p>Durchschnitt aller Google-Bewertungen</p>
+      <div class="revbtns">
+        <a class="btn ghost" href="https://g.page/r/CeRb2FzpsNIDEAE" target="_blank" rel="noopener">Alle ansehen</a>
+        <a class="btn" href="https://g.page/r/CeRb2FzpsNIDEAE/review" target="_blank" rel="noopener">Bewertung schreiben →</a>
+      </div>
+    </div>
+
+    <div class="revs">
+      <figure class="rev" data-reveal>
+        <span class="stars">★★★★★</span>
+        <blockquote>Habe die Abo abgeschlossen und bin mehr als zufrieden mit der Fahrzeugreinigung! Mein Auto sieht innen immer wieder aus wie neu – selbst hartnäckige Verschmutzungen wurden gründlich entfernt. Lukas arbeitet sehr sorgfältig, zuverlässig und mit viel Liebe zum Detail. Der Kontakt war freundlich und unkompliziert, der Service absolut professionell. Man merkt, dass ihm die Zufriedenheit seiner Kunden wirklich wichtig ist.<br><br>Ich kann CarCareValu jedem empfehlen, der Wert auf eine hochwertige Fahrzeugaufbereitung legt. Vielen Dank für die tolle Arbeit.</blockquote>
+        <figcaption>Google-Bewertung · vor 2 Monaten</figcaption>
+      </figure>
+      <figure class="rev" data-reveal>
+        <span class="stars">★★★★★</span>
+        <blockquote>Ich habe Lukas jetzt schon zum zweiten Mal mit der Reinigung meines Autos beauftragt und bin einfach super zufrieden. Man sieht sofort, dass er sich wirklich Mühe gibt und mit viel Sorgfalt arbeitet. Das Auto sah nach der Reinigung wieder richtig top aus.<br><br>Super unkomplizierter Kontakt, zuverlässig und ein Ergebnis, das sich wirklich sehen lassen kann. Ich kann Lukas auf jeden Fall weiterempfehlen und werde mein Auto auch in Zukunft wieder von ihm reinigen lassen. Vielen Dank für die tolle Arbeit!</blockquote>
+        <figcaption>Google-Bewertung · vor einem Monat</figcaption>
+      </figure>
+      <figure class="rev" data-reveal>
+        <span class="stars">★★★★★</span>
+        <blockquote>War vom kompletten Service rundum zufrieden. Von der Kommunikation sowie dem endgültigen Ergebnis lief alles reibungslos ab. Kann allen den Service nur weiterempfehlen. Werden in Zukunft nun öfters auf die Reinigung zurückgreifen.</blockquote>
+        <figcaption>Google-Bewertung · vor 4 Wochen</figcaption>
+      </figure>
+      <figure class="rev" data-reveal>
+        <span class="stars">★★★★★</span>
+        <blockquote>Absolut empfehlenswert! Ich habe den mobilen Service für eine komplette Innenreinigung genutzt. Das Auto ist blitzblank. Sehr freundlicher und professioneller Service.</blockquote>
+        <figcaption>Google-Bewertung · vor einem Monat</figcaption>
+      </figure>
+      <figure class="rev" data-reveal>
+        <span class="stars">★★★★★</span>
+        <blockquote>Alles gut gemacht. Gerne wieder.</blockquote>
+        <figcaption>Google-Bewertung · vor 3 Tagen</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <span class="mono">05 — PARTNER</span>
+    <h2>Gelistet bei aufbereiter.org</h2>
+    <p class="lead">Wir sind Teil von aufbereiter.org, Deutschlands größtem Verzeichnis für Fahrzeugaufbereitung. Dort findest du geprüfte Betriebe in ganz Deutschland — und uns für die Wetterau und den Main-Kinzig-Kreis.</p>
+    <a class="btn ghost" style="margin-top:26px;display:inline-flex" href="https://aufbereiter.org" target="_blank" rel="noopener">aufbereiter.org besuchen →</a>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap narrow">
+    <span class="mono">06 — FAQ</span>
+    <h2>Häufige Fragen</h2>
+    <div style="margin-top:30px">
+      <details><summary>Wie lange dauert eine Reinigung?</summary><p>BASIS dauert 90 Minuten, PREMIUM 120 Minuten. Bei einer Aufbereitung nennen wir die Dauer mit dem Angebot.</p></details>
+      <details><summary>Wie vereinbare ich einen Termin?</summary><p>Über den Online-Kalender auf dieser Seite, telefonisch unter +49 151 26718415 oder per E-Mail an info@carcarevalu.de. Termine sind auch samstags möglich.</p></details>
+      <details><summary>Was ist die Frost-Pauschale?</summary><p>Bei Frost gefriert Wasser, bevor es abgezogen ist, Reinigungsmittel wirken schlechter und die Trocknung dauert deutlich länger. Liegt die Tiefsttemperatur am Samstag bei null Grad oder darunter, kommen 19 € dazu. Von November bis März weist der Rechner das aus, sobald die Vorhersage Frost zeigt.</p></details>
+      <details><summary>Was kostet die Anfahrt?</summary><p>Bis 50 km ab Limeshain nichts. Darüber gilt eine feste Zonenpauschale, die im Buchungspreis bereits enthalten ist — von 9 € in Zone B bis 89 € in Zone F. Der Rechner oben zeigt dir deine Zone und den Gesamtpreis. Über 110 km nennen wir dir den Preis auf Anfrage.</p></details>
+      <details><summary>Wo findet die Reinigung statt?</summary><p>Wir arbeiten mobil und kommen zu dir — nach Hause, an den Arbeitsplatz oder auf einen Supermarktparkplatz, während du einkaufst. Einsatzgebiet: Wetteraukreis und Main-Kinzig-Kreis.</p></details>
+      <details><summary>Was muss ich vorbereiten?</summary><p>Nimm persönliche Gegenstände aus dem Fahrzeug und sorge für einen zugänglichen Stellplatz. Alles Weitere bringen wir mit.</p></details>
+      <details><summary>Welche Fahrzeuge werden gereinigt?</summary><p>PKW, Kombi und SUV — ebenso Firmenwagen und ganze Flotten. Für Flotten gibt es eigene Konditionen.</p></details>
+    </div>
+  </div>
+</section>
+
+</main>
+<a class="wa" href="https://wa.me/4915126718415?text=Hallo%2C%20ich%20interessiere%20mich%20f%C3%BCr%20eine%20Fahrzeugreinigung." target="_blank" rel="noopener" aria-label="Per WhatsApp schreiben">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.15-.15.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.6-.92-2.19-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.46 0 1.45 1.06 2.85 1.2 3.05.15.2 2.05 3.28 5.02 4.46 2.48.98 2.98.78 3.52.73.54-.05 1.75-.71 2-1.4.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/><path fill="currentColor" d="M12.04 2C6.6 2 2.17 6.43 2.17 11.88c0 1.74.46 3.44 1.32 4.94L2 22l5.34-1.4a9.83 9.83 0 0 0 4.7 1.2c5.44 0 9.87-4.43 9.87-9.88C21.91 6.43 17.48 2 12.04 2zm0 17.96a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.07.8.82-3-.19-.31a8.06 8.06 0 0 1-1.24-4.3c0-4.46 3.64-8.09 8.11-8.09 4.47 0 8.1 3.63 8.1 8.1 0 4.46-3.63 8.1-8.1 8.1z"/></svg>
+  <span>WhatsApp</span>
+</a>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="logo" href="index.html"><span>CAR CARE</span><b>VALU</b></a>
+        <p style="margin:14px 0 0;font-size:14px;line-height:1.7;color:#6b6152;max-width:30ch">Mobile Fahrzeugpflege und Innenraumaufbereitung. Wir kommen zu dir.</p>
+      </div>
+      <div>
+        <h4>LEISTUNGEN</h4>
+        <div class="col">
+          <a href="innenreinigung.html">Innenreinigung</a>
+          <a href="aufbereitung.html">Premium-Aufbereitung</a>
+          <a href="abo.html">Pflege-Abo</a>
+          <a href="abo-termin.html">Abo-Termin buchen</a>
+        </div>
+      </div>
+      <div>
+        <h4>MEHR</h4>
+        <div class="col">
+          <a href="ergebnisse.html">Vorher / Nachher</a>
+          <a href="minispiel.html">Minispiel</a>
+          <a href="index.html#anfahrt">Anfahrt prüfen</a>
+          <a href="einsatzgebiet.html">Einsatzgebiet</a>
+          <a href="wetter.html">Wetter &amp; Termine</a>
+          <a href="anfrage.html">Anfrage senden</a>
+          <a href="gutschein.html">Geschenkgutschein</a>
+          <a href="b2b.html">B2B · Geschäftskunden</a>
+          <a href="fitnessstudio.html">Fitnessgeräte &amp; Lackservice</a>
+          <a href="autohaus.html">Autohäuser &amp; Fuhrpark</a>
+          <a href="vermietung.html">Vermietungen &amp; Mietwagen</a>
+        </div>
+      </div>
+      <div>
+        <h4>KONTAKT</h4>
+        <div class="col">
+          <span>Car Care Valu<br>Himbacher Str. 10<br>63694 Limeshain</span>
+          <a href="mailto:info@carcarevalu.de">info@carcarevalu.de</a>
+          <a href="tel:+4915126718415">+49 151 26718415</a>
+        </div>
+      </div>
+    </div>
+    <div class="base">
+      <span>© 2026 CAR CARE VALU · Inhaber Lukas Scheuermann</span>
+      <div>
+        <a href="impressum.html">Impressum</a>
+        <a href="datenschutz.html">Datenschutz</a>
+        <a href="agb.html">AGB</a>
+      </div>
+    </div>
+  </div>
+</footer>
+<script src="saison.js"></script>
+<script src="app.js"></script>
+<script src="wetter.js"></script>
+<script src="tweaks.js"></script>
+
+<script src="promo.js"></script>
+</body>
+</html>
