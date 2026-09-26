@@ -48,11 +48,12 @@
     '<p class="pm-lead">Dein ganzes Auto, jeden Monat gepflegt — mit Fotodokumentation für eine Leasingrückgabe ohne böse Überraschungen.</p>' +
     '<ul class="pm-list">' +
       '<li>1 Termin pro Monat, innen und außen</li>' +
-      '<li>Außenwäsche nur im Abo buchbar</li>' +
+      '<li>Außenwäsche per Handwäsche in der nächsten Waschbox — nur im Abo</li>' +
       '<li>Zustands-Dokumentation bei jedem Termin inklusive</li>' +
       '<li>Fester Termin, du musst an nichts denken</li>' +
-      '<li>Wir kommen zu dir und kümmern uns um alles</li>' +
+      '<li>Innenreinigung bei dir vor Ort, wir kümmern uns um alles</li>' +
     '</ul>' +
+    '<div class="pm-price"><b>139 €</b><span>pro Monat · zzgl. einmalig 49 € Einrichtung</span></div>' +
     '<div class="pm-cta">' +
       '<a class="btn full" href="' + URL_KOMPLETT + '" target="_blank" rel="noopener" data-pm-zu>Komplett-Abo buchen →</a>' +
       '<a class="btn ghost full" href="abo.html#komplett" data-pm-zu>Alle Leistungen ansehen</a>' +
@@ -111,11 +112,11 @@
         '</div>' +
         '<div class="pm-c pm-hi">' +
           '<span class="pm-tag">INNEN + AUSSEN</span>' +
-          '<span class="mono">KOMPLETT-ABO</span><b>Innen &amp; Außen</b><i>mit Außenwäsche und Foto-Doku</i>' +
+          '<span class="mono">KOMPLETT-ABO</span><b>139,00 €</b><i>pro Monat · innen, außen, Foto-Doku · einmalig 49 € Einrichtung</i>' +
           '<a class="btn full" href="' + URL_KOMPLETT + '" target="_blank" rel="noopener" data-pm-zu>Komplett-Abo →</a>' +
         '</div>' +
       '</div>' +
-      '<p class="pm-fine">Alle Abos monatlich kündbar. Außenwäsche gibt es nur im Komplett-Abo. <a href="abo.html" data-pm-zu>Abo-Modelle vergleichen</a></p>';
+      '<p class="pm-fine">Alle Abos monatlich kündbar. Außenwäsche gibt es für Privatkunden nur im Komplett-Abo. <a href="abo.html" data-pm-zu>Abo-Modelle vergleichen</a></p>';
     modal(html, "pm-compare");
   }
 
