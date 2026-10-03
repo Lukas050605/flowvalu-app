@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flow Valu — Dein Ziel. Dein Weg. Dein Fortschritt.</title>
+<meta name="description" content="Flow Valu macht aus deinem Ziel einen konkreten Schritt-für-Schritt-Weg: Kurse, Aufgaben, Mentoren und sichtbarer Fortschritt." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Caveat:wght@500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ANMELDUNG (Startbildschirm) -->
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+  <div class="gate__bg" aria-hidden="true"></div>
+  <form class="gate__card" id="gate-form" autocomplete="on" novalidate>
+    <div class="brand gate__brand">
+      <span class="brand__mono">F</span>
+      <span class="brand__word">Flow Valu</span>
+    </div>
+    <h1 class="gate__title" id="gate-title">Anmelden</h1>
+    <label class="field" id="field-name" hidden>
+      <span class="field__label">Vorname</span>
+      <input class="field__input" id="gate-name" type="text" name="given-name" autocomplete="given-name" placeholder="Dein Vorname" />
+    </label>
+    <label class="field">
+      <span class="field__label">E-Mail</span>
+      <input class="field__input" id="gate-email" type="email" name="email" placeholder="du@beispiel.de" required />
+    </label>
+    <label class="field">
+      <span class="field__label">Passwort</span>
+      <input class="field__input" id="gate-pass" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required />
+    </label>
+    <label class="field" id="field-pass2" hidden>
+      <span class="field__label">Passwort wiederholen</span>
+      <input class="field__input" id="gate-pass2" type="password" name="password2" autocomplete="new-password" placeholder="••••••••" />
+    </label>
+    <p class="gate__error" id="gate-error" hidden></p>
+    <button class="btn btn--solid btn--full" type="submit"><span id="gate-submit">Anmelden</span><span class="btn__rule"></span></button>
+    <p class="authform__alt"><span id="gate-switch-text">Noch kein Konto?</span> <a href="#" id="gate-register">Konto erstellen</a></p>
+  </form>
+</div>
+
+<div class="app" id="app">
+  <!-- Mobile Kopfzeile -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mono">F</span>
+      <span class="brand__word">Flow Valu</span>
+    </div>
+    <button class="topbar__menu" id="menu-open" type="button" aria-label="Menü öffnen" aria-controls="side" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+    </button>
+  </header>
+  <div class="side__scrim" id="side-scrim" hidden></div>
+
+  <!-- Seitenleiste -->
+  <aside class="side" id="side" aria-label="Hauptmenü">
+    <div class="side__top">
+      <div class="brand">
+        <span class="brand__mono">F</span>
+        <span class="brand__word">Flow Valu</span>
+      </div>
+      <button class="side__close" id="menu-close" type="button" aria-label="Menü schließen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+      </button>
+    </div>
+    <nav class="side__nav">
+      <a class="side__link" href="#live" data-route="live">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="6.5" width="13" height="11" rx="2" /><polyline points="15.5,10.5 21.5,7 21.5,17 15.5,13.5" /></svg>
+        <span>Live-Match</span>
+      </a>
+      <a class="side__link" href="#fortschritt" data-route="fortschritt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21" /><line x1="6.5" y1="21" x2="6.5" y2="14" /><line x1="12" y1="21" x2="12" y2="9" /><line x1="17.5" y1="21" x2="17.5" y2="4" /></svg>
+        <span>Fortschritt &amp; Level</span>
+      </a>
+      <a class="side__link" href="#notizen" data-route="notizen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="12" r="2.6" /><circle cx="4.5" cy="6" r="1.8" /><circle cx="19.5" cy="6" r="1.8" /><circle cx="4.5" cy="18" r="1.8" /><circle cx="19.5" cy="18" r="1.8" /><line x1="6" y1="7" x2="10" y2="10.5" /><line x1="18" y1="7" x2="14" y2="10.5" /><line x1="6" y1="17" x2="10" y2="13.5" /><line x1="18" y1="17" x2="14" y2="13.5" /></svg>
+        <span>Notizen</span>
+      </a>
+      <a class="side__link" href="#einstellungen" data-route="einstellungen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M12 3l1.8 3.7 4 .6-2.9 2.8.7 4L12 12.2 8.4 14.1l.7-4-2.9-2.8 4-.6z" /><line x1="5" y1="20" x2="19" y2="20" /></svg>
+        <span>KI-Einstellungen</span>
+      </a>
+    </nav>
+    <div class="side__user">
+      <div class="side__level" id="side-level">Level 1 · Discipline</div>
+      <div class="side__bar"><span class="side__bar-fill" id="side-bar"></span></div>
+      <div class="side__name" id="side-name"></div>
+      <a class="nav__login side__logout" href="#" id="logout">Abmelden</a>
+    </div>
+  </aside>
+
+  <main class="main">
+<!-- LIVE-MATCH -->
+<section class="match view" id="match" data-view="live">
+  <div class="match__bg" aria-hidden="true"></div>
+
+  <div class="match__body">
+    <!-- 1 Start -->
+    <div class="mview mview--start" id="view-start">
+      <div class="match__live"><span class="chat__dot" aria-hidden="true"></span>Live</div>
+      <h1 class="match__title">Finde jemanden, der am gleichen Ziel arbeitet.</h1>
+      <p class="match__sub">Gib einen Begriff ein und du wirst mit einer Person verbunden, die etwas Ähnliches vorhat. Noch keine Idee? Dann wähle Zufall.</p>
+      <form class="search" id="search-form" autocomplete="off">
+        <input class="search__input" id="search-input" type="text" placeholder="z. B. Vertrieb, Unternehmen gründen, Fitness" aria-label="Begriff oder Ziel" />
+        <button class="btn btn--solid search__go" type="submit">Person finden<span class="btn__rule"></span></button>
+      </form>
+      <button class="btn btn--glass search__random" id="random-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3" /><circle cx="8.5" cy="8.5" r="1.1" fill="currentColor" /><circle cx="15.5" cy="15.5" r="1.1" fill="currentColor" /><circle cx="12" cy="12" r="1.1" fill="currentColor" /></svg>
+        Zufall
+      </button>
+      <div class="topics" id="topics"></div>
+    </div>
+
+    <!-- 2 Suche -->
+    <div class="mview mview--search" id="view-search" hidden>
+      <span class="call__avatar search__pulse">FV</span>
+      <div class="search__status" id="search-status">Suche passende Person …</div>
+      <p class="search__hint" id="search-hint" hidden></p>
+      <div class="search__actions">
+        <button class="btn btn--glass" id="search-random" type="button" hidden>Stattdessen Zufall</button>
+        <button class="link-ul search__cancel" id="search-cancel" type="button">Abbrechen</button>
+      </div>
+    </div>
+
+    <!-- 3 Verbunden -->
+    <div class="mview mview--call" id="view-call" hidden>
+      <div class="room">
+        <div class="room__stage">
+          <div class="stage">
+            <div class="stage__remote">
+              <span class="stage__initials" id="p-initials">--</span>
+              <span class="stage__badge"><span class="chat__dot" aria-hidden="true"></span>Live</span>
+              <span class="stage__name" id="p-name-tag"></span>
+              <video class="call__remote-video" id="remote-video" autoplay playsinline hidden></video>
+            </div>
+            <div class="call__self stage__self">
+              <video class="call__self-video" id="self-video" autoplay playsinline muted></video>
+              <span class="call__self-off" id="self-off" hidden>Kamera aus</span>
+            </div>
+          </div>
+          <div class="call__bar">
+            <button class="call__ctl" id="mic-btn" type="button" aria-pressed="true" aria-label="Mikrofon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0" /><line x1="12" y1="17.5" x2="12" y2="21" /></svg>
+            </button>
+            <button class="call__ctl" id="cam-btn" type="button" aria-pressed="true" aria-label="Kamera">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="2.5" y="6.5" width="13" height="11" rx="2" /><polyline points="15.5,10.5 21.5,7 21.5,17 15.5,13.5" /></svg>
+            </button>
+            <button class="call__ctl" id="screen-btn" type="button" aria-pressed="false" aria-label="Bildschirm teilen" title="Bildschirm teilen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2" /><line x1="8" y1="20.5" x2="16" y2="20.5" /><line x1="12" y1="17" x2="12" y2="20.5" /><polyline points="9,10.5 12,7.5 15,10.5" /><line x1="12" y1="7.5" x2="12" y2="13.5" /></svg>
+            </button>
+            <button class="btn btn--glass room__next" id="next-btn" type="button">Nächste Person<span class="btn__rule room__rule"></span></button>
+            <button class="call__end" id="end-btn" type="button">Beenden</button>
+          </div>
+        </div>
+
+        <aside class="room__side">
+          <div class="pcard">
+            <div class="pcard__name" id="p-name"></div>
+            <div class="pcard__meta" id="p-meta"></div>
+            <div class="pcard__row"><span class="pcard__k">Ziel</span><span class="pcard__v" id="p-goal"></span></div>
+            <div class="pcard__row"><span class="pcard__k">Status</span><span class="pcard__v" id="p-step"></span></div>
+            <div class="pcard__common" id="p-common"></div>
+          </div>
+          <div class="consent" id="consent" hidden>
+            <p class="consent__text" id="consent-text"></p>
+            <div class="consent__actions">
+              <button class="btn btn--solid btn--sm" id="consent-yes" type="button">Zustimmen</button>
+              <button class="btn btn--glass btn--sm" id="consent-no" type="button">Ablehnen</button>
+            </div>
+          </div>
+          <div class="tabs" role="tablist">
+            <button class="tabs__tab is-active" type="button" role="tab" data-tab="chat" aria-selected="true">Chat</button>
+            <button class="tabs__tab" type="button" role="tab" data-tab="tx" aria-selected="false">Mitschrift<span class="tabs__rec" id="tx-rec" hidden></span></button>
+            <button class="tabs__tab" type="button" role="tab" data-tab="ai" aria-selected="false">KI</button>
+          </div>
+          <div class="tabpanel" data-panel="chat">
+          <div class="chat__log room__log" id="room-log" aria-live="polite"></div>
+          <form class="chat__form" id="room-form" autocomplete="off">
+            <input class="chat__input" id="room-input" type="text" placeholder="Nachricht schreiben …" aria-label="Nachricht" />
+            <button class="chat__send" type="submit" aria-label="Senden">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12" /><polyline points="13,6 19,12 13,18" /></svg>
+            </button>
+          </form>
+          </div>
+
+          <div class="tabpanel" data-panel="tx" hidden>
+            <p class="tx__status" id="tx-status">Die Mitschrift ist aus. Beide müssen zustimmen, bevor mitgeschrieben wird.</p>
+            <div class="tx__log" id="tx-log" aria-live="polite"></div>
+            <div class="tx__actions">
+              <button class="btn btn--glass btn--sm" id="tx-toggle" type="button">Mitschrift anfragen</button>
+              <button class="btn btn--solid btn--sm" id="tx-make" type="button" disabled>Mindmap &amp; PDF erstellen</button>
+            </div>
+          </div>
+
+          <div class="tabpanel" data-panel="ai" hidden>
+            <p class="tx__status" id="ai-hint"></p>
+            <div class="chat__log room__log" id="ai-log" aria-live="polite"></div>
+            <form class="chat__form" id="ai-form" autocomplete="off">
+              <input class="chat__input" id="ai-input" type="text" placeholder="Frag die KI – ihr seht beide die Antwort" aria-label="Frage an die KI" />
+              <button class="chat__send" type="submit" aria-label="An KI senden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><line x1="4" y1="12" x2="19" y2="12" /><polyline points="13,6 19,12 13,18" /></svg>
+              </button>
+            </form>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FORTSCHRITT & LEVEL -->
+<section class="progress-view view" id="fortschritt" data-view="fortschritt" hidden>
+  <div class="pv">
+    <div class="eyebrow">Fortschritt &amp; Level</div>
+    <h1 class="pv__title"><span id="pv-level">Level 1</span> — <span id="pv-level-name">Discipline</span></h1>
+    <p class="pv__sub" id="pv-sub"></p>
+
+    <div class="glass glass--pad-lg pv__track">
+      <div class="lvl" id="lvl-track"></div>
+      <div class="pv__xp">
+        <div class="progress__track"><div class="progress__fill" id="pv-xp-fill"></div></div>
+        <div class="progress__label" id="pv-xp-label"></div>
+      </div>
+    </div>
+
+    <div class="pv__stats">
+      <div class="stat"><div class="stat__num" id="st-matches">0</div><div class="stat__label">Live-Gespräche</div></div>
+      <div class="stat"><div class="stat__num" id="st-days">0</div><div class="stat__label">Aktive Tage</div></div>
+      <div class="stat"><div class="stat__num" id="st-streak">0</div><div class="stat__label">Tage in Folge</div></div>
+      <div class="stat"><div class="stat__num" id="st-topics">0</div><div class="stat__label">Themen</div></div>
+    </div>
+
+    <div class="pv__cols">
+      <div class="glass glass--pad">
+        <div class="micro">Meilensteine</div>
+        <ul class="ms" id="ms-list"></ul>
+      </div>
+      <div class="stack">
+        <div class="glass glass--pad">
+          <div class="micro">Nächster Schritt</div>
+          <div class="pv__next" id="pv-next"></div>
+          <a class="btn btn--solid btn--sm" href="#live">Zum Live-Match<span class="btn__rule"></span></a>
+        </div>
+        <div class="glass glass--pad">
+          <div class="micro">Letzte Aktivität</div>
+          <ul class="act" id="act-list"></ul>
+        </div>
+        <div class="glass glass--pad">
+          <div class="micro">So sammelst du XP</div>
+          <ul class="xp-rules">
+            <li><span>Live-Gespräch ab 2 Minuten Video</span><span>+20 XP</span></li>
+            <li><span>Neues Thema (im gezählten Gespräch)</span><span>+15 XP</span></li>
+            <li><span>Aktiver Tag</span><span>+10 XP</span></li>
+          </ul>
+          <p class="xp-note">Höchstens 5 Gespräche mit XP pro Tag. Mit derselben Person zählt es einmal pro Tag.</p>
+          <p class="xp-note xp-note--accent" id="pv-daily"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NOTIZEN -->
+<section class="notes-view view" id="notizen" data-view="notizen" hidden>
+  <div class="pv">
+    <div class="note-list-wrap" id="notes-overview">
+      <div class="eyebrow">Notizen</div>
+      <h1 class="pv__title">Deine Gesprächsnotizen</h1>
+      <p class="pv__sub">Aus jeder Mitschrift erstellt die KI automatisch eine Mindmap mit Zusammenfassung, nächsten Schritten und der kompletten Mitschrift — als PDF speicherbar.</p>
+      <div class="notes" id="notes-list"></div>
+    </div>
+    <article class="note" id="note-detail" hidden></article>
+  </div>
+</section>
+
+<!-- KI-EINSTELLUNGEN -->
+<section class="settings-view view" id="einstellungen" data-view="einstellungen" hidden>
+  <div class="pv pv--narrow">
+    <div class="eyebrow">KI-Einstellungen</div>
+    <h1 class="pv__title">Deine KI</h1>
+    <p class="pv__sub">Wähle, welche KI im Gespräch hilft und die Mindmaps erstellt. Der Schlüssel wird nur in diesem Browser gespeichert.</p>
+    <form class="glass glass--pad-lg authform" id="ai-settings" autocomplete="off">
+      <div class="field">
+        <span class="field__label">Anbieter</span>
+        <div class="seg" role="radiogroup" aria-label="KI-Anbieter">
+          <label class="seg__opt"><input type="radio" name="provider" value="openai" checked /><span>ChatGPT (OpenAI)</span></label>
+          <label class="seg__opt"><input type="radio" name="provider" value="anthropic" /><span>Claude (Anthropic)</span></label>
+        </div>
+      </div>
+      <label class="field">
+        <span class="field__label">API-Schlüssel</span>
+        <input class="field__input" id="ai-key" type="password" placeholder="Schlüssel einfügen" />
+      </label>
+      <label class="field">
+        <span class="field__label">Modell</span>
+        <input class="field__input" id="ai-model" type="text" />
+      </label>
+      <p class="settings__msg" id="ai-settings-msg" hidden></p>
+      <div class="tx__actions">
+        <button class="btn btn--solid btn--sm" type="submit">Speichern<span class="btn__rule"></span></button>
+        <button class="btn btn--glass btn--sm" type="button" id="ai-test">Verbindung testen</button>
+      </div>
+      <p class="xp-note">Ohne Schlüssel erstellt Flow Valu eine einfache Mindmap direkt im Browser. Für den echten Betrieb gehört der Schlüssel später auf den Server.</p>
+    </form>
+
+    <section class="guide" aria-labelledby="guide-title">
+      <div class="eyebrow">Anleitung</div>
+      <h2 class="guide__title" id="guide-title">So testest du die KI</h2>
+
+      <details class="guide__step" open>
+        <summary><span class="guide__num">01</span><span class="guide__head">API-Schlüssel besorgen</span></summary>
+        <div class="guide__body">
+          <p>Einer reicht — ChatGPT oder Claude.</p>
+          <ul>
+            <li><strong>ChatGPT:</strong> auf <a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a> anmelden, unter „Billing“ etwas Guthaben aufladen (ein paar Euro reichen lange), unter „API keys“ einen neuen Schlüssel erstellen. Er beginnt mit <code>sk-…</code>.</li>
+            <li><strong>Claude:</strong> auf <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> anmelden, unter „Billing“ Guthaben aufladen, unter „API Keys“ einen Schlüssel erstellen. Er beginnt mit <code>sk-ant-…</code>.</li>
+          </ul>
+          <p class="guide__note">Ein ChatGPT-Plus- oder Claude-Pro-Abo reicht nicht — die Schnittstelle wird separat abgerechnet.</p>
+        </div>
+      </details>
+
+      <details class="guide__step">
+        <summary><span class="guide__num">02</span><span class="guide__head">Seite richtig öffnen</span></summary>
+        <div class="guide__body">
+          <p>Kamera und Mikrofon funktionieren nicht, wenn du die Datei nur doppelklickst. Die Seite muss über HTTPS oder <code>localhost</code> laufen.</p>
+          <ul>
+            <li>Ordner <code>site</code> entpacken.</li>
+            <li>Im Ordner ein Terminal öffnen und <code>python -m http.server 8000</code> eingeben (oder <code>npx serve</code>).</li>
+            <li>In Chrome <code>http://localhost:8000</code> öffnen.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="guide__step">
+        <summary><span class="guide__num">03</span><span class="guide__head">KI verbinden</span></summary>
+        <div class="guide__body">
+          <ul>
+            <li>Oben den Anbieter wählen und den Schlüssel einfügen.</li>
+            <li>Auf <strong>Verbindung testen</strong> klicken. Erscheint „Verbindung funktioniert“, auf <strong>Speichern</strong> klicken.</li>
+            <li>Bei einem Modell-Fehler ein aktuelles Modell eintragen, z.&nbsp;B. <code>gpt-4o-mini</code> oder ein aktuelles Claude-Modell aus der Anthropic-Konsole.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="guide__step">
+        <summary><span class="guide__num">04</span><span class="guide__head">Im Gespräch testen — auch allein</span></summary>
+        <div class="guide__body">
+          <ul>
+            <li>Ein zweites Chrome-Fenster im <strong>Inkognito-Modus</strong> mit derselben Adresse öffnen und dort ein zweites Konto anlegen.</li>
+            <li>In beiden Fenstern denselben Begriff wählen, z.&nbsp;B. „Vertrieb“ — die beiden verbinden sich.</li>
+            <li><strong>KI-Feld:</strong> Reiter „KI“ öffnen und eine Frage stellen. Die Antwort erscheint in beiden Fenstern.</li>
+            <li><strong>Mitschrift:</strong> Reiter „Mitschrift“ → „Mitschrift anfragen“, im anderen Fenster zustimmen, dann eine Weile sprechen.</li>
+            <li><strong>Mindmap:</strong> „Mindmap &amp; PDF erstellen“ klicken oder das Gespräch beenden. Unter <a href="#notizen">Notizen</a> erscheint die Notiz — dort „Als PDF speichern“.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="guide__step">
+        <summary><span class="guide__num">05</span><span class="guide__head">Damit es nicht hakt</span></summary>
+        <div class="guide__body">
+          <ul>
+            <li>Der Schlüssel wird pro Fenster gespeichert. Für den Test reicht er in dem Fenster, in dem du die KI fragst und die Mindmap erstellst.</li>
+            <li>Chrome oder Edge nutzen — sonst funktioniert die Mitschrift nicht.</li>
+            <li>Den Schlüssel mit niemandem teilen. Diese Version ist zum Testen gedacht.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+  </div>
+</section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="script.js"></script>
+<script src="app.js"></script>
+<script src="ai.js"></script>
+<script src="notes.js"></script>
+<script src="tools.js"></script>
+</body>
+</html>
