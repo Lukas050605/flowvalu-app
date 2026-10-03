@@ -129,7 +129,7 @@
         return S.update('steps', s.id, { status: 'ersetzt', history: (s.history || []).concat([{ at: new Date().toISOString(), status: 'ersetzt', by: 'Version ' + v }]) });
       });
     });
-    return chain.then(function () { return S.update('goals', g.id, { path_version: v }, g.version); })
+    return chain.then(function () { return S.update('goals', g.id, { path_version: v }, g.rev); })
       .then(function () { S.track('path_proposal_accepted', { version: v, source: proposal.source }); return load(); })
       .then(function () { renderAll(); toast('Neue Version ' + v + ' deines Weges gespeichert. Erledigte Schritte bleiben erhalten.'); })
       .catch(fail);
@@ -139,7 +139,7 @@
     if (NEXT[step.status].indexOf(status) < 0) { toast('Dieser Statuswechsel ist nicht möglich.'); return Promise.resolve(); }
     var patch = Object.assign({ status: status }, fields || {});
     patch.history = (step.history || []).concat([{ at: new Date().toISOString(), status: status, by: 'du', note: (fields && (fields.note || fields.skip_reason)) || '' }]);
-    return S.update('steps', step.id, patch, step.version).then(function () {
+    return S.update('steps', step.id, patch, step.rev).then(function () {
       var ev = { in_arbeit: 'step_started', blockiert: 'step_blocked', erledigt: 'step_result_saved' }[status];
       if (ev) S.track(ev, { support: step.support_type || '' });
       return load();
@@ -158,7 +158,7 @@
 
   function setGoalStatus(status) {
     var g = st.goal;
-    return S.update('goals', g.id, { status: status }, g.version).then(load).then(renderAll).catch(fail);
+    return S.update('goals', g.id, { status: status }, g.rev).then(load).then(renderAll).catch(fail);
   }
 
   /* ---------- Vorschläge (Vorlage oder KI) ---------- */
@@ -319,8 +319,8 @@
       status: 'entwurf'
     }).then(function (req) {
       st.busy = false; clearDraft(); S.track('help_requested', { source: 'blockade' });
+      var si = $('search-input'); if (si) si.value = T.topicLabel(req.topic);
       location.hash = '#live';
-      if (window.FVLive) window.FVLive.open(req);
     }).catch(function (e) { st.busy = false; fail(e); });
   }
 
@@ -362,7 +362,7 @@
       }
     }
     if (openReq) h += '<div class="glass glass--pad today__req"><div class="micro">Offenes Hilfegesuch</div><p class="today__req-t">' + esc(openReq.summary) + '</p><p class="xp-note">Status: ' + esc({ entwurf: 'Noch nicht gesucht', suchend: 'Suche läuft', reserviert: 'Person angefragt', bestaetigt: 'Bestätigt' }[openReq.status] || openReq.status) + '</p><div class="tx__actions"><a class="btn btn--solid btn--sm" href="#live" data-act="req" data-id="' + openReq.id + '">Weiter zur Live-Hilfe<span class="btn__rule"></span></a></div></div>';
-    if (pendingOutcome) h += '<div class="glass glass--pad today__req"><div class="micro">Gesprächsergebnis wartet auf dich</div><p>' + esc(pendingOutcome.next_action || 'Ein Gesprächsergebnis ist noch nicht bestätigt.') + '</p><div class="tx__actions"><a class="btn btn--glass btn--sm" href="#austausch">Ergebnis ansehen</a></div></div>';
+    if (pendingOutcome) h += '<div class="glass glass--pad today__req"><div class="micro">Gesprächsergebnis wartet auf dich</div><p>' + esc(pendingOutcome.next_action || 'Ein Gesprächsergebnis ist noch nicht bestätigt.') + '</p><div class="tx__actions"><a class="btn btn--glass btn--sm" href="#live">Ergebnis ansehen</a></div></div>';
     if (st.goal) {
       var c2 = current();
       h += '<div class="micro today__label">Meilensteine</div><div class="today__ms">' + c2.ms.map(function (m) {
@@ -457,7 +457,7 @@
     if (act === 'open') { location.hash = '#weg'; st.open = s.id; setTimeout(function () { renderWeg(); var m = b.getAttribute('data-mode'); if (m) document.querySelector('[data-act="' + m + '"][data-id="' + s.id + '"]').click(); }, 0); return; }
     if (act === 'start') return setStatus(s, 'in_arbeit');
     if (act === 'reopen' || act === 'unskip') return setStatus(s, act === 'reopen' ? 'in_arbeit' : 'offen');
-    if (act === 'help') { if (window.FVLive) window.FVLive.prefill({ goal: st.goal, step: s }); location.hash = '#live'; return; }
+    if (act === 'help') { var si = $('search-input'); if (si) si.value = (T.topicFor(s.title + ' ' + (st.goal ? st.goal.title : '')) || { label: s.title }).label; location.hash = '#live'; return; }
     var resEl = $('res-' + s.id), extra = $('extra-' + s.id);
     if (act === 'done') {
       var res = resEl ? resEl.value.trim() : '';

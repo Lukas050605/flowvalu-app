@@ -414,7 +414,7 @@
   document.addEventListener('fv:match-result', function (e) {
     var d = e.detail || {};
     if (state !== 'connected') return;
-    addMsg('msg--note', '', d.counted ? '2 Minuten erreicht — Gespräch zählt (+' + d.xp + ' XP).' : d.reason);
+    addMsg('msg--note', '', d.counted ? '2 Minuten erreicht — Gespräch zählt (+' + d.xp + ' Flow).' : d.reason);
   });
 
   TOPICS.forEach(function (t) {

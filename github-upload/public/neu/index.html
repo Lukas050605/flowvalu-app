@@ -79,7 +79,7 @@
       </a>
       <a class="side__link" href="#live" data-route="live">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="6.5" width="13" height="11" rx="2" /><polyline points="15.5,10.5 21.5,7 21.5,17 15.5,13.5" /></svg>
-        <span>Live-Hilfe</span>
+        <span>Live-Match</span>
       </a>
       <a class="side__link" href="#fortschritt" data-route="fortschritt">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21" /><line x1="6.5" y1="21" x2="6.5" y2="14" /><line x1="12" y1="21" x2="12" y2="9" /><line x1="17.5" y1="21" x2="17.5" y2="4" /></svg>
@@ -88,6 +88,10 @@
       <a class="side__link" href="#notizen" data-route="notizen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="12" r="2.6" /><circle cx="4.5" cy="6" r="1.8" /><circle cx="19.5" cy="6" r="1.8" /><circle cx="4.5" cy="18" r="1.8" /><circle cx="19.5" cy="18" r="1.8" /><line x1="6" y1="7" x2="10" y2="10.5" /><line x1="18" y1="7" x2="14" y2="10.5" /><line x1="6" y1="17" x2="10" y2="13.5" /><line x1="18" y1="17" x2="14" y2="13.5" /></svg>
         <span>Notizen</span>
+      </a>
+      <a class="side__link" href="#profil" data-route="profil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4" /></svg>
+        <span>Profil</span>
       </a>
       <a class="side__link" href="#einstellungen" data-route="einstellungen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M12 3l1.8 3.7 4 .6-2.9 2.8.7 4L12 12.2 8.4 14.1l.7-4-2.9-2.8 4-.6z" /><line x1="5" y1="20" x2="19" y2="20" /></svg>
@@ -245,9 +249,9 @@
 
     <div class="pv__stats">
       <div class="stat"><div class="stat__num" id="st-matches">0</div><div class="stat__label">Live-Gespräche</div></div>
-      <div class="stat"><div class="stat__num" id="st-days">0</div><div class="stat__label">Aktive Tage</div></div>
-      <div class="stat"><div class="stat__num" id="st-streak">0</div><div class="stat__label">Tage in Folge</div></div>
-      <div class="stat"><div class="stat__num" id="st-topics">0</div><div class="stat__label">Themen</div></div>
+      <div class="stat"><div class="stat__num" id="st-days">0</div><div class="stat__label">Schritte erledigt</div></div>
+      <div class="stat"><div class="stat__num" id="st-streak">0</div><div class="stat__label">Meilensteine</div></div>
+      <div class="stat"><div class="stat__num" id="st-topics">0</div><div class="stat__label">Ergebnisse</div></div>
     </div>
 
     <div class="pv__cols">
@@ -259,20 +263,22 @@
         <div class="glass glass--pad">
           <div class="micro">Nächster Schritt</div>
           <div class="pv__next" id="pv-next"></div>
-          <a class="btn btn--solid btn--sm" href="#live">Zum Live-Match<span class="btn__rule"></span></a>
+          <a class="btn btn--solid btn--sm" href="#heute">Zu deinem nächsten Schritt<span class="btn__rule"></span></a>
         </div>
         <div class="glass glass--pad">
           <div class="micro">Letzte Aktivität</div>
           <ul class="act" id="act-list"></ul>
         </div>
         <div class="glass glass--pad">
-          <div class="micro">So sammelst du XP</div>
+          <div class="micro">So entsteht Flow</div>
           <ul class="xp-rules">
-            <li><span>Live-Gespräch ab 2 Minuten Video</span><span>+20 XP</span></li>
-            <li><span>Neues Thema (im gezählten Gespräch)</span><span>+15 XP</span></li>
-            <li><span>Aktiver Tag</span><span>+10 XP</span></li>
+            <li><span>Schritt mit Ergebnis erledigt</span><span>+25 Flow</span></li>
+            <li><span>Meilenstein abgeschlossen</span><span>+50 Flow</span></li>
+            <li><span>Ziel erreicht</span><span>+100 Flow</span></li>
+            <li><span>Live-Gespräch ab 2 Minuten Video</span><span>+20 Flow</span></li>
+            <li><span>Gesprächsergebnis festgehalten</span><span>+10 Flow</span></li>
           </ul>
-          <p class="xp-note">Höchstens 5 Gespräche mit XP pro Tag. Mit derselben Person zählt es einmal pro Tag.</p>
+          <p class="xp-note">Flow misst Fortschritt, nicht Anwesenheit. Es gibt keine Serien und nichts verfällt, wenn du eine Pause machst. Höchstens 5 Gespräche mit Flow pro Tag, mit derselben Person einmal pro Tag.</p>
           <p class="xp-note xp-note--accent" id="pv-daily"></p>
         </div>
       </div>
@@ -292,6 +298,9 @@
     <article class="note" id="note-detail" hidden></article>
   </div>
 </section>
+
+<!-- PROFIL -->
+<section class="progress-view view" id="profil" data-view="profil" hidden><div id="profil-root"></div></section>
 
 <!-- KI-EINSTELLUNGEN -->
 <section class="settings-view view" id="einstellungen" data-view="einstellungen" hidden>
@@ -402,5 +411,6 @@
 <script src="templates.js"></script>
 <script src="store.js"></script>
 <script src="path.js"></script>
+<script src="profile.js"></script>
 </body>
 </html>

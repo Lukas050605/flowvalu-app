@@ -1759,3 +1759,31 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
   .wstep__body { padding-left: 0; }
   .onb__discard { margin-left: 0; }
 }
+
+/* ---------- Live-Hilfe ---------- */
+.lh { width: 100%; max-width: 980px; display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; text-align: left; }
+.lh__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.lh__card { display: flex; flex-direction: column; gap: 12px; }
+.lh__card .micro, .lh__outs .micro { margin-bottom: 4px; }
+.lh__p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-62); }
+.lh__ctx p, .lh__incall p { margin: 0 0 6px; font-size: 14px; line-height: 1.55; color: var(--ink-90); }
+.lh__ctx strong, .lh__incall strong { font-weight: 600; color: var(--ink); }
+.lh__topics { justify-content: flex-start; }
+.lh__free { margin: 10px 0 0; text-align: center; }
+.lh__incall { margin-top: 14px; padding: 16px; border: 1px solid rgba(227,167,104,.35); border-radius: 18px; background: rgba(227,167,104,.05); }
+.lh__incall .micro { margin-bottom: 10px; color: var(--accent); }
+.lh__sheet { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: rgba(5,5,7,.72); backdrop-filter: blur(6px); }
+.lh__sheet[hidden] { display: none; }
+.lh__form { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; background: rgba(14,14,17,.92); }
+.lh__check { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--ink-90); cursor: pointer; }
+.lh__check input { accent-color: var(--accent); width: 16px; height: 16px; }
+@media (max-width: 760px) { .lh__grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Profil ---------- */
+.pf__chips { justify-content: flex-start; }
+.pf__chip { cursor: pointer; display: inline-flex; align-items: center; }
+.pf__chip input { position: absolute; opacity: 0; pointer-events: none; }
+.pf__data, .pf__admin { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.pf__kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.pf__sub { margin-top: 10px; }
+.lh__p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-62); }

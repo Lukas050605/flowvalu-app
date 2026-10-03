@@ -39,7 +39,7 @@
           var ex = arr.filter(function (r) { return r.client_key === obj.client_key; })[0];
           if (ex) return ex;
         }
-        var row = Object.assign({ id: uuid(), created_at: now(), updated_at: now(), version: 1 }, obj);
+        var row = Object.assign({ id: uuid(), created_at: now(), updated_at: now(), rev: 1 }, obj);
         arr.push(row); write(d);
         return row;
       });
@@ -49,8 +49,8 @@
         var d = read(); var arr = d[col] || [];
         var row = arr.filter(function (r) { return r.id === id; })[0];
         if (!row) throw err('NOT_FOUND', 'Eintrag nicht gefunden.');
-        if (expected != null && row.version !== expected) throw err('VERSION_CONFLICT', 'Dieser Eintrag wurde inzwischen an anderer Stelle geändert. Bitte neu laden.');
-        Object.assign(row, patch, { version: (row.version || 1) + 1, updated_at: now() });
+        if (expected != null && (row.rev || 1) !== expected) throw err('VERSION_CONFLICT', 'Dieser Eintrag wurde inzwischen an anderer Stelle geändert. Bitte neu laden.');
+        Object.assign(row, patch, { rev: (row.rev || 1) + 1, updated_at: now() });
         write(d);
         return row;
       });
@@ -89,7 +89,7 @@
     },
     update: function (col, id, patch, expected) {
       var x = B.sb.from(col).update(patch).eq('id', id);
-      if (expected != null) x = x.eq('version', expected);
+      if (expected != null) x = x.eq('rev', expected);
       return q(x.select()).then(function (rows) {
         if (!rows || !rows.length) throw err('VERSION_CONFLICT', 'Dieser Eintrag wurde inzwischen an anderer Stelle geändert. Bitte neu laden.');
         return rows[0];

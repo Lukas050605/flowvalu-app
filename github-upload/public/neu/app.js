@@ -22,7 +22,7 @@
 
   function route() {
     var r = (location.hash || '#heute').slice(1);
-    if (['heute', 'weg', 'start', 'live', 'fortschritt', 'notizen', 'einstellungen'].indexOf(r) < 0) r = 'heute';
+    if (['heute', 'weg', 'start', 'live', 'fortschritt', 'notizen', 'profil', 'einstellungen'].indexOf(r) < 0) r = 'heute';
     Array.prototype.forEach.call(views, function (v) { v.hidden = v.getAttribute('data-view') !== r; });
     Array.prototype.forEach.call(links, function (a) {
       var on = a.getAttribute('data-route') === (r === 'start' ? 'heute' : r);
@@ -38,23 +38,27 @@
 
   /* ---------- Fortschritt & Level ---------- */
   var LEVELS = [
-    { n: 1, name: 'Discipline', xp: 0, text: 'Du baust die Grundlage: dranbleiben, auch wenn es klein anfängt.' },
-    { n: 2, name: 'Action', xp: 100, text: 'Du setzt um. Gespräche werden zu konkreten Schritten.' },
-    { n: 3, name: 'Growth', xp: 300, text: 'Du wächst sichtbar — in Themen, Kontakten und Routine.' },
+    { n: 1, name: 'Discipline', xp: 0, text: 'Du baust die Grundlage: ein Ziel, ein Weg, die ersten Schritte.' },
+    { n: 2, name: 'Action', xp: 100, text: 'Du setzt um. Schritte werden erledigt, Gespräche werden zu Handlungen.' },
+    { n: 3, name: 'Growth', xp: 300, text: 'Du wächst sichtbar: Meilensteine sind abgeschlossen, Ergebnisse liegen vor.' },
     { n: 4, name: 'Results', xp: 600, text: 'Deine Arbeit zeigt Ergebnisse, die andere sehen.' },
-    { n: 5, name: 'Freedom', xp: 1000, text: 'Disziplin ist zur Gewohnheit geworden. Discipline builds freedom.' }
+    { n: 5, name: 'Freedom', xp: 1000, text: 'Du kommst an deinen Zielen an. Discipline builds freedom.' }
   ];
-  var XP = { match: 20, topic: 15, day: 10 };
+  var XP = { match: 20, topic: 15, day: 0 };
+  var FLOW = { step: 25, milestone: 50, outcome: 10, goal: 100 };
+  var path = { steps: 0, milestones: 0, outcomes: 0, goals: 0, reached: 0, results: [] };
   var DAILY_MATCH_CAP = 5;
 
   var MILESTONES = [
     { id: 'account', title: 'Konto erstellt', desc: 'Der erste Schritt ist gemacht.', test: function () { return true; } },
+    { id: 'goal1', title: 'Erstes Ziel mit Weg', desc: 'Aus einem Wunsch ist ein konkreter Weg geworden.', test: function () { return path.goals + path.reached >= 1; } },
+    { id: 'step1', title: 'Erster Schritt erledigt', desc: 'Ein Ergebnis ist festgehalten.', test: function () { return path.steps >= 1; } },
     { id: 'match1', title: 'Erstes Live-Gespräch', desc: 'Mit einer Person über dein Ziel gesprochen.', test: function (p) { return p.matches >= 1; } },
     { id: 'match5', title: '5 Live-Gespräche', desc: 'Austausch wird zur Gewohnheit.', test: function (p) { return p.matches >= 5; } },
     { id: 'topics3', title: '3 Themen', desc: 'Über drei verschiedene Themen gesprochen.', test: function (p) { return p.topics.length >= 3; } },
-    { id: 'streak3', title: '3 Tage in Folge', desc: 'Drei Tage hintereinander aktiv.', test: function (p) { return p.bestStreak >= 3; } },
-    { id: 'streak7', title: '7 Tage in Folge', desc: 'Eine volle Woche Disziplin.', test: function (p) { return p.bestStreak >= 7; } },
-    { id: 'level3', title: 'Level Growth erreicht', desc: '300 XP gesammelt.', test: function (p) { return p.xp >= 300; } },
+    { id: 'ms1', title: 'Erster Meilenstein', desc: 'Alle Schritte eines Meilensteins sind erledigt.', test: function () { return path.milestones >= 1; } },
+    { id: 'steps10', title: '10 Schritte erledigt', desc: 'Zehn Ergebnisse auf deinem Weg.', test: function () { return path.steps >= 10; } },
+    { id: 'reached1', title: 'Erstes Ziel erreicht', desc: 'Ein Ziel ist als erreicht markiert.', test: function () { return path.reached >= 1; } },
     { id: 'match25', title: '25 Live-Gespräche', desc: 'Du bist ein fester Teil der Community.', test: function (p) { return p.matches >= 25; } }
   ];
 
@@ -88,13 +92,30 @@
 
   function touchDay() {
     var d = today();
-    if (p.lastDay === d) return;
-    if (p.lastDay && dayDiff(p.lastDay, d) === 1) p.streak += 1; else p.streak = 1;
-    p.bestStreak = Math.max(p.bestStreak, p.streak);
-    p.lastDay = d;
     if (p.days.indexOf(d) < 0) p.days.push(d);
-    addXp(XP.day);
-    log('Aktiver Tag', XP.day);
+    p.lastDay = d;
+  }
+
+  function flow() { return p.xp + path.steps * FLOW.step + path.milestones * FLOW.milestone + path.outcomes * FLOW.outcome + path.reached * FLOW.goal; }
+
+  function loadPath() {
+    var S = window.FVS;
+    if (!S) return Promise.resolve();
+    return Promise.all([S.list('goals'), S.list('steps'), S.list('milestones'), S.list('outcomes')]).then(function (r) {
+      var goals = r[0], steps = r[1], ms = r[2], outs = r[3];
+      var cur = steps.filter(function (s) { return s.status !== 'ersetzt'; });
+      path.steps = steps.filter(function (s) { return s.status === 'erledigt'; }).length;
+      path.goals = goals.filter(function (g) { return g.status === 'aktiv' || g.status === 'pausiert'; }).length;
+      path.reached = goals.filter(function (g) { return g.status === 'erreicht'; }).length;
+      path.outcomes = outs.filter(function (o) { return o.next_action || o.helpful; }).length;
+      path.milestones = ms.filter(function (m) {
+        var g = goals.filter(function (x) { return x.id === m.goal_id; })[0];
+        if (!g || g.path_version !== m.version) return false;
+        var ss = cur.filter(function (s) { return s.milestone_id === m.id; });
+        return ss.length && ss.every(function (s) { return s.status === 'erledigt' || s.status === 'uebersprungen'; });
+      }).length;
+      path.results = steps.filter(function (s) { return s.status === 'erledigt'; }).map(function (s) { return { t: new Date(s.updated_at).getTime(), text: 'Schritt erledigt: ' + s.title, xp: FLOW.step }; });
+    }).catch(function () {});
   }
 
   function levelFor(xp) {
@@ -113,9 +134,9 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   function renderSide() {
-    var lv = levelFor(p.xp), next = LEVELS[lv.n] || null;
+    var f = flow(), lv = levelFor(f), next = LEVELS[lv.n] || null;
     $('side-level').textContent = 'Level ' + lv.n + ' · ' + lv.name;
-    var pct = next ? Math.round(((p.xp - lv.xp) / (next.xp - lv.xp)) * 100) : 100;
+    var pct = next ? Math.round(((f - lv.xp) / (next.xp - lv.xp)) * 100) : 100;
     $('side-bar').style.width = pct + '%';
     var name = '';
     try { var u = JSON.parse(localStorage.getItem('fv-demo-users') || '{}'); if (u[email]) name = u[email].name; } catch (x) {}
@@ -124,7 +145,7 @@
 
   function renderProgress() {
     if (!p) return;
-    var lv = levelFor(p.xp), next = LEVELS[lv.n] || null;
+    var f = flow(), lv = levelFor(f), next = LEVELS[lv.n] || null;
     $('pv-level').textContent = 'Level ' + lv.n;
     $('pv-level-name').textContent = lv.name;
     $('pv-sub').textContent = lv.text;
@@ -132,20 +153,20 @@
     var track = $('lvl-track');
     track.innerHTML = LEVELS.map(function (l) {
       var cls = l.n < lv.n ? 'is-done' : l.n === lv.n ? 'is-current' : 'is-locked';
-      var state = l.n < lv.n ? 'Erreicht' : l.n === lv.n ? 'Aktuell' : 'Ab ' + l.xp + ' XP';
+      var state = l.n < lv.n ? 'Erreicht' : l.n === lv.n ? 'Aktuell' : 'Ab ' + l.xp + ' Flow';
       return '<div class="lvl__step ' + cls + '"><span class="lvl__dot"></span><span class="lvl__name">' + l.name + '</span><span class="lvl__state">' + state + '</span></div>';
     }).join('');
 
-    var pct = next ? Math.round(((p.xp - lv.xp) / (next.xp - lv.xp)) * 100) : 100;
+    var pct = next ? Math.round(((f - lv.xp) / (next.xp - lv.xp)) * 100) : 100;
     $('pv-xp-fill').style.width = pct + '%';
-    $('pv-xp-label').textContent = next ? p.xp + ' / ' + next.xp + ' XP bis ' + next.name : p.xp + ' XP · Höchstes Level';
+    $('pv-xp-label').textContent = next ? f + ' von ' + next.xp + ' Flow bis ' + next.name : f + ' Flow · Höchstes Level';
 
     $('st-matches').textContent = p.matches;
-    $('st-days').textContent = p.days.length;
-    $('st-streak').textContent = (p.lastDay && dayDiff(p.lastDay, today()) <= 1) ? p.streak : 0;
-    $('st-topics').textContent = p.topics.length;
+    $('st-days').textContent = path.steps;
+    $('st-streak').textContent = path.milestones;
+    $('st-topics').textContent = path.outcomes;
     var dc = (p.daily && p.daily.date === today()) ? p.daily.count : 0;
-    $('pv-daily').textContent = 'Heute: ' + dc + ' von ' + DAILY_MATCH_CAP + ' Gesprächen mit XP';
+    $('pv-daily').textContent = 'Heute: ' + dc + ' von ' + DAILY_MATCH_CAP + ' Gesprächen mit Flow';
 
     $('ms-list').innerHTML = MILESTONES.map(function (m) {
       var on = p.unlocked.indexOf(m.id) > -1;
@@ -155,16 +176,19 @@
     var nextMs = MILESTONES.filter(function (m) { return p.unlocked.indexOf(m.id) < 0; })[0];
     $('pv-next').textContent = nextMs
       ? nextMs.title + ' — ' + nextMs.desc
-      : 'Alle Meilensteine erreicht. Bleib dran und halte deine Serie.';
+      : 'Alle Meilensteine erreicht. Setz dir ein neues Ziel.';
 
-    $('act-list').innerHTML = p.activity.length
-      ? p.activity.slice(0, 6).map(function (a) {
-          return '<li class="act__item"><span class="act__text">' + esc(a.text) + '</span><span class="act__meta">' + fmtTime(a.t) + (a.xp ? ' · +' + a.xp + ' XP' : '') + '</span></li>';
+    var acts = p.activity.filter(function (a) { return a.text !== 'Aktiver Tag'; }).concat(path.results).sort(function (x, y) { return y.t - x.t; });
+    $('act-list').innerHTML = acts.length
+      ? acts.slice(0, 6).map(function (a) {
+          return '<li class="act__item"><span class="act__text">' + esc(a.text) + '</span><span class="act__meta">' + fmtTime(a.t) + (a.xp ? ' · +' + a.xp + ' Flow' : '') + '</span></li>';
         }).join('')
-      : '<li class="act__item act__item--empty">Noch keine Aktivität. Starte dein erstes Live-Gespräch.</li>';
+      : '<li class="act__item act__item--empty">Noch keine Aktivität. Erledige deinen ersten Schritt unter „Heute“.</li>';
   }
 
   function refresh() { checkMilestones(); save(); renderSide(); renderProgress(); }
+  function refreshAll() { if (!p) return; loadPath().then(refresh); }
+  document.addEventListener('fv:route', refreshAll);
 
   document.addEventListener('fv:signin', function (e) { init((e.detail && e.detail.email) || null); });
 
@@ -174,6 +198,7 @@
     touchDay();
     refresh();
     route();
+    refreshAll();
   }
 
   function result(detail) { try { document.dispatchEvent(new CustomEvent('fv:match-result', { detail: detail })); } catch (x) {} }
@@ -189,11 +214,11 @@
     var partner = String(d.partner || 'unbekannt');
 
     if (p.daily.partners.indexOf(partner) > -1) {
-      result({ counted: false, reason: 'Mit dieser Person hast du heute schon XP gesammelt. Das Gespräch zählt nicht erneut.' });
+      result({ counted: false, reason: 'Mit dieser Person hast du heute schon Flow gesammelt. Das Gespräch zählt nicht erneut.' });
       return refresh();
     }
     if (p.daily.count >= DAILY_MATCH_CAP) {
-      result({ counted: false, reason: 'Tageslimit erreicht: ' + DAILY_MATCH_CAP + ' Gespräche mit XP pro Tag. Morgen geht es weiter.' });
+      result({ counted: false, reason: 'Tageslimit erreicht: ' + DAILY_MATCH_CAP + ' Gespräche mit Flow pro Tag. Morgen geht es weiter.' });
       return refresh();
     }
 
