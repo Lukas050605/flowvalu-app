@@ -106,7 +106,7 @@
   function serverTransport(h) {
     var sb = B.sb, closed = false, roomId = null, role = null, ch = null, pc = null, dcn = null;
     var pollTimer = null, joinTimer = null, since = null, offered = false, replied = false, pendingIce = [], gotMedia = false;
-    var iceP = B.fn('turn', {}).then(function (d) { return (d && d.iceServers) || []; })
+    var iceP = B.fn((window.FV_CONFIG && window.FV_CONFIG.turnFunction) || 'turn', {}).then(function (d) { return (d && d.iceServers) || []; })
       .catch(function () { return [{ urls: 'stun:stun.l.google.com:19302' }]; });
 
     function sig(obj) { if (ch) ch.send({ type: 'broadcast', event: 'sig', payload: obj }); }

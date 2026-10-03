@@ -5,5 +5,6 @@
 // Leer lassen = Testmodus ohne Server (alles bleibt im Browser).
 window.FV_CONFIG = {
   supabaseUrl: 'https://xkscauwzlzizirsdduof.supabase.co',
-  supabaseAnonKey: 'sb_publishable_dUToZjgwoMTVJSau4I40EA_XQrLQXZo'
+  supabaseAnonKey: 'sb_publishable_dUToZjgwoMTVJSau4I40EA_XQrLQXZo',
+  turnFunction: 'swift-service'
 };
