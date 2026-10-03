@@ -12,9 +12,42 @@
   function user() { try { return sessionStorage.getItem('fv-signed-in') || 'gast'; } catch (x) { return 'gast'; } }
   function key() { return 'fv-notes-' + user(); }
   function all() { try { return JSON.parse(localStorage.getItem(key()) || '[]'); } catch (x) { return []; } }
+  var synced = {};
   function store(list) {
     try { localStorage.setItem(key(), JSON.stringify(list)); }
     catch (x) { toast('Speicher voll — bitte alte Notizen löschen.'); }
+    push(list);
+  }
+
+  /* ---------- Server-Abgleich (nur mit Supabase) ---------- */
+  function push(list) {
+    var B = window.FVB; if (!B) return;
+    var ids = {};
+    list.forEach(function (note) {
+      ids[note.id] = true;
+      var json = JSON.stringify(note);
+      if (synced[note.id] === json) return;
+      synced[note.id] = json;
+      B.sb.from('notes').upsert({ id: note.id, topic: String(note.topic || '').slice(0, 120), data: note, status: String(note.status || 'fertig').slice(0, 20) })
+        .then(function (r) { if (r.error) { delete synced[note.id]; console.warn('Notiz nicht gespeichert:', r.error.message); } });
+    });
+    Object.keys(synced).forEach(function (id) {
+      if (ids[id]) return;
+      delete synced[id];
+      B.sb.from('notes').delete().eq('id', id).then(function () {});
+    });
+  }
+  function pull() {
+    var B = window.FVB; if (!B) return Promise.resolve();
+    return B.sb.from('notes').select('id,data,created_at').order('created_at', { ascending: false }).limit(200).then(function (r) {
+      if (r.error) return;
+      var remote = (r.data || []).map(function (row) { return row.data; }).filter(Boolean);
+      var have = {}; remote.forEach(function (x) { have[x.id] = true; synced[x.id] = JSON.stringify(x); });
+      var localOnly = all().filter(function (x) { return !have[x.id]; });
+      var merged = localOnly.concat(remote).sort(function (a, b) { return (b.created || 0) - (a.created || 0); });
+      try { localStorage.setItem(key(), JSON.stringify(merged)); } catch (x) {}
+      if (localOnly.length) push(merged);
+    });
   }
   function get(id) { return all().filter(function (n) { return n.id === id; })[0]; }
   function put(note) {
@@ -236,7 +269,7 @@
   document.addEventListener('fv:route', function (e) {
     if (e.detail && e.detail.route === 'notizen') render();
   });
-  document.addEventListener('fv:signin', function () { closeDetail(); render(); });
+  document.addEventListener('fv:signin', function () { synced = {}; closeDetail(); render(); pull().then(render); });
 
   window.FVNotes = { create: create, open: function (id) { location.hash = '#notizen'; setTimeout(function () { renderDetail(id); }, 0); } };
   render();

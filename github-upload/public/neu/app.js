@@ -98,6 +98,22 @@
 
   function flow() { return p.xp + path.steps * FLOW.step + path.milestones * FLOW.milestone + path.outcomes * FLOW.outcome + path.reached * FLOW.goal; }
 
+  function loadServerProfile() {
+    var B = window.FVB;
+    if (!B) return Promise.resolve();
+    return B.uid().then(function (uid) {
+      if (!uid) return;
+      return Promise.all([
+        B.sb.from('profiles').select('xp,matches,topics').eq('id', uid).single(),
+        B.sb.from('activity').select('text,xp,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(12)
+      ]).then(function (r) {
+        var pr = r[0].data;
+        if (pr) { p.xp = pr.xp || 0; p.matches = pr.matches || 0; p.topics = pr.topics || []; }
+        if (r[1].data) p.activity = r[1].data.map(function (x) { return { t: new Date(x.created_at).getTime(), text: x.text, xp: x.xp }; });
+      });
+    }).catch(function () {});
+  }
+
   function loadPath() {
     var S = window.FVS;
     if (!S) return Promise.resolve();
@@ -187,7 +203,8 @@
   }
 
   function refresh() { checkMilestones(); save(); renderSide(); renderProgress(); }
-  function refreshAll() { if (!p) return; loadPath().then(refresh); }
+  function refreshAll() { if (!p) return; Promise.all([loadPath(), loadServerProfile()]).then(refresh); }
+  document.addEventListener('fv:match-result', function () { setTimeout(refreshAll, 400); });
   document.addEventListener('fv:route', refreshAll);
 
   document.addEventListener('fv:signin', function (e) { init((e.detail && e.detail.email) || null); });
