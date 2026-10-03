@@ -22,7 +22,7 @@
 
   function route() {
     var r = (location.hash || '#heute').slice(1);
-    if (['heute', 'weg', 'start', 'live', 'fortschritt', 'notizen', 'profil', 'einstellungen'].indexOf(r) < 0) r = 'heute';
+    if (['heute', 'weg', 'start', 'live', 'fortschritt', 'notizen', 'austausch', 'profil', 'einstellungen'].indexOf(r) < 0) r = 'heute';
     Array.prototype.forEach.call(views, function (v) { v.hidden = v.getAttribute('data-view') !== r; });
     Array.prototype.forEach.call(links, function (a) {
       var on = a.getAttribute('data-route') === (r === 'start' ? 'heute' : r);

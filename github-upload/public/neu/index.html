@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flow Valu — Dein Ziel. Dein Weg. Dein Fortschritt.</title>
 <meta name="description" content="Flow Valu macht aus deinem Ziel einen konkreten Schritt-für-Schritt-Weg: Kurse, Aufgaben, Mentoren und sichtbarer Fortschritt." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Caveat:wght@500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="fonts.css" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -42,6 +40,7 @@
     <button class="btn btn--solid btn--full" type="submit"><span id="gate-submit">Anmelden</span><span class="btn__rule"></span></button>
     <p class="authform__alt"><span id="gate-switch-text">Noch kein Konto?</span> <a href="#" id="gate-register">Konto erstellen</a></p>
     <p class="authform__alt"><a href="#" id="gate-forgot" hidden>Passwort vergessen?</a></p>
+    <p class="gate__legal">Mit der Anmeldung akzeptierst du die <a href="datenschutz.html">Datenschutzerklärung</a>. · <a href="impressum.html">Impressum</a></p>
   </form>
 </div>
 
@@ -86,6 +85,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21" /><line x1="6.5" y1="21" x2="6.5" y2="14" /><line x1="12" y1="21" x2="12" y2="9" /><line x1="17.5" y1="21" x2="17.5" y2="4" /></svg>
         <span>Fortschritt &amp; Level</span>
       </a>
+      <a class="side__link" href="#austausch" data-route="austausch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M4 5.5h11a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H9l-4 3v-3H4A1.5 1.5 0 0 1 2.5 13V7A1.5 1.5 0 0 1 4 5.5z" /><path d="M16.5 9H20a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 20 17h-1v2.5L15.5 17H12" /></svg>
+        <span>Austausch</span>
+      </a>
       <a class="side__link" href="#notizen" data-route="notizen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="12" r="2.6" /><circle cx="4.5" cy="6" r="1.8" /><circle cx="19.5" cy="6" r="1.8" /><circle cx="4.5" cy="18" r="1.8" /><circle cx="19.5" cy="18" r="1.8" /><line x1="6" y1="7" x2="10" y2="10.5" /><line x1="18" y1="7" x2="14" y2="10.5" /><line x1="6" y1="17" x2="10" y2="13.5" /><line x1="18" y1="17" x2="14" y2="13.5" /></svg>
         <span>Notizen</span>
@@ -104,6 +107,7 @@
       <div class="side__bar"><span class="side__bar-fill" id="side-bar"></span></div>
       <div class="side__name" id="side-name"></div>
       <a class="nav__login side__logout" href="#" id="logout">Abmelden</a>
+      <div class="side__legal"><a href="impressum.html">Impressum</a><a href="datenschutz.html">Datenschutz</a></div>
     </div>
   </aside>
 <nav class="tabbar" aria-label="Schnellnavigation">
@@ -252,13 +256,6 @@
             </form>
           </div>
         </aside>
-<nav class="tabbar" aria-label="Schnellnavigation">
-  <a class="side__link tabbar__link" href="#heute" data-route="heute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="4" /><line x1="12" y1="2.5" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="21.5" /><line x1="2.5" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="21.5" y2="12" /></svg><span>Heute</span></a>
-  <a class="side__link tabbar__link" href="#weg" data-route="weg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="5" cy="19" r="2" /><circle cx="19" cy="5" r="2" /><path d="M7 19h6a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h6" /></svg><span>Mein Weg</span></a>
-  <a class="side__link tabbar__link" href="#live" data-route="live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="2.5" y="6.5" width="13" height="11" rx="2" /><polyline points="15.5,10.5 21.5,7 21.5,17 15.5,13.5" /></svg><span>Live</span></a>
-  <a class="side__link tabbar__link" href="#notizen" data-route="notizen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2" /><line x1="8.5" y1="8.5" x2="15.5" y2="8.5" /><line x1="8.5" y1="12" x2="15.5" y2="12" /><line x1="8.5" y1="15.5" x2="13" y2="15.5" /></svg><span>Notizen</span></a>
-  <a class="side__link tabbar__link" href="#profil" data-route="profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c1.4-3.6 4.2-5.4 7.5-5.4s6.1 1.8 7.5 5.4" /></svg><span>Profil</span></a>
-</nav>
       </div>
     </div>
   </div>
@@ -330,6 +327,9 @@
     <article class="note" id="note-detail" hidden></article>
   </div>
 </section>
+
+<!-- AUSTAUSCH -->
+<section class="progress-view view" id="austausch" data-view="austausch" hidden><div id="austausch-root"></div></section>
 
 <!-- PROFIL -->
 <section class="progress-view view" id="profil" data-view="profil" hidden><div id="profil-root"></div></section>
@@ -434,9 +434,9 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="lib/peerjs.min.js"></script>
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="lib/supabase.js"></script>
 <script src="backend.js"></script>
 <script src="script.js"></script>
 <script src="auth.js"></script>
@@ -450,5 +450,6 @@
 <script src="store.js"></script>
 <script src="path.js"></script>
 <script src="profile.js"></script>
+<script src="community.js"></script>
 </body>
 </html>

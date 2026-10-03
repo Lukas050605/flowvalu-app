@@ -1840,3 +1840,43 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
   body.menu-open .tabbar, body.is-locked .tabbar { display: none; }
   .btn--sm { min-height: 44px; }
 }
+
+/* ---------- Austausch ---------- */
+.cm__form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+.cm__text { resize: vertical; font-family: var(--f-body); line-height: 1.55; min-height: 84px; }
+.cm__meta { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.cm__topic { min-width: 220px; margin: 0; }
+.cm__topic select { appearance: none; cursor: pointer; }
+.cm__topic option { background: #111114; color: var(--ink); }
+.cm__step { flex: 1; min-width: 220px; padding-bottom: 12px; }
+.cm__filter { justify-content: flex-start; margin-bottom: 16px; }
+.cm__list { display: flex; flex-direction: column; gap: 12px; }
+.cm__post { display: flex; flex-direction: column; gap: 8px; }
+.cm__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cm__kind { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--hair-strong); color: var(--ink-90); }
+.cm__kind--frage { border-color: rgba(227,167,104,.55); color: var(--accent); }
+.cm__kind--fortschritt { border-color: rgba(160,200,160,.45); color: #B9D7B4; }
+.cm__who { font-size: 12px; color: var(--ink-62); }
+.cm__ctx { font-size: 12px; color: var(--ink-62); }
+.cm__body { margin: 0; font-size: 15px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; text-wrap: pretty; }
+.cm__acts { display: flex; gap: 18px; flex-wrap: wrap; }
+.cm__acts .link-ul { font-size: 11.5px; }
+.cm__acts .link-ul.is-on { color: var(--accent); border-color: var(--accent); }
+.cm__replies { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--hair); }
+.cm__reply p { margin: 4px 0 0; font-size: 14px; line-height: 1.55; color: var(--ink-90); }
+.cm__rform { display: flex; gap: 8px; }
+.cm__rform input { flex: 1; min-width: 0; }
+
+/* ---------- Rechtliches ---------- */
+.gate__legal { margin: 14px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-62); text-align: center; }
+.gate__legal a, .side__legal a { color: var(--ink-70); text-decoration: underline; text-underline-offset: 3px; }
+.gate__legal a:hover, .side__legal a:hover { color: var(--ink); }
+.side__legal { display: flex; gap: 14px; margin-top: 12px; font-size: 11px; }
+.legal { max-width: 760px; margin: 0 auto; padding: 72px 24px 96px; }
+.legal h1 { font-family: var(--f-head); font-weight: 700; font-size: clamp(32px, 4vw, 48px); letter-spacing: -0.02em; margin: 18px 0 28px; }
+.legal h2 { font-family: var(--f-head); font-weight: 700; font-size: 20px; margin: 36px 0 10px; }
+.legal p, .legal li { font-size: 15px; line-height: 1.7; color: var(--ink-90); }
+.legal ul { padding-left: 20px; }
+.legal a { color: var(--accent); }
+.legal .ph { background: rgba(227,167,104,.14); color: var(--accent); padding: 1px 6px; border-radius: 6px; }
+.legal__back { display: inline-flex; gap: 8px; color: var(--ink-70); text-decoration: none; font-size: 13px; }
