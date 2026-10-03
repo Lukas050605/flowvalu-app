@@ -200,7 +200,7 @@
   function draft() { try { return JSON.parse(sessionStorage.getItem('fv-draft') || 'null'); } catch (x) { return null; } }
   function saveDraft(d) { try { sessionStorage.setItem('fv-draft', JSON.stringify(d)); } catch (x) {} }
   function clearDraft() { try { sessionStorage.removeItem('fv-draft'); } catch (x) {} }
-  var CHIPS = ['Angebot formulieren', 'Erste Zielgruppe finden', 'Kundengespräch vorbereiten', 'Preise verständlich darstellen', 'Eine Idee durchdenken'];
+  var CHIPS = ['Nebenberuflich ein Angebot aufbauen', 'Vertrieb lernen', 'Nächster Karriereschritt', 'Finanziell unabhängiger werden', 'Führungskraft werden', 'Eine Idee durchdenken'];
   var proposalCache = null;
 
   function renderStart() {
