@@ -69,9 +69,17 @@
       </button>
     </div>
     <nav class="side__nav">
+      <a class="side__link" href="#heute" data-route="heute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="12" cy="12" r="4" /><line x1="12" y1="2.5" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="21.5" /><line x1="2.5" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="21.5" y2="12" /></svg>
+        <span>Heute</span>
+      </a>
+      <a class="side__link" href="#weg" data-route="weg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="5" cy="19" r="2" /><circle cx="19" cy="5" r="2" /><path d="M7 19h6a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h6" /></svg>
+        <span>Mein Weg</span>
+      </a>
       <a class="side__link" href="#live" data-route="live">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="6.5" width="13" height="11" rx="2" /><polyline points="15.5,10.5 21.5,7 21.5,17 15.5,13.5" /></svg>
-        <span>Live-Match</span>
+        <span>Live-Hilfe</span>
       </a>
       <a class="side__link" href="#fortschritt" data-route="fortschritt">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><line x1="3" y1="21" x2="21" y2="21" /><line x1="6.5" y1="21" x2="6.5" y2="14" /><line x1="12" y1="21" x2="12" y2="9" /><line x1="17.5" y1="21" x2="17.5" y2="4" /></svg>
@@ -95,6 +103,13 @@
   </aside>
 
   <main class="main">
+<!-- HEUTE -->
+<section class="progress-view view" id="heute" data-view="heute" hidden><div id="heute-root"></div></section>
+<!-- MEIN WEG -->
+<section class="progress-view view" id="weg" data-view="weg" hidden><div id="weg-root"></div></section>
+<!-- NEUES ANLIEGEN -->
+<section class="progress-view view" id="start" data-view="start" hidden><div id="start-root"></div></section>
+
 <!-- LIVE-MATCH -->
 <section class="match view" id="match" data-view="live">
   <div class="match__bg" aria-hidden="true"></div>
@@ -384,5 +399,8 @@
 <script src="ai.js"></script>
 <script src="notes.js"></script>
 <script src="tools.js"></script>
+<script src="templates.js"></script>
+<script src="store.js"></script>
+<script src="path.js"></script>
 </body>
 </html>

@@ -1682,3 +1682,80 @@ body.is-locked { overflow: hidden; }
   body.print-note .mm-center-text { fill: #111; }
   body.print-note .note__line, body.print-note .note__summary, body.print-note .note__tasks li { font-size: 10.5pt; }
 }
+
+/* ==========================================================================
+   Persönlicher Weg: Einstieg, Heute, Mein Weg
+   ========================================================================== */
+.onb { display: flex; flex-direction: column; gap: 18px; }
+.onb__text { min-height: 96px; resize: vertical; }
+.onb__chips { margin-top: -4px; }
+.onb__choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.onb__opt { text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 22px; border: 1px solid var(--hair-strong); background: var(--glass-2); color: var(--ink); font-family: var(--f-body); transition: border-color .25s ease, background .25s ease; }
+.onb__opt:hover { border-color: rgba(227, 167, 104, 0.7); background: rgba(227, 167, 104, 0.06); }
+.onb__opt-t { font-family: var(--f-head); font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.onb__opt-d { font-size: 13.5px; line-height: 1.55; color: var(--ink-62); }
+.onb__nav { align-items: center; margin-top: 8px; }
+button.link-ul { background: none; border-top: 0; border-left: 0; border-right: 0; border-radius: 0; padding: 0 0 4px; cursor: pointer; color: var(--ink-70); font-family: var(--f-body); align-self: center; }
+button.link-ul:hover { color: var(--ink); }
+.onb__discard { margin-left: auto; }
+.onb__proposal { display: flex; flex-direction: column; gap: 14px; }
+.pv textarea.field__input { resize: vertical; font-family: var(--f-body); line-height: 1.5; }
+.ctx { display: flex; flex-direction: column; gap: 6px; }
+.ctx__line { font-size: 14px; line-height: 1.55; color: var(--ink-80, var(--ink-90)); }
+.prop__title { font-family: var(--f-head); font-weight: 700; font-size: 18px; margin: -10px 0 12px; }
+.prop__steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.prop__steps li { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; color: var(--ink-90); }
+.prop__min { color: var(--ink-50, var(--ink-62)); font-size: 12.5px; white-space: nowrap; }
+
+.today__label { margin: 34px 0 14px; }
+.task { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.task.is-blocked { border-color: rgba(229, 154, 134, 0.35); }
+.task__top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.task__state { margin: 0; color: var(--accent); }
+.task__min { font-size: 12.5px; color: var(--ink-62); }
+.task__title { font-family: var(--f-head); font-weight: 700; font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -0.02em; line-height: 1.15; margin: 0; text-wrap: pretty; }
+.task__action { font-size: 15.5px; line-height: 1.6; color: var(--ink-90); margin: 0; }
+.task__why, .task__done, .task__block { font-size: 13.5px; line-height: 1.6; color: var(--ink-62); margin: 0; }
+.task__why strong, .task__done strong, .task__block strong { color: var(--ink-90); font-weight: 600; }
+.task__block { color: #E5B3A5; }
+.today__req { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.today__req .micro { margin-bottom: 4px; }
+.today__req-t { font-size: 15px; line-height: 1.55; margin: 0; }
+.today__ms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.today__ms .stat { display: flex; flex-direction: column; gap: 10px; }
+.today__ms-t { font-family: var(--f-head); font-weight: 600; font-size: 15px; line-height: 1.35; }
+
+.weg__goals { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.sug.is-on { border-color: rgba(227, 167, 104, 0.8); color: var(--ink); background: rgba(227, 167, 104, 0.08); }
+a.sug { text-decoration: none; display: inline-flex; align-items: center; }
+.weg__goal { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.weg__goal p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-90); }
+.weg__ms { margin-bottom: 14px; }
+.weg__ms-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.weg__ms-head .micro { margin-bottom: 8px; }
+.weg__ms-t { font-family: var(--f-head); font-weight: 700; font-size: 20px; letter-spacing: -0.01em; margin: 0; }
+.weg__older summary, .wstep__hist summary { cursor: pointer; font-size: 13.5px; color: var(--ink-70); }
+.wsteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wstep { border-top: 1px solid var(--hair); }
+.wstep__head { width: 100%; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 16px 0; background: none; border: 0; color: var(--ink); font-family: var(--f-body); font-size: 15px; text-align: left; cursor: pointer; }
+.wstep__mark { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--ink-30); }
+.wstep--in_arbeit .wstep__mark { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--base), inset 0 0 0 7px var(--accent); }
+.wstep--erledigt .wstep__mark { background: var(--accent); border-color: var(--accent); }
+.wstep--blockiert .wstep__mark { border-color: #E59A86; }
+.wstep--uebersprungen .wstep__mark { border-style: dashed; }
+.wstep.is-locked .wstep__title { color: var(--ink-50, var(--ink-62)); }
+.wstep--erledigt .wstep__title { color: var(--ink-70); }
+.wstep__state { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-62); }
+.wstep--in_arbeit .wstep__state { color: var(--accent); }
+.wstep__tag { font-size: 11px; color: var(--accent); border: 1px solid rgba(227,167,104,.4); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+.wstep__body { padding: 0 0 20px 32px; display: flex; flex-direction: column; gap: 12px; font-size: 14.5px; line-height: 1.6; color: var(--ink-90); }
+.wstep__body > p { margin: 0; }
+.wstep__extra:empty { display: none; }
+.wstep__extra { display: flex; flex-direction: column; gap: 10px; }
+.wstep__hist ul { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--ink-62); }
+.revise { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 760px) {
+  .onb__choice { grid-template-columns: minmax(0, 1fr); }
+  .wstep__body { padding-left: 0; }
+  .onb__discard { margin-left: 0; }
+}

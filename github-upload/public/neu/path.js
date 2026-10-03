@@ -513,4 +513,6 @@
 
   document.addEventListener('fv:route', function (e) { var r = e.detail && e.detail.route; if (r === 'heute' || r === 'weg' || r === 'start') load().then(renderAll).catch(fail); });
   document.addEventListener('fv:signin', function () { load().then(renderAll).catch(fail); });
+  var signed = null; try { signed = sessionStorage.getItem('fv-signed-in'); } catch (x) {}
+  if (signed) load().then(renderAll).catch(fail);
 })();

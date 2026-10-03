@@ -21,11 +21,11 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
 
   function route() {
-    var r = (location.hash || '#live').slice(1);
-    if (['live', 'fortschritt', 'notizen', 'einstellungen'].indexOf(r) < 0) r = 'live';
+    var r = (location.hash || '#heute').slice(1);
+    if (['heute', 'weg', 'start', 'live', 'fortschritt', 'notizen', 'einstellungen'].indexOf(r) < 0) r = 'heute';
     Array.prototype.forEach.call(views, function (v) { v.hidden = v.getAttribute('data-view') !== r; });
     Array.prototype.forEach.call(links, function (a) {
-      var on = a.getAttribute('data-route') === r;
+      var on = a.getAttribute('data-route') === (r === 'start' ? 'heute' : r);
       a.classList.toggle('is-active', on);
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
