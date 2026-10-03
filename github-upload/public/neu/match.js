@@ -17,6 +17,7 @@
   ];
   var MIN_SECONDS = 120;
   var B = window.FVB;
+  if (!B) return; // Testmodus: script.js übernimmt
 
   var $ = function (id) { return document.getElementById(id); };
   var m = {
@@ -576,7 +577,7 @@
   document.addEventListener('fv:match-result', function (e) {
     var d = e.detail || {};
     if (state !== 'connected') return;
-    addMsg('msg--note', '', d.counted ? '2 Minuten erreicht — Gespräch zählt (+' + d.xp + ' XP).' : (d.reason || 'Gespräch wurde nicht gezählt.'));
+    addMsg('msg--note', '', d.counted ? '2 Minuten erreicht — Gespräch zählt (+' + d.xp + ' Flow).' : (d.reason || 'Gespräch wurde nicht gezählt.'));
   });
 
   /* ---------- Schnittstelle für Werkzeuge (Mitschrift, Bildschirm, KI) ---------- */

@@ -4,6 +4,6 @@
 //   supabaseAnonKey: "anon public" bzw. "publishable" Schlüssel
 // Leer lassen = Testmodus ohne Server (alles bleibt im Browser).
 window.FV_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://xkscauwzlzizirsdduof.supabase.co',
+  supabaseAnonKey: 'sb_publishable_dUToZjgwoMTVJSau4I40EA_XQrLQXZo'
 };

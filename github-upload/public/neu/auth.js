@@ -15,6 +15,7 @@
 
   var SESSION = 'fv-signed-in', NAME = 'fv-me-name', USERS = 'fv-demo-users';
   var B = window.FVB, mode = 'login';
+  if (!B) return; // Testmodus: script.js übernimmt
 
   if (modeHint) { modeHint.textContent = B ? '' : 'Testmodus · Konten werden nur in diesem Browser gespeichert'; modeHint.hidden = !!B; }
 

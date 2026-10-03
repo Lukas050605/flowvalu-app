@@ -41,6 +41,7 @@
     <p class="gate__error" id="gate-error" hidden></p>
     <button class="btn btn--solid btn--full" type="submit"><span id="gate-submit">Anmelden</span><span class="btn__rule"></span></button>
     <p class="authform__alt"><span id="gate-switch-text">Noch kein Konto?</span> <a href="#" id="gate-register">Konto erstellen</a></p>
+    <p class="authform__alt"><a href="#" id="gate-forgot" hidden>Passwort vergessen?</a></p>
   </form>
 </div>
 
@@ -184,6 +185,23 @@
             <div class="pcard__row"><span class="pcard__k">Ziel</span><span class="pcard__v" id="p-goal"></span></div>
             <div class="pcard__row"><span class="pcard__k">Status</span><span class="pcard__v" id="p-step"></span></div>
             <div class="pcard__common" id="p-common"></div>
+            <div class="pcard__safety">
+              <button class="link-ul" id="report-btn" type="button">Melden</button>
+              <button class="link-ul" id="block-btn" type="button">Blockieren</button>
+            </div>
+            <form class="pcard__report" id="report-form" hidden>
+              <div class="seg">
+                <label class="seg__opt"><input type="radio" name="reason" value="belaestigung" checked /><span>Belästigung</span></label>
+                <label class="seg__opt"><input type="radio" name="reason" value="unangemessen" /><span>Unangemessene Inhalte</span></label>
+                <label class="seg__opt"><input type="radio" name="reason" value="spam" /><span>Werbung / Spam</span></label>
+                <label class="seg__opt"><input type="radio" name="reason" value="andere" /><span>Anderes</span></label>
+              </div>
+              <textarea class="field__input" id="report-details" rows="2" maxlength="500" placeholder="Was ist passiert? (optional)"></textarea>
+              <div class="tx__actions">
+                <button class="btn btn--solid btn--sm" type="submit">Melden &amp; blockieren<span class="btn__rule"></span></button>
+                <button class="link-ul" id="report-cancel" type="button">Abbrechen</button>
+              </div>
+            </form>
           </div>
           <div class="consent" id="consent" hidden>
             <p class="consent__text" id="consent-text"></p>
@@ -403,7 +421,12 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="backend.js"></script>
 <script src="script.js"></script>
+<script src="auth.js"></script>
+<script src="match.js"></script>
 <script src="app.js"></script>
 <script src="ai.js"></script>
 <script src="notes.js"></script>

@@ -1,6 +1,7 @@
 /* Flow Valu — Beispiel-Weg (Ziel wählen → Weg, aktueller Schritt) */
 (function () {
   'use strict';
+  if (window.FVB) return; // Mit Server übernehmen auth.js + match.js
 
   /* ---------- Startbildschirm: Anmelden / Konto erstellen ---------- */
   // Demo: Konten werden nur lokal im Browser gespeichert. Für echten Betrieb durch eure API ersetzen.
@@ -478,4 +479,22 @@
     if (main) { try { main.destroy(); } catch (x) {} }
     if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
   });
+})();
+
+/* Testmodus: Melden & Blockieren ohne Server – Gespräch beenden, Hinweis zeigen */
+(function () {
+  'use strict';
+  if (window.FVB) return;
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $('report-form');
+  function stop(msg) {
+    if (form) form.hidden = true;
+    var end = $('end-btn'); if (end) end.click();
+    if (window.FVUI) window.FVUI.toast(msg + ' Im Testmodus wird nichts gespeichert. Mit Server wird die Person dauerhaft blockiert.');
+  }
+  var b = $('block-btn'), r = $('report-btn'), c = $('report-cancel');
+  if (b) b.addEventListener('click', function () { if (window.confirm('Diese Person blockieren und das Gespräch beenden?')) stop('Gespräch beendet.'); });
+  if (r) r.addEventListener('click', function () { form.hidden = !form.hidden; });
+  if (c) c.addEventListener('click', function () { form.hidden = true; });
+  if (form) form.addEventListener('submit', function (e) { e.preventDefault(); stop('Danke für deine Meldung.'); });
 })();
