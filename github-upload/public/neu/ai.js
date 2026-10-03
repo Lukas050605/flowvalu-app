@@ -155,7 +155,20 @@
     });
   }
 
+  // Server-KI: wenn Supabase verbunden ist und kein eigener Schlüssel eingetragen wurde
+  var SERVER_AI = false; // Nutzer tragen ihren eigenen Schlüssel ein. Auf true setzen, um die Server-KI zu nutzen.
+  function useServer() { return SERVER_AI && !!window.FVB && !settings().key; }
+  function serverCall(body) {
+    body.provider = settings().provider;
+    return window.FVB.fn('ai', body);
+  }
+
   function mindmap(meta) {
+    if (useServer()) {
+      return serverCall({ action: 'mindmap', meta: { topic: meta.topic, me: meta.me, partner: meta.partner, transcript: meta.transcript } })
+        .then(function (r) { if (!r || !r.data) throw new Error('Leere Antwort'); return { data: r.data, source: r.source || 'Server-KI' }; })
+        .catch(function (e) { return { data: local(meta), source: 'lokal', error: e.message }; });
+    }
     if (!settings().key) return Promise.resolve({ data: local(meta), source: 'lokal' });
     return mindmapAI(meta)
       .then(function (d) { return { data: d, source: label(settings().provider) }; })
@@ -163,6 +176,7 @@
   }
 
   function ask(question, context) {
+    if (useServer()) return serverCall({ action: 'ask', question: question, context: context || '' }).then(function (r) { return (r && r.text) || ''; });
     var sys = 'Du bist der KI-Begleiter von Flow Valu in einem Live-Gespräch zwischen zwei Menschen, die an ihren Zielen arbeiten. ' +
       'Antworte auf Deutsch, kurz und konkret: höchstens 5 Sätze oder eine kurze Liste. Gib nächste Schritte statt langer Erklärungen.';
     var msgs = [{ role: 'system', content: sys }];
@@ -173,7 +187,8 @@
 
   window.FVAI = {
     settings: settings, save: save, label: label, defaults: DEFAULTS,
-    hasKey: function () { return !!settings().key; },
+    hasKey: function () { return !!settings().key || useServer(); },
+    usesServer: useServer,
     chat: chat, ask: ask, mindmap: mindmap, transcriptText: transcriptText
   };
 
@@ -190,6 +205,12 @@
     keyIn.placeholder = provider === 'anthropic' ? 'sk-ant-…' : 'sk-…';
   }
   function say(text, ok) { msg.textContent = text; msg.hidden = false; msg.classList.toggle('is-ok', !!ok); }
+  if (useServer()) {
+    var hint = document.createElement('p');
+    hint.className = 'xp-note xp-note--accent';
+    hint.textContent = 'Flow Valu stellt die KI über den Server bereit. Du brauchst keinen eigenen Schlüssel. Lass das Feld leer, oder trag deinen eigenen ein, wenn du ihn lieber nutzen möchtest.';
+    form.insertBefore(hint, form.firstChild);
+  }
 
   var s0 = settings();
   var r0 = form.querySelector('input[value="' + s0.provider + '"]');
@@ -205,6 +226,11 @@
   document.getElementById('ai-test').addEventListener('click', function () {
     save(current(), keyIn.value.trim(), modelIn.value.trim());
     say('Teste Verbindung …', true);
+    if (useServer()) {
+      serverCall({ action: 'ping' }).then(function (r) { say('Server-KI (' + ((r && r.source) || label(current())) + ') funktioniert.', true); })
+        .catch(function (err) { say('Server-KI: ' + err.message, false); });
+      return;
+    }
     chat([{ role: 'user', content: 'Antworte nur mit: OK' }], { maxTokens: 10 })
       .then(function () { say('Verbindung zu ' + label(current()) + ' funktioniert.', true); })
       .catch(function (err) { say(err.message, false); });

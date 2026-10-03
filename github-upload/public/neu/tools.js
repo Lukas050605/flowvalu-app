@@ -84,9 +84,12 @@
     } catch (x) { rec = null; return false; }
   }
 
+  window.FVTx = { lines: function () { return transcript.slice(); }, active: function () { return txActive; } };
+
   function startTx() {
     waiting = false;
     txActive = true;
+    try { document.dispatchEvent(new CustomEvent('fv:tx-start')); } catch (x) {}
     var ok = startRecognition();
     setStatus(ok
       ? 'Mitschrift läuft — beide haben zugestimmt. Nach dem Gespräch entsteht automatisch eine Mindmap.'

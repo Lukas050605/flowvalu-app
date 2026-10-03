@@ -1794,3 +1794,27 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
 .pcard__report { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .pcard__report textarea { resize: vertical; font-family: var(--f-body); }
 .gate__error.is-ok { color: var(--accent); }
+
+/* ---------- KI denkt mit ---------- */
+.cop { display: flex; flex-direction: column; gap: 10px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(227,167,104,.3); border-radius: 18px; background: rgba(227,167,104,.04); }
+.cop__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cop__title { margin: 0; color: var(--accent); }
+.cop__state { font-size: 11.5px; color: var(--ink-62); flex: 1; min-width: 0; }
+.cop__gear { font-size: 11.5px; }
+.cop__set, .cop__page { display: flex; flex-direction: column; gap: 10px; }
+.cop__page { margin-top: 14px; }
+.cop__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-90); cursor: pointer; }
+.cop__row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
+.cop__seg .seg__opt span { padding: 6px 10px; font-size: 12px; }
+.cop__sum { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-90); }
+.cop__map { display: flex; flex-direction: column; gap: 8px; }
+.cop__center { align-self: flex-start; font-family: var(--f-head); font-weight: 700; font-size: 14px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--accent); color: var(--ink); }
+.cop__branches { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.cop__branch { padding: 10px; border-radius: 12px; border: 1px solid var(--hair); background: rgba(255,255,255,.02); display: flex; flex-direction: column; gap: 4px; }
+.cop__bl { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.cop__leaf { font-size: 12px; line-height: 1.45; color: var(--ink-62); }
+.cop__sub { margin: 4px 0 0; }
+.cop__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cop__steps li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 13px; color: var(--ink-90); }
+.cop__steps em { color: var(--ink-62); font-style: normal; }
+.cop__steps .link-ul { font-size: 11px; white-space: nowrap; }
