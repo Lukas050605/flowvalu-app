@@ -2022,3 +2022,12 @@ img, video, svg, canvas, iframe { max-width: 100%; }
   .pf__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   pre, code { white-space: pre-wrap; word-break: break-word; }
 }
+
+/* ---------- Coming soon ---------- */
+.soon[hidden] { display: none; }
+.soon__card { display: flex; flex-direction: column; gap: 16px; max-width: 560px; margin-bottom: 22px; }
+.soon__tag { align-self: flex-start; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(227,167,104,.55); color: var(--accent); }
+.soon__list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.soon__list li { font-size: 15px; line-height: 1.6; color: var(--ink-90); }
+.soon__admin { margin: 0 0 14px; font-size: 12px; letter-spacing: .06em; color: var(--accent); }
+body.fv-soon #side-level, body.fv-soon .side__bar { display: none; }
