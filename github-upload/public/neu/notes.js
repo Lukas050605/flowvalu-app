@@ -282,7 +282,7 @@
   }
 
   document.addEventListener('fv:route', function (e) {
-    if (e.detail && e.detail.route === 'notizen') render();
+    if (e.detail && e.detail.route === 'notizen') { render(); pull().then(render); }
   });
   document.addEventListener('fv:signin', function () { synced = {}; closeDetail(); render(); pull().then(render); });
 

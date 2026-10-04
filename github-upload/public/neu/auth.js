@@ -36,6 +36,7 @@
     switchLink.textContent = reg ? 'Anmelden' : 'Konto erstellen';
     fName.hidden = !reg;
     fPass2.hidden = !reg;
+    var fc = $('field-consent'); if (fc) fc.hidden = !reg;
     if (forgot) forgot.hidden = !B || reg;
     pass.setAttribute('autocomplete', reg ? 'new-password' : 'current-password');
     msg.hidden = true;
@@ -84,6 +85,8 @@
       if (!nm) return fail('Bitte deinen Vornamen eingeben.');
       if (pw.length < 8) return fail('Das Passwort braucht mindestens 8 Zeichen.');
       if (pw !== pass2.value) return fail('Die Passwörter stimmen nicht überein.');
+      var cb = $('gate-consent');
+      if (cb && !cb.checked) return fail('Bitte bestätige Mindestalter, Nutzungsbedingungen und Datenschutzerklärung.');
     } else if (!pw) return fail('Bitte dein Passwort eingeben.');
 
     /* ---- Testmodus ---- */
@@ -107,7 +110,7 @@
       B.sb.auth.signUp({
         email: mail,
         password: pw,
-        options: { data: { first_name: nm }, emailRedirectTo: location.origin + location.pathname }
+        options: { data: { first_name: nm, consent_at: new Date().toISOString(), consent_version: '2026-10-04', min_age: 18 }, emailRedirectTo: location.origin + location.pathname }
       }).then(function (r) {
         if (r.error) throw r.error;
         var user = r.data.user;

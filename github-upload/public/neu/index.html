@@ -36,11 +36,15 @@
       <span class="field__label">Passwort wiederholen</span>
       <input class="field__input" id="gate-pass2" type="password" name="password2" autocomplete="new-password" placeholder="••••••••" />
     </label>
+    <label class="gate__consent" id="field-consent" hidden>
+      <input type="checkbox" id="gate-consent" />
+      <span>Ich bin mindestens 18 Jahre alt und akzeptiere die <a href="nutzungsbedingungen.html" target="_blank" rel="noopener">Nutzungsbedingungen</a> und die <a href="datenschutz.html" target="_blank" rel="noopener">Datenschutzerklärung</a>.</span>
+    </label>
     <p class="gate__error" id="gate-error" hidden></p>
     <button class="btn btn--solid btn--full" type="submit"><span id="gate-submit">Anmelden</span><span class="btn__rule"></span></button>
     <p class="authform__alt"><span id="gate-switch-text">Noch kein Konto?</span> <a href="#" id="gate-register">Konto erstellen</a></p>
     <p class="authform__alt"><a href="#" id="gate-forgot" hidden>Passwort vergessen?</a></p>
-    <p class="gate__legal">Mit der Anmeldung akzeptierst du die <a href="datenschutz.html">Datenschutzerklärung</a>. · <a href="impressum.html">Impressum</a></p>
+    <p class="gate__legal"><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a> · <a href="nutzungsbedingungen.html">Nutzungsbedingungen</a></p>
   </form>
 </div>
 
@@ -107,7 +111,7 @@
       <div class="side__bar"><span class="side__bar-fill" id="side-bar"></span></div>
       <div class="side__name" id="side-name"></div>
       <a class="nav__login side__logout" href="#" id="logout">Abmelden</a>
-      <div class="side__legal"><a href="impressum.html">Impressum</a><a href="datenschutz.html">Datenschutz</a></div>
+      <div class="side__legal"><a href="impressum.html">Impressum</a><a href="datenschutz.html">Datenschutz</a><a href="nutzungsbedingungen.html">AGB</a></div>
     </div>
   </aside>
 <nav class="tabbar" aria-label="Schnellnavigation">

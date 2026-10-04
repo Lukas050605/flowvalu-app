@@ -104,12 +104,15 @@
     return B.uid().then(function (uid) {
       if (!uid) return;
       return Promise.all([
-        B.sb.from('profiles').select('xp,matches,topics').eq('id', uid).single(),
+        B.sb.from('profiles').select('xp,matches,topics,active_days').eq('id', uid).single(),
         B.sb.from('activity').select('text,xp,created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(12)
       ]).then(function (r) {
         var pr = r[0].data;
         if (pr) { p.xp = pr.xp || 0; p.matches = pr.matches || 0; p.topics = pr.topics || []; }
         if (r[1].data) p.activity = r[1].data.map(function (x) { return { t: new Date(x.created_at).getTime(), text: x.text, xp: x.xp }; });
+        return B.rpc('my_today').then(function (t) {
+          if (t) p.daily = { date: today(), count: t.matches_today || 0, partners: (p.daily && p.daily.date === today()) ? p.daily.partners : [] };
+        }).catch(function () {});
       });
     }).catch(function () {});
   }
@@ -213,6 +216,7 @@
     email = mail;
     load();
     touchDay();
+    if (window.FVB) window.FVB.rpc('touch_day').catch(function () {});
     refresh();
     route();
     refreshAll();

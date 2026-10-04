@@ -76,9 +76,27 @@
         var bt = (d.blocked_topics || []).map(function (x) { return '<li><span>' + esc(T.topicLabel(x.topic) || 'ohne Thema') + '</span><span>' + x.n + '</span></li>'; }).join('');
         box.innerHTML = '<div class="glass glass--pad pf__admin"><div class="micro">Admin · letzte 30 Tage</div><div class="pf__kpis">' + k.map(function (x) { return '<div class="stat"><div class="stat__num">' + esc(x[1]) + '</div><div class="stat__label">' + x[0] + '</div></div>'; }).join('') + '</div>' +
           (ev ? '<div class="micro pf__sub">Ereignisse</div><ul class="xp-rules">' + ev + '</ul>' : '') +
-          (bt ? '<div class="micro pf__sub">Wo Menschen hängen bleiben</div><ul class="xp-rules">' + bt + '</ul>' : '') + '</div>';
+          (bt ? '<div class="micro pf__sub">Wo Menschen hängen bleiben</div><ul class="xp-rules">' + bt + '</ul>' : '') +
+          '<div class="micro pf__sub">Speicher</div><div id="pf-storage" class="lh__p">Lädt …</div></div>';
+        storage();
       });
     }).catch(function () {});
+  }
+
+  function storage() {
+    var el = document.getElementById('pf-storage'); if (!el) return;
+    B.rpc('admin_storage').then(function (s) {
+      var mb = function (b) { return (b / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
+      var pct = Math.min(100, Math.round(s.db_bytes / s.limit_bytes * 100));
+      el.innerHTML = '<div class="stat__label">' + mb(s.db_bytes) + ' von ' + mb(s.limit_bytes) + ' belegt (' + pct + ' %)</div>' +
+        '<div class="progress__track"><div class="progress__fill" style="width:' + pct + '%"></div></div>' +
+        '<p class="xp-note">' + s.notes + ' Notizen (' + mb(s.notes_bytes) + ') · ' + s.steps + ' Schritte · ' + s.posts + ' Beiträge · ' + s.pending_deletions + ' Löschanfragen offen<br />' +
+        'Automatisches Aufräumen täglich um 5:30 Uhr' + (s.last_cleanup ? ' · zuletzt ' + new Date(s.last_cleanup).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '') + '</p>' +
+        '<div class="tx__actions"><button class="btn btn--glass btn--sm" type="button" id="pf-clean">Jetzt aufräumen</button></div>';
+      document.getElementById('pf-clean').addEventListener('click', function () {
+        B.rpc('admin_cleanup_now').then(function (r) { toast('Aufgeräumt: ' + r.rooms + ' Räume, ' + r.events + ' Ereignisse, ' + r.accounts + ' Konten.'); storage(); }).catch(function (x) { toast(x.message); });
+      });
+    }).catch(function () { el.textContent = 'Speicheranzeige nicht verfügbar. Bitte schema-speicher.sql in Supabase ausführen.'; });
   }
 
   document.addEventListener('fv:route', function (e) { if (e.detail && e.detail.route === 'profil') render(); });

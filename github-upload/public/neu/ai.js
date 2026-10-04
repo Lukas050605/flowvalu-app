@@ -156,11 +156,11 @@
   }
 
   // Server-KI: wenn Supabase verbunden ist und kein eigener Schlüssel eingetragen wurde
-  var SERVER_AI = false; // Nutzer tragen ihren eigenen Schlüssel ein. Auf true setzen, um die Server-KI zu nutzen.
+  var SERVER_AI = !!(window.FV_CONFIG && window.FV_CONFIG.serverAi);
   function useServer() { return SERVER_AI && !!window.FVB && !settings().key; }
   function serverCall(body) {
     body.provider = settings().provider;
-    return window.FVB.fn('ai', body);
+    return window.FVB.fn((window.FV_CONFIG && window.FV_CONFIG.aiFunction) || 'ai', body);
   }
 
   function mindmap(meta) {

@@ -6,5 +6,7 @@
 window.FV_CONFIG = {
   supabaseUrl: 'https://xkscauwzlzizirsdduof.supabase.co',
   supabaseAnonKey: 'sb_publishable_dUToZjgwoMTVJSau4I40EA_XQrLQXZo',
-  turnFunction: 'swift-service'
+  turnFunction: 'swift-service',
+  aiFunction: 'ai',     // Name der KI-Funktion in Supabase (Edge Functions)
+  serverAi: false       // false = Nutzer tragen eigenen KI-Schlüssel ein. Später (Abo): true
 };

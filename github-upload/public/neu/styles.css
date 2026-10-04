@@ -1933,3 +1933,14 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
 #profil .settings .tx__actions { margin-top: 2px; }
 #profil .pf__data, #profil .pf__admin { margin-top: 18px; gap: 14px; }
 #profil .pf__data .micro { margin: 0; }
+
+.gate__consent { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.55; color: var(--ink-70); cursor: pointer; text-align: left; }
+.gate__consent[hidden] { display: none; }
+.gate__consent input { flex: none; width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent); }
+.gate__consent a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.legal__links { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--hair); font-size: 13px; color: var(--ink-62); }
+.legal__links a { color: var(--ink-70); }
+
+.legal p { margin: 0 0 14px; }
+.legal ul { margin: 0 0 14px; }
+.legal li { margin-bottom: 6px; }
