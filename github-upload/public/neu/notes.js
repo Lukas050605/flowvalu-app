@@ -133,6 +133,7 @@
     var out = '';
 
     br.forEach(function (b, i) {
+      out += '<g class="mm-g" data-b="' + i + '">';
       var ang = (i / n) * Math.PI * 2 - Math.PI / 2;
       var bx = cx + Math.cos(ang) * 230, by = cy + Math.sin(ang) * 175;
       out += '<path class="mm-line mm-line--main" d="M' + cx + ',' + cy + ' Q' + ((cx + bx) / 2) + ',' + ((cy + by) / 2 + 18) + ' ' + bx + ',' + by + '" />';
@@ -154,11 +155,12 @@
       var bl = wrap(b.label, 16), bw = Math.max.apply(null, bl.map(function (l) { return l.length; })) * 8.6 + 34, bh = bl.length * 17 + 18;
       out += '<rect class="mm-branch" x="' + (bx - bw / 2) + '" y="' + (by - bh / 2) + '" width="' + bw + '" height="' + bh + '" rx="' + Math.min(bh / 2, 20) + '" />';
       out += svgText(bx, by, bl, 'mm-branch-text', 'middle', 17);
+      out += '</g>';
     });
 
     var cl = wrap(mm.center || 'Gespräch', 16), cw = Math.max.apply(null, cl.map(function (l) { return l.length; })) * 11 + 48, ch = cl.length * 22 + 30;
-    out += '<rect class="mm-center" x="' + (cx - cw / 2) + '" y="' + (cy - ch / 2) + '" width="' + cw + '" height="' + ch + '" rx="18" />';
-    out += svgText(cx, cy, cl, 'mm-center-text', 'middle', 22);
+    out += '<g class="mm-g" data-b="c"><rect class="mm-center" x="' + (cx - cw / 2) + '" y="' + (cy - ch / 2) + '" width="' + cw + '" height="' + ch + '" rx="18" />';
+    out += svgText(cx, cy, cl, 'mm-center-text', 'middle', 22) + '</g>';
 
     return '<svg class="mm" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Mindmap">' + out + '</svg>';
   }
@@ -219,7 +221,11 @@
 
     detail.innerHTML = head +
       '<section class="note__sec"><div class="micro">Zusammenfassung</div><p class="note__summary">' + esc(d.summary) + '</p></section>' +
-      '<section class="note__sec"><div class="micro">Mindmap</div><div class="note__mm">' + mindmapSvg(d.mindmap) + '</div></section>' +
+      '<section class="note__sec"><div class="note__mmhead"><div class="micro">Mindmap</div>' +
+        (d.mindmap ? '<div class="note__mmacts no-print"><button class="link-ul" type="button" data-act="mm-full">Vollbild</button><button class="link-ul" type="button" data-act="mm-edit">Bearbeiten</button><button class="link-ul" type="button" data-act="mm-png">Herunterladen</button><button class="link-ul" type="button" data-act="mm-del">Löschen</button></div>' : '') + '</div>' +
+        (d.mindmap ? '<button class="note__mm" type="button" data-act="mm-full" aria-label="Mindmap im Vollbild öffnen">' + mindmapSvg(d.mindmap) + '</button>'
+          : '<div class="glass glass--pad note__mmempty"><p class="note__muted">Keine Mindmap vorhanden.</p><div class="tx__actions no-print"><button class="btn btn--glass btn--sm" type="button" data-act="mm-new">Leere Mindmap anlegen</button><button class="btn btn--glass btn--sm" type="button" data-act="regen">Von der KI neu erstellen</button></div></div>') +
+        '</section>' +
       '<section class="note__sec"><div class="micro">Aufgaben &amp; nächste Schritte</div>' + tasks + '</section>' +
       '<section class="note__sec note__sec--tx"><div class="micro">Komplette Mitschrift</div><div class="note__tx">' + (tx || '<p class="note__muted">Leer.</p>') + '</div></section>';
   }
@@ -241,6 +247,15 @@
     if (!b || b.disabled) return;
     var act = b.getAttribute('data-act');
     if (act === 'back') closeDetail();
+    if (act.indexOf('mm-') === 0 && window.FVMindmap) {
+      var nn = get(openId);
+      if (act === 'mm-full') window.FVMindmap.open(openId, false);
+      if (act === 'mm-edit') window.FVMindmap.open(openId, true);
+      if (act === 'mm-png') window.FVMindmap.download(nn, 'png');
+      if (act === 'mm-new') { nn.data.mindmap = { center: (nn.data.title || 'Gespräch').slice(0, 40), branches: [{ label: 'Neuer Ast', children: [] }] }; put(nn); window.FVMindmap.open(openId, true); }
+      if (act === 'mm-del') { if (!window.confirm('Nur die Mindmap löschen? Zusammenfassung, Aufgaben und Mitschrift bleiben erhalten.')) return; nn.data.mindmap = null; put(nn); renderDetail(openId); toast('Mindmap gelöscht.'); }
+      return;
+    }
     if (act === 'pdf') printNote();
     if (act === 'regen') generate(openId);
     if (act === 'del') {
@@ -271,6 +286,6 @@
   });
   document.addEventListener('fv:signin', function () { synced = {}; closeDetail(); render(); pull().then(render); });
 
-  window.FVNotes = { create: create, open: function (id) { location.hash = '#notizen'; setTimeout(function () { renderDetail(id); }, 0); } };
+  window.FVNotes = { svg: mindmapSvg, get: get, put: put, refresh: function (id) { render(); if (openId === id) renderDetail(id); }, create: create, open: function (id) { location.hash = '#notizen'; setTimeout(function () { renderDetail(id); }, 0); } };
   render();
 })();

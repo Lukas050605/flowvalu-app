@@ -105,8 +105,16 @@
      ====================================================================== */
   function serverTransport(h) {
     var sb = B.sb, closed = false, roomId = null, role = null, ch = null, pc = null, dcn = null;
-    var pollTimer = null, joinTimer = null, since = null, offered = false, replied = false, pendingIce = [], gotMedia = false;
-    var iceP = B.fn((window.FV_CONFIG && window.FV_CONFIG.turnFunction) || 'turn', {}).then(function (d) { return (d && d.iceServers) || []; })
+    var pollTimer = null, joinTimer = null, since = null, offered = false, replied = false, pendingIce = [], gotMedia = false, hasTurn = false, restarted = false;
+    var iceP = B.fn((window.FV_CONFIG && window.FV_CONFIG.turnFunction) || 'turn', {}).then(function (d) {
+      // Port 53 blockieren Browser – solche Einträge verzögern den Aufbau nur
+      var list = ((d && d.iceServers) || []).map(function (s) {
+        var u = (Array.isArray(s.urls) ? s.urls : [s.urls]).filter(function (x) { return x && !/:53(\?|$)/.test(x); });
+        return u.length ? Object.assign({}, s, { urls: u }) : null;
+      }).filter(Boolean);
+      hasTurn = list.some(function (s) { return s.urls.some(function (x) { return /^turns?:/.test(x); }); });
+      return list.length ? list : [{ urls: 'stun:stun.l.google.com:19302' }];
+    })
       .catch(function () { return [{ urls: 'stun:stun.l.google.com:19302' }]; });
 
     function sig(obj) { if (ch) ch.send({ type: 'broadcast', event: 'sig', payload: obj }); }
@@ -148,6 +156,7 @@
           sig({ k: 'ready' });
         }
       } else if (p.k === 'offer' && role === 'callee') {
+        restarted = true;
         pc.setRemoteDescription(p.sdp).then(flushIce)
           .then(function () { return pc.createAnswer(); })
           .then(function (a) { return pc.setLocalDescription(a); })
@@ -182,7 +191,24 @@
         pc.onicecandidate = function (e) { if (e.candidate) sig({ k: 'ice', c: e.candidate.toJSON() }); };
         pc.oniceconnectionstatechange = function () {
           var st = pc.iceConnectionState;
-          if (st === 'failed') h.onNote('Die Video-Verbindung konnte nicht aufgebaut werden (Netzwerk blockiert).');
+          if (st === 'failed') {
+            if (role === 'caller' && !restarted) {
+              restarted = true;
+              h.onNote('Verbindung hakt – neuer Versuch …');
+              pc.createOffer({ iceRestart: true }).then(function (o) { return pc.setLocalDescription(o); })
+                .then(function () { sig({ k: 'offer', sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } }); }).catch(function () {});
+            } else {
+              h.onNote(hasTurn ? 'Die Video-Verbindung ist fehlgeschlagen. Bitte „Nächste Person“ oder später erneut versuchen.' : 'Die Video-Verbindung ist fehlgeschlagen: Der Vermittlungsserver (TURN) ist nicht erreichbar. Im WLAN klappt es meist.');
+            }
+          }
+          if (st === 'connected' || st === 'completed') {
+            if (pc.getStats) pc.getStats().then(function (rep) {
+              var pair = null, cands = {};
+              rep.forEach(function (r) { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; if (r.type === 'local-candidate' || r.type === 'remote-candidate') cands[r.id] = r; });
+              var lc = pair && cands[pair.localCandidateId], rc = pair && cands[pair.remoteCandidateId];
+              window.FV_LAST_ROUTE = (lc && lc.candidateType) + '/' + (rc && rc.candidateType);
+            }).catch(function () {});
+          }
           if (st === 'disconnected') setTimeout(function () { if (pc && pc.iceConnectionState === 'disconnected') h.onClosed(); }, 5000);
         };
         if (role === 'caller') bindDc(pc.createDataChannel('fv', { ordered: true }));
@@ -193,6 +219,7 @@
         ch.subscribe(function (status) { if (status === 'SUBSCRIBED') sig({ k: 'ready' }); });
 
         h.onMatched(profile);
+        if (!hasTurn) h.onNote('Hinweis: Kein TURN-Server aktiv – im Mobilfunknetz kann das Video ausbleiben.');
         joinTimer = setTimeout(function () { if (!gotMedia && !closed) h.onNote('Die Video-Verbindung braucht länger als üblich …'); }, 15000);
       });
     }
