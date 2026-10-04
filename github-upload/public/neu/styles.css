@@ -1999,3 +1999,26 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
 .mod__tag--ban { border-color: rgba(232,144,122,.5); color: #E8907A; }
 .mod__ban { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 10px; }
 .ban-bar { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 70; max-width: min(640px, calc(100% - 32px)); padding: 12px 18px; border-radius: 16px; border: 1px solid rgba(232,144,122,.5); background: rgba(20,12,10,.94); color: #F2D3CB; font-size: 13px; line-height: 1.5; text-align: center; }
+
+#profil .pf__kpis .stat__label { overflow-wrap: anywhere; hyphens: auto; }
+#pf-storage { display: flex; flex-direction: column; gap: 10px; }
+#pf-storage .progress__track { margin: 0; }
+#pf-storage .xp-note { margin: 0; line-height: 1.6; }
+#pf-storage .tx__actions { margin-top: 4px; }
+#profil .pf__admin .xp-rules { margin: 0; }
+
+/* ---------- Handy: Seite darf nicht seitlich wackeln ---------- */
+html, body { max-width: 100%; overflow-x: hidden; overflow-x: clip; }
+body { overscroll-behavior-x: none; touch-action: pan-y pinch-zoom; }
+img, video, svg, canvas, iframe { max-width: 100%; }
+.mmx__stage, .mmx__stage * { touch-action: none; }
+@media (max-width: 760px) {
+  /* iPhone zoomt bei Eingabefeldern unter 16px automatisch hinein und die Seite verrutscht */
+  input, textarea, select, .field__input { font-size: 16px !important; }
+  .view, .pv, .glass, .main, main, section { max-width: 100%; min-width: 0; }
+  .topics, .tx__actions, .seg, .mod__tabs, .cm__filter { flex-wrap: wrap; min-width: 0; }
+  .sug { max-width: 100%; white-space: normal; text-align: left; }
+  .note__mm { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .pf__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  pre, code { white-space: pre-wrap; word-break: break-word; }
+}

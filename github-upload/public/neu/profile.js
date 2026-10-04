@@ -6,7 +6,7 @@
   if (!root || !S || !T) return;
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var toast = function (t) { if (window.FVUI) window.FVUI.toast(t); };
-  var EV = { goal_created: 'Ziele angelegt', path_proposal_accepted: 'Wegvorschläge übernommen', step_started: 'Schritte gestartet', step_blocked: 'Blockaden gemeldet', step_result_saved: 'Ergebnisse gespeichert', help_requested: 'Hilfegesuche', outcome_saved: 'Gesprächsergebnisse' };
+  var EV = { goal_created: 'Ziele angelegt', path_proposal_accepted: 'Wegvorschläge übernommen', step_started: 'Schritte gestartet', step_blocked: 'Blockaden gemeldet', step_result_saved: 'Ergebnisse gespeichert', help_requested: 'Hilfegesuche', outcome_saved: 'Gesprächsergebnisse', post_created: 'Beiträge geteilt', help_search_started: 'Hilfesuchen gestartet', helper_available: 'Als Helfer verfügbar', help_accepted: 'Hilfe angenommen', help_declined: 'Hilfe abgelehnt' };
 
   function mail() { try { return sessionStorage.getItem('fv-signed-in') || ''; } catch (x) { return ''; } }
 
@@ -73,7 +73,7 @@
     B.rpc('is_admin').then(function (yes) {
       if (!yes) return;
       return B.rpc('admin_stats', { p_days: 30 }).then(function (d) {
-        var k = [['Mitglieder', d.users], ['Neu (30 Tage)', d.new_users], ['Aktive Ziele', d.goals_active], ['Erreichte Ziele', d.goals_reached], ['Schritte erledigt', d.steps_done], ['Blockierte Schritte', d.steps_blocked], ['Gesprächsergebnisse', d.outcomes], ['Offene Meldungen', d.reports_open]];
+        var k = [['Mitglieder', d.users], ['Neu (30 Tage)', d.new_users], ['Aktive Ziele', d.goals_active], ['Erreichte Ziele', d.goals_reached], ['Schritte erledigt', d.steps_done], ['Blockierte Schritte', d.steps_blocked], ['Gespräche mit Ergebnis', d.outcomes], ['Offene Meldungen', d.reports_open]];
         var ev = Object.keys(d.events || {}).map(function (n) { return '<li><span>' + esc(EV[n] || n) + '</span><span>' + d.events[n] + '</span></li>'; }).join('');
         var bt = (d.blocked_topics || []).map(function (x) { return '<li><span>' + esc(T.topicLabel(x.topic) || 'ohne Thema') + '</span><span>' + x.n + '</span></li>'; }).join('');
         box.innerHTML = '<div class="glass glass--pad pf__admin"><div class="micro">Admin · letzte 30 Tage</div><div class="pf__kpis">' + k.map(function (x) { return '<div class="stat"><div class="stat__num">' + esc(x[1]) + '</div><div class="stat__label">' + x[0] + '</div></div>'; }).join('') + '</div>' +
