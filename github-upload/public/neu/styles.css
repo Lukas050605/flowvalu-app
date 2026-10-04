@@ -1977,3 +1977,25 @@ a.sug { text-decoration: none; display: inline-flex; align-items: center; }
 .pf__delcount { display: flex; gap: 10px; flex-wrap: wrap; }
 .pf__delcount span { min-width: 64px; padding: 10px 12px; border: 1px solid var(--hair-strong); border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-62); }
 .pf__delcount b { font-family: var(--f-head); font-size: 24px; font-weight: 700; letter-spacing: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- Moderation ---------- */
+.mod { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.mod .micro { margin: 0; }
+.mod__tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.mod__filter { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; }
+.mod__filter .link-ul.is-on { color: var(--accent); border-color: var(--accent); }
+.mod__body { display: flex; flex-direction: column; gap: 12px; }
+.mod__item { padding: 16px; border: 1px solid var(--hair); border-radius: 18px; display: flex; flex-direction: column; gap: 8px; }
+.mod__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mod__meta { font-size: 12px; color: var(--ink-62); }
+.mod__line { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-90); }
+.mod__muted { color: var(--ink-62); font-size: 13px; }
+.mod__body-text { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; padding: 10px 12px; border-left: 2px solid var(--hair-strong); background: rgba(255,255,255,.02); border-radius: 0 10px 10px 0; }
+.mod__who { color: var(--ink); }
+.mod__id { font-size: 11px; color: var(--ink-62); font-variant-numeric: tabular-nums; }
+.mod__tag { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--hair-strong); color: var(--ink-70); }
+.mod__tag--offen { border-color: rgba(227,167,104,.55); color: var(--accent); }
+.mod__tag--erledigt { border-color: rgba(160,200,160,.45); color: #B9D7B4; }
+.mod__tag--ban { border-color: rgba(232,144,122,.5); color: #E8907A; }
+.mod__ban { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 10px; }
+.ban-bar { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 70; max-width: min(640px, calc(100% - 32px)); padding: 12px 18px; border-radius: 16px; border: 1px solid rgba(232,144,122,.5); background: rgba(20,12,10,.94); color: #F2D3CB; font-size: 13px; line-height: 1.5; text-align: center; }

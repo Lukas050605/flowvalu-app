@@ -81,6 +81,7 @@
           (bt ? '<div class="micro pf__sub">Wo Menschen hängen bleiben</div><ul class="xp-rules">' + bt + '</ul>' : '') +
           '<div class="micro pf__sub">Speicher</div><div id="pf-storage" class="lh__p">Lädt …</div></div>';
         storage();
+        if (window.FVAdmin) window.FVAdmin.mount(box);
       });
     }).catch(function () {});
   }
