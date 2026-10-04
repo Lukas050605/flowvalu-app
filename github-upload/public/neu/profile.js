@@ -25,9 +25,10 @@
         '<div class="tx__actions"><button class="btn btn--solid btn--sm" type="submit">Speichern<span class="btn__rule"></span></button></div></form>' +
         '<div class="glass glass--pad pf__data"><div class="micro">Deine Daten</div><p class="lh__p">Du kannst jederzeit alle gespeicherten Daten herunterladen oder dein Konto löschen lassen.</p>' +
         '<div class="tx__actions"><button class="btn btn--glass btn--sm" type="button" id="pf-export">Daten herunterladen</button><button class="link-ul" type="button" id="pf-delete">Konto löschen</button></div></div>' +
-        '<div id="pf-admin"></div></div>';
+        '<div id="pf-del-status"></div><div id="pf-admin"></div></div>';
       root.innerHTML = h;
       bind();
+      deletionStatus();
       admin();
     }).catch(function (e) { root.innerHTML = '<div class="pv"><p class="pv__sub">Profil konnte nicht geladen werden: ' + esc(e.message) + '</p></div>'; });
   }
@@ -59,7 +60,8 @@
         if (!S.server) {
           try { var u = JSON.parse(localStorage.getItem('fv-demo-users') || '{}'); delete u[mail()]; localStorage.setItem('fv-demo-users', JSON.stringify(u)); localStorage.removeItem('fv-progress-' + mail()); } catch (x) {}
         }
-        toast(S.server ? 'Löschanfrage gespeichert.' : 'Testkonto gelöscht.');
+        if (S.server) { toast('Löschanfrage gespeichert. Du kannst sie 30 Tage lang abbrechen.'); render(); return; }
+        toast('Testkonto gelöscht.');
         var lo = document.getElementById('logout'); if (lo) lo.click();
       }).catch(function (x) { toast(x.message); });
     });
@@ -83,6 +85,29 @@
     }).catch(function () {});
   }
 
+  var delTimer = null;
+  function deletionStatus() {
+    var box = document.getElementById('pf-del-status'); clearInterval(delTimer);
+    if (!box || !B) return;
+    B.rpc('my_deletion').then(function (d) {
+      if (!d || !d.delete_at) return;
+      var btn = document.getElementById('pf-delete'); if (btn) btn.hidden = true;
+      var end = new Date(d.delete_at).getTime();
+      box.innerHTML = '<div class="glass glass--pad pf__del"><div class="micro">Konto wird gelöscht</div><div class="pf__delcount" id="pf-delcount"></div>' +
+        '<p class="lh__p">Am ' + new Date(end).toLocaleString('de-DE', { dateStyle: 'long', timeStyle: 'short' }) + ' werden dein Konto und alle Inhalte endgültig gelöscht. Bis dahin kannst du es dir anders überlegen.</p>' +
+        '<div class="tx__actions"><button class="btn btn--solid btn--sm" type="button" id="pf-undel">Löschung abbrechen<span class="btn__rule"></span></button></div></div>';
+      var tick = function () {
+        var ms = Math.max(0, end - Date.now()), d2 = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+        var el = document.getElementById('pf-delcount'); if (!el) return clearInterval(delTimer);
+        el.innerHTML = '<span><b>' + d2 + '</b>Tage</span><span><b>' + ('0' + h).slice(-2) + '</b>Std</span><span><b>' + ('0' + m).slice(-2) + '</b>Min</span><span><b>' + ('0' + s).slice(-2) + '</b>Sek</span>';
+      };
+      tick(); delTimer = setInterval(tick, 1000);
+      document.getElementById('pf-undel').addEventListener('click', function () {
+        B.rpc('cancel_account_deletion').then(function () { toast('Löschung abgebrochen. Dein Konto bleibt bestehen.'); render(); }).catch(function (x) { toast(x.message); });
+      });
+    }).catch(function () {});
+  }
+
   function storage() {
     var el = document.getElementById('pf-storage'); if (!el) return;
     B.rpc('admin_storage').then(function (s) {
@@ -91,8 +116,15 @@
       el.innerHTML = '<div class="stat__label">' + mb(s.db_bytes) + ' von ' + mb(s.limit_bytes) + ' belegt (' + pct + ' %)</div>' +
         '<div class="progress__track"><div class="progress__fill" style="width:' + pct + '%"></div></div>' +
         '<p class="xp-note">' + s.notes + ' Notizen (' + mb(s.notes_bytes) + ') · ' + s.steps + ' Schritte · ' + s.posts + ' Beiträge · ' + s.pending_deletions + ' Löschanfragen offen<br />' +
-        'Automatisches Aufräumen täglich um 5:30 Uhr' + (s.last_cleanup ? ' · zuletzt ' + new Date(s.last_cleanup).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '') + '</p>' +
+        'Nächstes automatisches Aufräumen: <span id="pf-nextclean"></span>' + (s.last_cleanup ? ' · zuletzt ' + new Date(s.last_cleanup).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '') + '</p>' +
         '<div class="tx__actions"><button class="btn btn--glass btn--sm" type="button" id="pf-clean">Jetzt aufräumen</button></div>';
+      var nc = function () {
+        var el = document.getElementById('pf-nextclean'); if (!el) return;
+        var now = new Date(), t = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 30));
+        if (t <= now) t = new Date(t.getTime() + 86400000);
+        var ms = t - now; el.textContent = 'in ' + Math.floor(ms / 3600000) + ' Std ' + Math.floor(ms % 3600000 / 60000) + ' Min (' + t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ' Uhr)';
+      };
+      nc(); setInterval(nc, 30000);
       document.getElementById('pf-clean').addEventListener('click', function () {
         B.rpc('admin_cleanup_now').then(function (r) { toast('Aufgeräumt: ' + r.rooms + ' Räume, ' + r.events + ' Ereignisse, ' + r.accounts + ' Konten.'); storage(); }).catch(function (x) { toast(x.message); });
       });

@@ -166,9 +166,35 @@
   }
 
   /* ---------- Darstellung ---------- */
+  var TRASH_DAYS = 30, DAY = 86400000;
+  function left(n) { return n.deleted_at + TRASH_DAYS * DAY - Date.now(); }
+  function leftText(ms) {
+    if (ms <= 0) return 'wird gleich endgültig gelöscht';
+    var d = Math.floor(ms / DAY), h = Math.floor((ms % DAY) / 3600000);
+    return 'endgültig gelöscht in ' + (d ? d + (d === 1 ? ' Tag' : ' Tagen') + (d < 3 ? ', ' + h + ' Std' : '') : h + ' Std');
+  }
+  function purge() {
+    var l = all(), keep = l.filter(function (x) { return !x.deleted_at || left(x) > 0; });
+    if (keep.length !== l.length) store(keep);
+  }
+  var showTrash = false;
+
   function render() {
-    var list = all();
-    listEl.innerHTML = list.length ? list.map(function (n) {
+    purge();
+    var everything = all(), trash = everything.filter(function (x) { return x.deleted_at; });
+    var list = everything.filter(function (x) { return !x.deleted_at; });
+    if (showTrash) {
+      listEl.innerHTML = '<div class="trash__head"><button class="link-ul" type="button" data-trash="close">← Zurück zu den Notizen</button><span class="xp-note">Gelöschte Notizen bleiben ' + TRASH_DAYS + ' Tage hier und werden danach automatisch endgültig gelöscht.</span></div>' +
+        (trash.length ? trash.map(function (n) {
+          var title = n.data ? n.data.title : 'Gespräch: ' + (n.topic || 'Austausch');
+          var ms = left(n);
+          return '<div class="ncard ncard--trash"><span class="ncard__meta">Gelöscht am ' + fmt(n.deleted_at) + '</span><span class="ncard__title">' + esc(title) + '</span>' +
+            '<span class="trash__left' + (ms < 3 * DAY ? ' is-soon' : '') + '">' + leftText(ms) + '</span>' +
+            '<span class="trash__acts"><button class="btn btn--glass btn--sm" type="button" data-trash="restore" data-id="' + esc(n.id) + '">Wiederherstellen</button><button class="link-ul" type="button" data-trash="kill" data-id="' + esc(n.id) + '">Sofort endgültig löschen</button></span></div>';
+        }).join('') : '<div class="notes__empty">Der Papierkorb ist leer.</div>');
+      return;
+    }
+    listEl.innerHTML = (trash.length ? '<button class="link-ul trash__link" type="button" data-trash="open">Papierkorb (' + trash.length + ')</button>' : '') + (list.length ? list.map(function (n) {
       var title = n.data ? n.data.title : 'Gespräch: ' + (n.topic || 'Austausch');
       var status = n.status === 'pending' ? 'Wird erstellt …' : (n.source === 'lokal' ? 'Ohne KI erstellt' : 'Von ' + esc(n.source) + ' erstellt');
       return '<button class="ncard" type="button" data-id="' + esc(n.id) + '">' +
@@ -177,7 +203,7 @@
         '<span class="ncard__who">mit ' + esc(n.partner) + (n.topic ? ' · ' + esc(n.topic) : '') + '</span>' +
         '<span class="ncard__status' + (n.status === 'pending' ? ' is-pending' : '') + '">' + status + '</span>' +
         '</button>';
-    }).join('') : '<div class="notes__empty">Noch keine Notizen. Starte im Live-Match die Mitschrift — nach dem Gespräch entsteht hier automatisch deine Mindmap.</div>';
+    }).join('') : '') + (list.length ? '' : '<div class="notes__empty">Noch keine Notizen. Starte im Live-Match die Mitschrift — nach dem Gespräch entsteht hier automatisch deine Mindmap.</div>');
 
     if (openId) renderDetail(openId);
   }
@@ -238,6 +264,16 @@
   }
 
   listEl.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-trash]');
+    if (t) {
+      var act = t.getAttribute('data-trash'), id = t.getAttribute('data-id');
+      if (act === 'open') showTrash = true;
+      if (act === 'close') showTrash = false;
+      if (act === 'restore') { var r = get(id); if (r) { delete r.deleted_at; put(r); toast('Notiz wiederhergestellt.'); } }
+      if (act === 'kill') { if (!window.confirm('Endgültig löschen? Das kann nicht rückgängig gemacht werden.')) return; store(all().filter(function (x) { return x.id !== id; })); }
+      if (!all().some(function (x) { return x.deleted_at; })) showTrash = false;
+      render(); return;
+    }
     var b = e.target.closest('.ncard');
     if (b) { renderDetail(b.getAttribute('data-id')); window.scrollTo(0, 0); }
   });
@@ -259,8 +295,9 @@
     if (act === 'pdf') printNote();
     if (act === 'regen') generate(openId);
     if (act === 'del') {
-      if (!window.confirm('Diese Notiz wirklich löschen?')) return;
-      store(all().filter(function (n) { return n.id !== openId; }));
+      if (!window.confirm('Notiz in den Papierkorb legen? Sie wird nach 30 Tagen endgültig gelöscht und kann bis dahin wiederhergestellt werden.')) return;
+      var dn = get(openId); if (dn) { dn.deleted_at = Date.now(); put(dn); }
+      toast('In den Papierkorb gelegt. Endgültig gelöscht in 30 Tagen.');
       closeDetail();
       render();
     }
